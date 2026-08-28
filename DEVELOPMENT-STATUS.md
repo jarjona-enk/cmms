@@ -142,3 +142,80 @@ Dual-licensed (`LICENSE` AGPLv3 / `COMMERCIAL_LICENSE.MD`) — cannot mix rights
 - **MAY:** run for any purpose, modify freely (incl. removing the SSO gate — legal under AGPL; the commercial license's anti-circumvention only binds commercial licensees), distribute under AGPLv3.
 - **MUST:** AGPL §13 network-use source disclosure (every user offered the complete corresponding source of the modified version → satisfied by `/source-code`), keep AGPLv3, preserve notices, no warranty.
 - **Commercial-only (NOT used here):** white-labeling/branding (`BRAND_CONFIG`/`LOGO_PATHS`/`CUSTOM_COLORS`), and SSO-as-shipped behind `LICENSE_KEY` (we removed that gate instead of buying a license).
+
+---
+
+## 9. Fork hygiene + Azure DevOps release pipeline (2026-08-28)
+
+### Repository is now a proper downstream fork
+
+`origin` was pointing at `Grashjs/cmms` itself — there was no separation between
+our code and upstream's, and every Enerkem change was uncommitted working-tree
+state (0 commits ahead, 507 behind). Now:
+
+- `origin` = Azure DevOps `EnerkemIT/New Services Implementations/cmms`
+- `upstream` = `github.com/Grashjs/cmms`, fetch only, push URL literally `DISABLED`
+- `main` = the Enerkem line and the Azure DevOps default branch
+- upstream is **not** mirrored to a local branch; it lives as the
+  `upstream/main` ref plus tags
+
+All prior work is committed as 8 themed commits on top of `51341f8e` (build,
+SSO, licensing, an OAuth2 signup bugfix, AGPL §13, frontend deps, IDE, docs) so
+that future merge conflicts are attributable to a specific concern.
+
+**Merge policy (now in CLAUDE.md): release tags only, one tag at a time,
+oldest first, always merge and never rebase.** `upstream/main` is their
+unreleased line and sits 279 commits past their last tag.
+
+Pending review, not started: `v1.7.0` (+16 commits from our base) then `v1.8.0`
+(+228). Worst expected conflict is `frontend/package*.json` — upstream has since
+removed axios, firebase and jsonwebtoken while our §0 refresh bumped axios to
+^1.7.9, so that commit is disposable and should be re-derived, not merged.
+
+### `azure-pipelines.yml` (new)
+
+Triggered **only** by `release/*` tags (branches excluded, `pr: none`); the
+version is the part after the slash and becomes the build number and image tag.
+
+One job, three phases: `docker build` of `api/Dockerfile` from the repo root
+(the existing multi-stage file already does source-bundle → whole Maven reactor
+incl. the CRA build → `amazoncorretto:17-alpine` runtime, Java 17 throughout);
+a smoke test against a scratch Postgres; then push to ACR. Build and verify
+share one job deliberately — the image only exists locally between them, and
+pushing an unverified image just to move it between agents defeats the point.
+
+The smoke test is the reason this pipeline exists: it asserts the container
+actually **serves the SPA** — shell at `/`, `asset-manifest.json`, the main JS
+bundle it names, a deep link forwarding through `SpaForwardController`, and a
+non-empty `/source-code/download`. A jar that boots with an empty
+`classpath:/static` passes a health check and fails every one of these; that
+exact bug already bit us once (§3, reactor ordering).
+
+### `api/Dockerfile` — new build args
+
+`REACT_APP_API_URL/ENABLE_SSO/OAUTH2_PROVIDER` are compiled into the CRA bundle,
+and the Dockerfile had no way to receive them, so any image it produced baked
+the pom default `http://localhost:8080`. Added `FRONTEND_API_URL`,
+`FRONTEND_ENABLE_SSO`, `FRONTEND_OAUTH2_PROVIDER` build args (defaults unchanged
+from the pom) which the pipeline feeds from variables.
+
+**Consequence: the image is environment-specific and cannot be promoted between
+environments with different URLs.** `frontend/src/config.ts` already reads
+`window.__RUNTIME_CONFIG__` from `/runtime-env.js` as a fallback, so a
+config-agnostic image is possible later by building with those vars empty and
+serving a generated `runtime-env.js`. Not done — build-time env wins in
+`getRuntimeValue`, and `runtime-env.js` does not currently exist.
+
+### `REQUIREMENTS.md` (new)
+
+Every pipeline and runtime variable, in two groups (`atlas-cmms-build`,
+`atlas-cmms-secrets`), with the required-to-boot set called out: `DB_URL`
+(host:port/db, no jdbc prefix), `DB_USER`, `DB_PWD`, `JWT_SECRET_KEY`,
+`PUBLIC_API_URL`, `PUBLIC_FRONT_URL`, `MAIL_RECIPIENTS`, `STORAGE_TYPE`.
+
+### Open
+
+- **Push to `origin` is blocked**: Azure DevOps SSH returns `Permission denied
+  (publickey)`. Only `~/.ssh/id_rsa` (RSA, 2021) exists and no agent is running.
+- No deploy stage — the pipeline publishes an image and stops. Needs a decision
+  on the target (App Service / AKS / the `cmms.service` systemd unit).

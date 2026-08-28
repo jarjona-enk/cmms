@@ -1,0 +1,222 @@
+# Atlas CMMS — Enerkem internal release pipeline
+#
+# Builds the single self-contained image (React SPA + Spring Boot API on one
+# port), proves the running container actually serves the SPA, and only then
+# publishes it to ACR.
+#
+# Triggered exclusively by release tags:
+#   git tag release/1.2.3 && git push origin release/1.2.3
+#
+# Configuration lives in two variable groups — see REQUIREMENTS.md for every
+# variable and what to put in it.
+
+trigger:
+  branches:
+    exclude:
+      - '*'
+  tags:
+    include:
+      - release/*
+
+pr: none
+
+variables:
+  - group: atlas-cmms-build
+  - group: atlas-cmms-secrets
+  - name: imageRepository
+    value: 'atlas-cmms'
+  - name: dockerfilePath
+    value: 'api/Dockerfile'
+  # Build context is the REPOSITORY ROOT, not api/. The Dockerfile's first
+  # stage zips the whole repo into the image to satisfy AGPLv3 §13.
+  - name: buildContext
+    value: '.'
+  # Local-only tag used between build and smoke test; never pushed.
+  - name: candidateTag
+    value: 'candidate-$(Build.BuildId)'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Release
+    displayName: 'Build, verify and publish'
+    jobs:
+      - job: BuildVerifyPublish
+        displayName: 'Build image, smoke-test SPA, push to ACR'
+        # The frontend build (npm ci + CRA production build) plus the Maven
+        # reactor takes well over the 60 minute default on a hosted agent.
+        timeoutInMinutes: 120
+        steps:
+
+          # ── Version ──────────────────────────────────────────────────────
+          # Build.SourceBranch is refs/tags/release/1.2.3 -> version 1.2.3
+          - bash: |
+              set -euo pipefail
+              TAG="${BUILD_SOURCEBRANCH#refs/tags/}"
+              VERSION="${TAG#release/}"
+              if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
+                echo "##vso[task.logissue type=error]Expected a refs/tags/release/<version> tag, got '${BUILD_SOURCEBRANCH}'"
+                exit 1
+              fi
+              echo "Releasing version ${VERSION}"
+              echo "##vso[task.setvariable variable=releaseVersion]${VERSION}"
+              echo "##vso[build.updatebuildnumber]${VERSION}"
+            displayName: 'Resolve version from release tag'
+
+          # ── Build ────────────────────────────────────────────────────────
+          # Everything happens inside the image. api/Dockerfile stage 1 zips the
+          # source bundle; stage 2 (maven:3.9.3-eclipse-temurin-17) runs the whole
+          # reactor — frontend-maven-plugin fetches Node, runs npm ci and the CRA
+          # production build, copies frontend/build into the api module's
+          # classpath:/static, then packages the fat jar; stage 3 is a bare
+          # amazoncorretto:17-alpine runtime. Java 17 throughout: newer JDKs break
+          # Lombok in this codebase, so the version is pinned in the Dockerfile.
+          #
+          # PUBLIC_API_URL is baked into the SPA at build time, so the resulting
+          # image is specific to the environment it names. See REQUIREMENTS.md.
+          - bash: |
+              set -euo pipefail
+              docker build \
+                --file "$(dockerfilePath)" \
+                --tag "$(imageRepository):$(candidateTag)" \
+                --build-arg FRONTEND_API_URL="$(PUBLIC_API_URL)" \
+                --build-arg FRONTEND_ENABLE_SSO="$(ENABLE_SSO)" \
+                --build-arg FRONTEND_OAUTH2_PROVIDER="$(OAUTH2_PROVIDER)" \
+                "$(buildContext)"
+            displayName: 'Build container image (frontend + API + fat jar)'
+            env:
+              DOCKER_BUILDKIT: 1
+
+          # ── Verify ───────────────────────────────────────────────────────
+          # The app needs a real Postgres to boot: Liquibase runs the changelog
+          # and JPA is on ddl-auto=validate. A blank database is enough.
+          - bash: |
+              set -euo pipefail
+              docker network create atlas-ci
+              docker run -d --name atlas-ci-db --network atlas-ci \
+                -e POSTGRES_DB=atlas \
+                -e POSTGRES_USER=atlas \
+                -e POSTGRES_PASSWORD=ci-only-password \
+                postgres:16-alpine
+
+              echo "Waiting for Postgres..."
+              for i in $(seq 1 60); do
+                if docker exec atlas-ci-db pg_isready -U atlas -d atlas >/dev/null 2>&1; then
+                  echo "Postgres ready after ${i}s"
+                  break
+                fi
+                if [ "$i" -eq 60 ]; then
+                  echo "Postgres never became ready"
+                  exit 1
+                fi
+                sleep 1
+              done
+            displayName: 'Start Postgres for the smoke test'
+
+          # Only the variables that have no default in application.yml are
+          # strictly required to boot. The mail health check is off so the smoke
+          # test needs no reachable SMTP server, and storage is left
+          # unconfigured (MinioService.init() no-ops on blank MINIO_* values).
+          - bash: |
+              set -euo pipefail
+              docker run -d --name atlas-ci-app --network atlas-ci -p 8080:8080 \
+                -e DB_URL='atlas-ci-db:5432/atlas' \
+                -e DB_USER='atlas' \
+                -e DB_PWD='ci-only-password' \
+                -e JWT_SECRET_KEY='ci-only-secret-not-used-outside-this-job' \
+                -e PUBLIC_API_URL='http://localhost:8080' \
+                -e PUBLIC_FRONT_URL='http://localhost:8080' \
+                -e MAIL_RECIPIENTS='ci@example.invalid' \
+                -e STORAGE_TYPE='minio' \
+                -e ENABLE_MAIL_HEALTH_CHECK='false' \
+                -e ENABLE_EMAIL_NOTIFICATIONS='false' \
+                -e ENABLE_SSO='false' \
+                "$(imageRepository):$(candidateTag)"
+
+              echo "Waiting for the application to become healthy..."
+              for i in $(seq 1 180); do
+                if curl -fsS http://localhost:8080/health-check >/dev/null 2>&1; then
+                  echo "Application healthy after ${i}s"
+                  break
+                fi
+                if ! docker ps --filter name=atlas-ci-app --filter status=running -q | grep -q .; then
+                  echo "Container exited during startup. Logs:"
+                  docker logs atlas-ci-app
+                  exit 1
+                fi
+                if [ "$i" -eq 180 ]; then
+                  echo "Application never became healthy. Logs:"
+                  docker logs --tail 200 atlas-ci-app
+                  exit 1
+                fi
+                sleep 1
+              done
+            displayName: 'Start the application container'
+
+          # This is the check that matters. A jar that boots but serves no SPA is
+          # the exact failure this packaging is designed to prevent, and a plain
+          # health check cannot see it.
+          - bash: |
+              set -euo pipefail
+              fail() {
+                echo "##vso[task.logissue type=error]$1"
+                docker logs --tail 200 atlas-ci-app
+                exit 1
+              }
+
+              echo "1/5 SPA shell at /"
+              BODY=$(curl -fsS http://localhost:8080/) || fail "GET / did not return 200"
+              echo "$BODY" | grep -q 'id="root"' || fail "GET / returned a page with no SPA root element"
+
+              echo "2/5 CRA asset manifest"
+              MANIFEST=$(curl -fsS http://localhost:8080/asset-manifest.json) \
+                || fail "asset-manifest.json missing - the frontend build was not copied into the jar"
+
+              echo "3/5 main bundle is actually served"
+              MAIN_JS=$(echo "$MANIFEST" | python3 -c 'import json,sys; print(json.load(sys.stdin)["files"]["main.js"])')
+              [ -n "$MAIN_JS" ] || fail "Could not resolve main.js from the asset manifest"
+              curl -fsS -o /dev/null "http://localhost:8080${MAIN_JS}" \
+                || fail "Main JS bundle ${MAIN_JS} is not served"
+
+              echo "4/5 client-side deep link survives a hard refresh"
+              DEEP=$(curl -fsS http://localhost:8080/app/work-orders) \
+                || fail "Deep link /app/work-orders did not return 200 - SpaForwardController is not forwarding"
+              echo "$DEEP" | grep -q 'id="root"' || fail "Deep link did not return the SPA shell"
+
+              echo "5/5 AGPLv3 source bundle is publicly downloadable"
+              SIZE=$(curl -fsS -o /dev/null -w '%{size_download}' http://localhost:8080/source-code/download) \
+                || fail "GET /source-code/download failed - this image does not meet the AGPLv3 §13 obligation"
+              [ "$SIZE" -gt 1000000 ] || fail "Source bundle is only ${SIZE} bytes - it looks empty or truncated"
+
+              echo "Container serves the frontend correctly."
+            displayName: 'Verify the container serves the SPA'
+
+          - bash: docker logs --tail 400 atlas-ci-app || true
+            displayName: 'Application logs'
+            condition: always()
+
+          - bash: |
+              docker rm -f atlas-ci-app atlas-ci-db >/dev/null 2>&1 || true
+              docker network rm atlas-ci >/dev/null 2>&1 || true
+            displayName: 'Tear down smoke-test containers'
+            condition: always()
+
+          # ── Publish ──────────────────────────────────────────────────────
+          # Only reached when the smoke test passed, so an image that fails to
+          # serve the SPA can never reach the registry.
+          - task: Docker@2
+            displayName: 'Log in to ACR'
+            inputs:
+              command: login
+              containerRegistry: '$(ACR_SERVICE_CONNECTION)'
+
+          - bash: |
+              set -euo pipefail
+              SRC="$(imageRepository):$(candidateTag)"
+              for TAG in "$(releaseVersion)" latest; do
+                docker tag "$SRC" "$(ACR_LOGIN_SERVER)/$(imageRepository):${TAG}"
+                docker push "$(ACR_LOGIN_SERVER)/$(imageRepository):${TAG}"
+              done
+              echo "Published $(ACR_LOGIN_SERVER)/$(imageRepository):$(releaseVersion)"
+            displayName: 'Tag and push to ACR'

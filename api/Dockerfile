@@ -29,7 +29,20 @@ COPY . .
 # Embed the source bundle so the running app can serve it for download
 # (see SourceCodeController -> GET /source-code/download).
 COPY --from=source /out/atlas-cmms-source.zip api/src/main/resources/static/source/atlas-cmms-source.zip
-RUN mvn -f pom.xml -DskipTests clean package
+
+# These three are compiled INTO the SPA bundle by Create React App, so they
+# cannot be changed at container runtime - the resulting image is specific to
+# the environment named by FRONTEND_API_URL. Defaults match api/pom.xml and
+# suit a local build; CI overrides them per environment (see REQUIREMENTS.md).
+ARG FRONTEND_API_URL=http://localhost:8080
+ARG FRONTEND_ENABLE_SSO=true
+ARG FRONTEND_OAUTH2_PROVIDER=microsoft
+
+RUN mvn -f pom.xml -DskipTests \
+      -Dfrontend.api.url="${FRONTEND_API_URL}" \
+      -Dfrontend.enable.sso="${FRONTEND_ENABLE_SSO}" \
+      -Dfrontend.oauth2.provider="${FRONTEND_OAUTH2_PROVIDER}" \
+      clean package
 
 # ── Runtime Stage ─────────────────────────────────────────────────────
 FROM amazoncorretto:17-alpine
