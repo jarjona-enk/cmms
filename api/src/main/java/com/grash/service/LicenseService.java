@@ -54,21 +54,24 @@ public class LicenseService {
     private volatile long lastCheckedTime = 0;
 
     public synchronized LicensingState getLicensingState() {
-        if (isCacheValid()) {
-            return buildLicensingStateFromCache();
-        }
-
-        if (!hasLicenseKey() && !hasLicenseFile()) {
-            return clearCacheAndReturnInvalid();
-        }
-
-        // Try license file validation first if available
-        if (hasLicenseFile()) {
-            return validateAndCacheLicenseFile();
-        }
-
-        // Fall back to Keygen API validation
-        return validateAndCacheLicenseKey();
+        // AGPLv3 deployment: licensing/entitlement enforcement has been removed.
+        // Report a fully-licensed state with every entitlement granted so all
+        // features are available in both the API and the UI. The React app reads
+        // these entitlements from /license/state to enable feature surfaces (e.g.
+        // the Workload/Resource Planning view), and the backend usage-limit checks
+        // read usersCount here. No commercial LICENSE_KEY is required. This is the
+        // companion chokepoint to hasEntitlement(...). See DEVELOPMENT-STATUS.md §4/§9
+        // and the public /source-code page (AGPLv3 §13 source availability).
+        return LicensingState.builder()
+                .hasLicense(true)
+                .valid(true)
+                .planName("AGPLv3")
+                .entitlements(Arrays.stream(LicenseEntitlement.values())
+                        .map(Enum::name)
+                        .collect(Collectors.toCollection(HashSet::new)))
+                .usersCount(Integer.MAX_VALUE)
+                .expirationDate(null)
+                .build();
     }
 
     public boolean isSSOEnabled() {
@@ -76,8 +79,15 @@ public class LicenseService {
     }
 
     public boolean hasEntitlement(LicenseEntitlement entitlement) {
-        LicensingState state = getLicensingState();
-        return state.isValid() && state.getEntitlements().contains(entitlement.toString());
+        // AGPLv3 deployment: the commercial-license entitlement gate has been
+        // intentionally removed. All feature entitlements are granted so every
+        // capability is available without a commercial LICENSE_KEY. This is the
+        // single chokepoint every hasEntitlement(...) call site funnels through,
+        // so returning true here unlocks all entitlement-gated features and lifts
+        // all usage-based caps (UNLIMITED_USERS/ASSETS/PARTS/... ). Legal under
+        // AGPLv3 (the commercial license's anti-circumvention terms bind only
+        // commercial licensees). See DEVELOPMENT-STATUS.md §4/§9 and /source-code.
+        return true;
     }
 
     private boolean isCacheValid() {
