@@ -42,6 +42,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final CurrencyService currencyService;
     private final MailServiceFactory mailServiceFactory;
     private final CompanyService companyService;
+    private final RoleService roleService;
     @Value("${mail.recipients:#{null}}")
     private String[] recipients;
     @Value("${cloud-version}")
@@ -145,9 +146,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             companyService.create(company);
 
             user.setOwnsCompany(true);
-            user.setRole(company.getCompanySettings().getRoleList().stream()
+            // Roles are global default roles (not per-company), mirroring the
+            // regular signup flow in UserService.signup(). The freshly created
+            // company's roleList is empty, so resolve "Administrator" from the
+            // default roles instead.
+            user.setRole(roleService.findDefaultRoles().stream()
                     .filter(role -> role.getName().equals("Administrator"))
-                    .findFirst().get());
+                    .findFirst().orElseThrow(() -> new CustomException(
+                            "Default Administrator role not found", HttpStatus.INTERNAL_SERVER_ERROR)));
 
             user.setCompany(company);
             User savedUser = userRepository.save(user);
