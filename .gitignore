@@ -9,3 +9,15 @@ docker-compose-dev.yml
 logo
 # Build output from scripts/build.* (jar + deployment helpers)
 dist/
+
+# OpenTofu / Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+# tfvars can carry secrets; this config keeps config in main.tf instead
+*.auto.tfvars
+override.tf
+override.tf.json

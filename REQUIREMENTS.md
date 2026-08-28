@@ -1,280 +1,271 @@
-# REQUIREMENTS.md — pipeline and deployment configuration
+# REQUIREMENTS.md — what the pipeline and the infrastructure need from you
 
-Every setting `azure-pipelines.yml` needs, what to put in each, and which ones
-the application refuses to start without.
+Two environments, both in the shared `New-Implementations` resource group of
+the `Enterprise` subscription (`d14f7b8e-d71d-4106-ab93-990c96df467c`):
 
-## How configuration reaches the running app
-
-The pipeline sets the web app's application settings on **every deploy**, from
-the variable groups below. That is deliberate: `cmms-prod` cannot drift away
-from what the groups say, and the groups are the single source of truth.
-
-⚠️ **Every variable listed here must exist in its group, even when the correct
-value is empty.** Azure DevOps leaves an undefined `$(FOO)` as the literal
-string `$(FOO)`, so a missing variable does not fail the build — it silently
-writes garbage into the app setting. Create them all; leave the unused ones
-blank.
-
-Create both groups under **Pipelines → Library** and link them to the pipeline
-before the first run.
-
-| group | contents | secret |
+| | test | prod |
 |---|---|---|
-| `atlas-cmms-build` | everything non-sensitive | no |
-| `atlas-cmms-secrets` | credentials and keys | yes — mark each as secret, or link the group to Azure Key Vault |
+| Web app | `cmms-test` | `cmms-prod` |
+| Image | `enerkem.azurecr.io/cmms:test` | `enerkem.azurecr.io/cmms:prod` |
+| Database | `atlastest` | `atlasprod` |
+| Triggered by | `test/1.6.0-enerkem.1` | `release/1.6.0-enerkem.1` |
+| Approval | none — deploys straight through | gate on the `cmms-prod` environment |
 
-### Not variables
+## Where configuration lives
 
-These are pipeline constants in `azure-pipelines.yml`, matching the existing
-`it-poet` pipeline. Change them in the file, not in a group.
+Three places, deliberately, each for a reason:
 
-| Constant | Value |
+| What | Where | Why there |
+|---|---|---|
+| Application settings | `infra/envs/<env>/main.tf` | OpenTofu owns them, so config is reviewable code and the web app cannot drift |
+| Secrets | Azure Key Vault, seeded by hand | Tofu never reads them, so nothing sensitive reaches the state file or the pipeline |
+| Public URL, SSO flags, subnet ids | Azure DevOps variable group | needed at *image build* time, before any infrastructure is applied |
+
+The pipeline no longer writes application settings. If you change a setting in
+the portal, the next `tofu apply` will change it back — edit `main.tf` instead.
+
+---
+
+## 1. Variable group `atlas-cmms-build`
+
+Create it under **Pipelines → Library** and link it to the pipeline. Six
+variables, none of them secret.
+
+⚠️ Azure DevOps leaves an undefined `$(FOO)` as the literal string `$(FOO)`, so
+a missing variable does not fail the run — it silently feeds garbage into a
+build argument. Create all six.
+
+| Variable | Example | What to put in it |
+|---|---|---|
+| `PUBLIC_URL_TEST` | `https://cmms-test.azurewebsites.net` | Public base URL of test, **no trailing slash** |
+| `PUBLIC_URL_PROD` | `https://cmms.enerkem.com` | Public base URL of production, **no trailing slash** |
+| `ENABLE_SSO` | `true` | Shows the "Continue with SSO" button in the built bundle |
+| `OAUTH2_PROVIDER` | `microsoft` | `microsoft` for Entra, `google` for Google |
+| `VNET_SUBNET_ID_TEST` | `/subscriptions/.../subnets/...` | Full resource id of the test integration subnet (see §4) |
+| `VNET_SUBNET_ID_PROD` | `/subscriptions/.../subnets/...` | Same, for production |
+
+### Why the URLs have to live here
+
+Create React App compiles `REACT_APP_API_URL` **into the JavaScript bundle** at
+image build time, which happens long before OpenTofu runs. So the URL cannot
+come from the Tofu config — the pipeline passes it as a Docker build argument,
+then hands the same value to Tofu as `TF_VAR_public_url` so both agree.
+
+The consequence: **each image is specific to one environment.** `cmms:test` can
+never be promoted to production; a release tag rebuilds from source.
+
+---
+
+## 2. Key Vault secrets
+
+OpenTofu creates a vault per environment and grants the web app's managed
+identity `Key Vault Secrets User`, but it never reads or writes the values. You
+seed them once.
+
+| Vault | Environment |
 |---|---|
-| Registry service connection | `3531bbd9-3f78-490d-a3f2-263804a11891` |
-| Azure subscription service connection | `9ce67bd0-4ae6-490b-9976-a14930a3cb1b` |
-| Registry | `enerkem.azurecr.io` |
-| Image | `cmms`, tag `prod` (plus an immutable `<version>` tag per release) |
-| Web app | `cmms-prod` |
+| `enkm-cmms-test` | test |
+| `enkm-cmms-prod` | prod |
 
----
-
-## 1. Group `atlas-cmms-build`
-
-### Baked into the SPA at build time
-
-⚠️ These three are compiled into the JavaScript bundle by Create React App and
-**cannot be changed at container runtime**. The published image is therefore
-specific to the environment named by `PUBLIC_API_URL`, and changing any of them
-requires a new build and a new release tag.
-
-| Variable | Example | What to put in it |
-|---|---|---|
-| `PUBLIC_API_URL` | `https://cmms-prod.azurewebsites.net` | Public base URL of the deployment, **no trailing slash**. The SPA calls the API here, Entra redirects back to `${PUBLIC_API_URL}/oauth2/callback/microsoft` (must match the app registration exactly), and the pipeline's post-deploy check polls it. Same host as the UI, since one jar serves both. |
-| `ENABLE_SSO` | `true` | Shows the "Continue with SSO" button and enables the OAuth2 flow. Also passed at runtime, where it gates the backend half. |
-| `OAUTH2_PROVIDER` | `microsoft` | `microsoft` for Entra, `google` for Google. |
-
-### Required at runtime — the app will not start without these
-
-`application.yml` gives them no default, so Spring fails placeholder resolution
-at startup and the container exits.
-
-| Variable | Example | What to put in it |
-|---|---|---|
-| `DB_URL` | `atlas-db.postgres.database.azure.com:5432/atlas` | **Host:port/database only.** `application.yml` adds the `jdbc:postgresql://` prefix; including it yourself produces a malformed URL. |
-| `DB_USER` | `atlas` | Needs DDL rights — Liquibase runs the changelog on every boot and JPA validates the schema afterwards. |
-| `PUBLIC_FRONT_URL` | `https://cmms-prod.azurewebsites.net` | Where the OAuth2 success handler sends the browser (`${PUBLIC_FRONT_URL}/oauth2/success?token=…`). Same host as the API here. |
-| `MAIL_RECIPIENTS` | `cmms-admins@enerkem.com` | Comma-separated addresses for system notifications. Must be set **even when email is disabled** — it has no default. |
-| `STORAGE_TYPE` | `azure` | `azure`, `minio` or `gcp`. Selects the file-attachment backend. |
-
-`DB_PWD` and `JWT_SECRET_KEY` are also required — they live in the secrets group.
-
-### Mail server
-
-| Variable | Suggested | What to put in it |
-|---|---|---|
-| `MAIL_TYPE` | `SMTP` | `SMTP` or `SENDGRID`. |
-| `SMTP_HOST` | `smtp.office365.com` | SMTP server hostname. |
-| `SMTP_PORT` | `587` | 587 for STARTTLS, which is how the app is configured. |
-| `SMTP_USER` | | Account used to authenticate. |
-| `SMTP_FROM` | | Envelope From address. Set explicitly when the sending mailbox differs from the login; otherwise it falls back to `SMTP_USER`. |
-| `ENABLE_EMAIL_NOTIFICATIONS` | `false` | `true` to actually send mail. Leave `false` until SMTP is verified end to end. |
-| `INVITATION_VIA_EMAIL` | `false` | `true` makes new users confirm their address before logging in. Requires working mail — turning this on with broken SMTP locks new users out. |
-
-### File storage (attachments, exports)
-
-`STORAGE_TYPE` picks the backend: **`azure`** (Azure Blob Storage — use this),
-`minio` (any S3-compatible store), or `gcp` (Google Cloud Storage).
-
-⚠️ **The store must be reachable from end-user browsers, not just from the web
-app.** `FileMapper` turns every file reference into a time-limited signed URL on
-its way out of the API, so browsers fetch every attachment, image and thumbnail
-*directly* from the store — the API never proxies file bytes. A store locked to
-the web app's subnet leaves every image broken. It does not have to be
-internet-facing: a private endpoint with private DNS is fine as long as users
-are on a network that can resolve and reach it.
-
-Signatures are **host-bound**: the hostname the server signs with is the
-hostname the browser must use. Split-horizon DNS on the *same* name is fine; a
-different external hostname invalidates the signature.
-
-#### `STORAGE_TYPE=azure` (recommended)
-
-Leave `AZURE_STORAGE_ACCOUNT_KEY` blank to authenticate as the web app's
-**managed identity**, which is the better option — nothing secret is stored and
-there is no key to rotate. The identity needs two roles on the storage account:
-**Storage Blob Data Contributor** (read/write) and **Storage Blob Delegator**
-(to mint the user delegation key that signs download URLs). Set the key only if
-you cannot use managed identity; the code then signs with a shared key instead.
-
-Storage stays dormant unless both `AZURE_STORAGE_ACCOUNT` and
-`AZURE_STORAGE_CONTAINER` are set: the app boots normally and only file
-operations fail.
-
-| Variable | Example | What to put in it |
-|---|---|---|
-| `AZURE_STORAGE_ACCOUNT` | `enerkemcmms` | Storage account name. |
-| `AZURE_STORAGE_CONTAINER` | `atlas-files` | Blob container. Created on first boot if missing. |
-| `AZURE_STORAGE_ACCOUNT_KEY` | *(blank)* | **Leave blank to use managed identity.** Secret — belongs in `atlas-cmms-secrets` if you do set it. |
-| `AZURE_STORAGE_ENDPOINT` | *(blank)* | Override the blob endpoint. Defaults to `https://<account>.blob.core.windows.net`. Set it for a custom domain or Azurite. |
-
-#### `STORAGE_TYPE=minio`
-
-If **any** `MINIO_*` value is blank the client silently no-ops. Note that Azure
-Blob cannot be used here — the MinIO SDK speaks the S3 API and Blob has no
-S3-compatible endpoint. Use `STORAGE_TYPE=azure` instead.
-
-| Variable | Example | What to put in it |
-|---|---|---|
-| `PUBLIC_MINIO_ENDPOINT` | `https://files.enerkem.com` | **The one that matters.** Despite the name, `MinioService.init()` builds the client on this for *everything* — uploads, downloads and signing — so it must be reachable from the web app **and** from browsers, and it is the host that ends up in signed URLs. |
-| `MINIO_ENDPOINT` | `https://files.enerkem.com` | Only used as an HTTP proxy target, and only when `PUBLIC_MINIO_ENDPOINT` resolves to localhost — a local-development escape hatch. Otherwise ignored, but must still be non-empty or storage silently no-ops. In a real deployment set it to the same value as `PUBLIC_MINIO_ENDPOINT`. |
-| `MINIO_BUCKET` | `atlas-bucket` | Created automatically on first boot if missing. |
-| `MINIO_ACCESS_KEY` | `atlas-cmms` | Access key. |
-
-### Entra SSO
-
-| Variable | Example | What to put in it |
-|---|---|---|
-| `OAUTH2_CLIENT_ID` | *(GUID)* | Application (client) ID of the Entra app registration. |
-| `OAUTH2_TENANT_ID` | *(GUID)* | **Set this for a single-tenant registration.** It defaults to `common`, which single-tenant registrations reject with `AADSTS50194`. Use the Enerkem directory (tenant) ID. |
-
-The app registration needs redirect URI
-`${PUBLIC_API_URL}/oauth2/callback/microsoft` and delegated Microsoft Graph
-permissions `openid`, `email`, `profile`.
-
-### General
-
-| Variable | Suggested | What to put in it |
-|---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `prod` | Defaults to `dev` in `application.yml`; set `prod` for this deployment. |
-| `ENABLE_CORS` | `false` | Safe to disable — the SPA and API share one origin. |
-| `ALLOWED_ORGANIZATION_ADMINS` | | Comma-separated emails allowed to administer the organisation. Blank is fine. |
-
----
-
-## 2. Group `atlas-cmms-secrets`
-
-| Variable | What to put in it |
+| Secret | What to put in it |
 |---|---|
-| `JWT_SECRET_KEY` | Signing key for the app's own session tokens. `openssl rand -base64 48`. Never reuse across environments; rotating it invalidates every active session. |
-| `DB_PWD` | Password for `DB_USER`. |
-| `SMTP_PWD` | Password or app-password for `SMTP_USER`. May be blank while `ENABLE_EMAIL_NOTIFICATIONS` is `false`. |
-| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key. **Prefer leaving this blank** and granting the web app's managed identity *Storage Blob Data Contributor* + *Storage Blob Delegator* instead. |
-| `MINIO_SECRET_KEY` | Secret key for the object store account, when `STORAGE_TYPE=minio`. |
-| `OAUTH2_CLIENT_SECRET` | Client secret from the Entra app registration. **These expire** — record the expiry date, because SSO stops working silently when it lapses. |
-
----
-
-## 3. Not managed by the pipeline
-
-Set these directly on the web app if you need them; the pipeline does not
-write them, so they survive deploys untouched.
-
-| Variable | Default | Notes |
-|---|---|---|
-| `ENABLE_MAIL_HEALTH_CHECK` | `true` | Only affects `/actuator/health`. The app's own `/health-check` does not consult it. |
-| `RATE_LIMIT_ENABLED` | `true` | Leave on. Tune with `RATE_LIMIT_AUTHENTICATED_SHORT` (100/min) and `RATE_LIMIT_AUTHENTICATED_LONG` (1000/hour). |
-| `RECAPTCHA_SECRET_KEY` | empty | Only if the public request portal faces the internet. |
-| `LOGO_PATHS`, `CUSTOM_COLORS`, `BRAND_CONFIG` | empty | White-labelling. JSON strings. |
-| `SENDGRID_*` | empty | Only when `MAIL_TYPE=SENDGRID`. |
-| `GCP_PROJECT_ID`, `GCP_BUCKET_NAME`, `GCP_JSON` | empty | Only when `STORAGE_TYPE=gcp`. |
-
-**Licensing:** this is an AGPLv3 build with the commercial-licence gate
-removed. No `LICENSE_KEY` is required and all features are available.
-`LICENSE_KEY`, `LICENSE_FILE_PATH` and `LICENSE_FINGERPRINT_REQUIRED` are
-ignored — leave them unset.
-
----
-
-## 4. Releasing
-
-The pipeline runs **only** on a `release/*` tag — no branch or PR builds.
-
-### Tag format
-
-Our release tags must carry the upstream release number they are built on:
-
-```
-release/<upstream release>-enerkem.<n>
-```
-
-The first half is the upstream Atlas CMMS release this build is merged up to;
-`<n>` counts our own releases on that base and resets to 1 after each upstream
-merge.
+| `db-password` | Password for the `atlas` database user |
+| `jwt-secret-key` | Session-token signing key. `openssl rand -base64 48`. Different per environment; rotating it logs everyone out |
+| `oauth2-client-secret` | Client secret from the Entra app registration. **These expire** — record the date, because SSO fails silently when it lapses |
+| `smtp-password` | Password or app-password for the SMTP account. Blank is fine while mail is off |
 
 ```bash
-git tag release/1.6.0-enerkem.1
-git push origin release/1.6.0-enerkem.1
+V=enkm-cmms-test
+az keyvault secret set --vault-name $V --name db-password          --value '...'
+az keyvault secret set --vault-name $V --name jwt-secret-key       --value "$(openssl rand -base64 48)"
+az keyvault secret set --vault-name $V --name oauth2-client-secret --value '...'
+az keyvault secret set --vault-name $V --name smtp-password        --value ''
 ```
 
-The whole version (`1.6.0-enerkem.1`) becomes the build number and the
-immutable image tag, alongside the moving `:prod` tag.
+**Set all four even when a value is unused** — blank, not absent. The app
+settings reference them by name, and an unresolvable reference stops the
+container from starting. Do this **after the first `tofu apply`** (the vault has
+to exist) and **before the first deploy**.
 
-The first pipeline step validates this and fails the run otherwise:
+The vaults use RBAC, so your account needs **Key Vault Secrets Officer** on them
+to run those commands. Because the references are unversioned, rotating a secret
+takes effect on the next restart — no redeploy.
 
-| Tag | Result |
+---
+
+## 3. Settings you edit in code
+
+Everything else lives in `infra/envs/test/main.tf` and
+`infra/envs/prod/main.tf`. The ones you are most likely to touch:
+
+| Setting | Current | Notes |
+|---|---|---|
+| `oauth2_client_id` | **`REPLACE-WITH-ENTRA-APP-CLIENT-ID`** | must be filled in before the first apply |
+| `oauth2_tenant_id` | `cddc5ffd-…` | the Enerkem directory. Required for a single-tenant registration, which rejects `/common` with `AADSTS50194` |
+| `mail_recipients` | `cmms-admins@enerkem.com` | required even when mail is off — `application.yml` gives it no default |
+| `enable_email_notifications` | `false` | turn on once SMTP is verified end to end |
+| `invitation_via_email` | `false` | requires working mail; enabling it with broken SMTP locks new users out |
+| `plan_sku` | `B2` test, `P1v3` prod | the JVM plus a cold-start Liquibase run needs the headroom |
+| `db_fqdn` / `db_name` / `db_user` | `db-cancen-it-poet-test…` | see the open question in §4 |
+
+Defaults for the rest — storage, SMTP host and port, CORS — are in
+`infra/modules/cmms/variables.tf`.
+
+---
+
+## 4. Prerequisites
+
+Nothing deploys until these exist.
+
+### Databases — yours
+
+On the flexible server, owned by the `atlas` role with DDL rights (Liquibase
+runs the whole changelog on every boot, and JPA validates the schema after):
+
+```sql
+CREATE DATABASE atlastest OWNER atlas;
+CREATE DATABASE atlasprod OWNER atlas;
+```
+
+### VNet integration subnets — network team
+
+One per environment: a **/28 or larger, delegated to
+`Microsoft.Web/serverFarms`**, in a VNet with a route to the database. Pass the
+resource ids in as `VNET_SUBNET_ID_TEST` / `VNET_SUBNET_ID_PROD`.
+
+These are not created by our config on purpose — they live in the shared network
+resource group, outside the blast radius we agreed on.
+
+> ⚠️ **Open question, blocking.** `db-cancen-it-poet-test` has
+> `publicNetworkAccess: Disabled` and is injected into
+> `New-Implementations-vnet` (canadacentral), whose only subnet is a /24
+> already delegated to PostgreSQL — no room for an App Service subnet, and the
+> wrong region for a canadaeast web app, since regional VNet integration needs
+> the VNet in the same region as the plan.
+>
+> Meanwhile every existing App Service integration subnet is a /28 in
+> `VNET-CanEast-Tier1` (canadaeast), and the *other* server,
+> `db-caneast-django-pmo-test`, is already reachable from there through a
+> private endpoint.
+>
+> So one of: use `db-caneast-django-pmo-test` instead (easiest by far), peer
+> the two VNets and link the private DNS zone, or move the app to canadacentral
+> and widen that VNet. See DEVELOPMENT-STATUS.md §11.
+
+### Entra app registration — IT
+
+- Redirect URI `<public_url>/oauth2/callback/microsoft`, **one per environment**
+- Delegated Microsoft Graph `openid`, `email`, `profile`
+- A client secret, which goes into each vault as `oauth2-client-secret`
+
+### Azure DevOps environment — you
+
+Create an environment named **`cmms-prod`** (Pipelines → Environments) and add
+an approval check on it. That is what gates production; the pipeline's `Prod`
+stage is a deployment job bound to it. Without the check the stage still runs,
+just without asking.
+
+`cmms-test` needs no environment — it deploys straight through, as agreed.
+
+### Service principal permissions
+
+The `azureSubscriptionServiceConnection` principal needs, on
+`New-Implementations`:
+
+| Role | Why |
 |---|---|
-| `release/1.6.0-enerkem.1` | accepted while `UPSTREAM_VERSION` is `1.6.0` |
-| `release/1.6.0-enerkem.12` | accepted |
-| `release/1.7.0-enerkem.1` | **rejected** — upstream v1.7.0 is not merged yet |
+| **Contributor** | create and manage the resources |
+| **User Access Administrator** | the four role assignments per environment. Contributor alone cannot grant roles — **this is the one most likely to need a request** |
+| **Storage Blob Data Contributor** on `enkmtfstate001` | the state backend uses `use_azuread_auth`, so it reads and writes state as the SPN rather than with an account key |
+
+### OpenTofu state — once
+
+```bash
+cd infra/bootstrap && tofu init && tofu apply
+```
+
+Creates `enkmtfstate001` and its `tfstate` container. See `infra/README.md` for
+migrating bootstrap's own state into it afterwards.
+
+---
+
+## 5. Releasing
+
+```bash
+git tag test/1.6.0-enerkem.1     && git push origin test/1.6.0-enerkem.1      # -> cmms-test
+git tag release/1.6.0-enerkem.1  && git push origin release/1.6.0-enerkem.1   # -> cmms-prod
+```
+
+Tags must carry the upstream release number they are built on. The first
+pipeline step validates this against `UPSTREAM_VERSION` and fails otherwise:
+
+| Tag | Result while `UPSTREAM_VERSION` is `1.6.0` |
+|---|---|
+| `test/1.6.0-enerkem.1` | deploys to test |
+| `release/1.6.0-enerkem.1` | deploys to prod, after approval |
+| `release/1.7.0-enerkem.1` | **rejected** — upstream v1.7.0 is not merged |
 | `release/1.6.0` | **rejected** — no `-enerkem.<n>` counter |
 | `release/v1.6.0-enerkem.1` | **rejected** — no `v` prefix |
 
-The upstream half is checked against **`UPSTREAM_VERSION`** in the repository
-root, which records the upstream release the branch is merged up to and is
-bumped as part of each upstream release-tag merge. It is a file rather than a
-`git describe` because upstream's `v*` tags are deliberately not mirrored into
-this repo — a tag newer than our merge base would drag its entire unreleased
-history in with it.
+The normal flow is to ship the same version to test first, then re-tag it for
+release once it looks good. Both tags rebuild from source, because the public
+URL is baked into the bundle.
 
-If the pipeline rejects a tag because `UPSTREAM_VERSION` disagrees, the fix is
-to merge the upstream release, not to edit the file.
+### What a run does
 
-### Stage 1 — Release
+**Build** — one `docker build` from the repository root. `api/Dockerfile` zips
+the whole repo for AGPLv3 §13, then builds the entire Maven reactor inside
+`maven:3.9.3-eclipse-temurin-17` (Node via `frontend-maven-plugin`, `npm ci`,
+CRA production build, SPA copied into `classpath:/static`, fat jar packaged) and
+lands on `amazoncorretto:17-alpine`. **Java 17 throughout** — newer JDKs break
+Lombok here, so the version is pinned in the Dockerfile, not a variable.
 
-1. **Build** — one `docker build` from the repository root. `api/Dockerfile`
-   zips the whole repo for AGPLv3 §13, then builds the entire Maven reactor
-   inside `maven:3.9.3-eclipse-temurin-17`: Node is fetched by
-   `frontend-maven-plugin`, `npm ci` and the CRA production build run, the SPA
-   is copied into `classpath:/static`, and the fat jar is packaged. Runtime is
-   `amazoncorretto:17-alpine`. **Java 17 throughout** — newer JDKs break Lombok
-   in this codebase, so the version is pinned in the Dockerfile, not a variable.
-2. **Verify** — starts Postgres and the image, waits for `/health-check`, then
-   asserts the container really serves the frontend: the SPA shell at `/`,
-   `asset-manifest.json`, the main JS bundle it names, a deep link
-   (`/app/work-orders`) forwarding to the shell, and a non-empty
-   `/source-code/download`. A jar that boots with an empty `classpath:/static`
-   passes a health check and fails every one of these. The smoke test uses
-   throwaway credentials against a scratch database — none of the variables
-   above are involved.
-3. **Publish** — pushes `cmms:prod` and `cmms:<version>` to
-   `enerkem.azurecr.io`, only after the smoke test passes.
+**Verify** — starts Postgres and the image on the agent with throwaway
+credentials, waits for `/health-check`, then asserts the container really serves
+the frontend: the SPA shell at `/`, `asset-manifest.json`, the main JS bundle it
+names, a deep link forwarding through `SpaForwardController`, and a non-empty
+`/source-code/download`. A jar that boots with an empty `classpath:/static`
+passes a health check and fails every one of these.
 
-### Stage 2 — Deploy
+**Publish** — pushes `cmms:<env>` and `cmms:<version>` to `enerkem.azurecr.io`,
+only after the smoke test passes.
 
-Runs only if the Release stage succeeded. `AzureWebAppContainer@1` points
-`cmms-prod` at `enerkem.azurecr.io/cmms:prod` and writes the application
-settings from the variable groups. A post-deploy check then polls
-`PUBLIC_API_URL` for up to 10 minutes and fails the run unless the live site
-returns the SPA shell — the deploy task itself returns as soon as the platform
-accepts the image, and a container that fails to start leaves the previous one
-serving, which looks like success.
+**Deploy** — `tofu plan` then `tofu apply` for that environment, then
+`az webapp restart` so App Service re-pulls the moving tag, then a poll of the
+public URL for the SPA shell for up to 10 minutes. The restart returns
+immediately and a container that fails to start leaves the previous one serving,
+which looks like success — hence the poll.
 
-`WEBSITES_PORT=8080` is set automatically. It is not application config: Web
-App for Containers needs it to know which port the container listens on, and
-without it the platform probes the wrong port and the site returns 504.
+Expect **15–25 minutes**, dominated by `npm ci` and the CRA build.
 
 ### Rollback
 
-`cmms:prod` moves with each release. To roll back, repoint the web app at a
-specific version tag:
+Every release also pushes an immutable `cmms:<version>` tag:
 
 ```bash
-az webapp config container set --name cmms-prod --resource-group <rg> \
+az webapp config container set --name cmms-prod --resource-group New-Implementations \
   --docker-custom-image-name enerkem.azurecr.io/cmms:1.6.0-enerkem.1
 ```
 
-### Timing
+That drifts from the Tofu config, which pins `cmms:prod` — so it is a stopgap.
+Follow it by re-tagging and re-releasing the good version properly.
 
-Roughly **15–25 minutes** for the Release stage on a hosted agent, dominated by
-`npm ci` and the CRA build. Job timeout is 120 minutes. The Deploy stage adds a
-few minutes plus however long the container takes to become healthy.
+---
+
+## 6. First-run order
+
+1. `infra/bootstrap` — create the state account
+2. Create the two databases
+3. Get the two subnets created, resolve the region question in §4 first
+4. Entra app registrations; put the client id into both `main.tf` files
+5. Create the `atlas-cmms-build` variable group (all six variables)
+6. Create the `cmms-prod` environment with an approval check
+7. Grant the service principal its three roles
+8. Tag `test/…` — the run will apply infrastructure and then fail the SPA poll,
+   because the vault is still empty
+9. Seed the four secrets in `enkm-cmms-test`
+10. Re-run the deploy stage, or push the next `test/…` tag
+11. Once test is good, repeat 8–10 for `release/…`
+
+Steps 8–10 look awkward but are unavoidable: the vault must exist before you can
+put secrets in it, and the app cannot start until they are there.

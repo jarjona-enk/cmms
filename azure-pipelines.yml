@@ -1,14 +1,15 @@
-# Atlas CMMS — Enerkem internal release pipeline
+# Atlas CMMS — Enerkem release pipeline
 #
-# Builds the single self-contained image (React SPA + Spring Boot API on one
-# port), proves the running container actually serves the SPA, and only then
-# publishes it to ACR.
+# Two environments, selected by the tag that triggered the run:
 #
-# Triggered exclusively by release tags:
-#   git tag release/1.2.3 && git push origin release/1.2.3
+#   test/1.6.0-enerkem.1      -> builds, verifies, deploys to cmms-test   (no gate)
+#   release/1.6.0-enerkem.1   -> builds, verifies, deploys to cmms-prod   (approval gate)
 #
-# Configuration lives in two variable groups — see REQUIREMENTS.md for every
-# variable and what to put in it.
+# Both tag forms must carry the upstream release number they are built on;
+# the first step enforces that against the UPSTREAM_VERSION file.
+#
+# OpenTofu owns the infrastructure AND the application settings, so this
+# pipeline never writes app settings itself. See REQUIREMENTS.md.
 
 trigger:
   branches:
@@ -17,12 +18,12 @@ trigger:
   tags:
     include:
       - release/*
+      - test/*
 
 pr: none
 
 variables:
   - group: atlas-cmms-build
-  - group: atlas-cmms-secrets
 
   # Shared Enerkem service connections, same ones the it-poet pipeline uses.
   - name: dockerRegistryServiceConnection
@@ -31,14 +32,11 @@ variables:
     value: '9ce67bd0-4ae6-490b-9976-a14930a3cb1b'
   - name: acrLoginServer
     value: 'enerkem.azurecr.io'
+  - name: resourceGroup
+    value: 'New-Implementations'
 
   - name: imageRepository
     value: 'cmms'
-  - name: imageTag
-    value: 'prod'
-  - name: webAppName
-    value: 'cmms-prod'
-
   - name: dockerfilePath
     value: 'api/Dockerfile'
   # Build context is the REPOSITORY ROOT, not api/. The Dockerfile's first
@@ -48,41 +46,46 @@ variables:
   # Local-only tag used between build and smoke test; never pushed.
   - name: candidateTag
     value: 'candidate-$(Build.BuildId)'
+  - name: tofuVersion
+    value: '1.12.5'
 
 pool:
   vmImage: 'ubuntu-latest'
 
 stages:
-  - stage: Release
+  # ══════════════════════════════════════════════════════════════════════
+  - stage: Build
     displayName: 'Build, verify and publish'
     jobs:
-      - job: BuildVerifyPublish
+      - job: BuildVerifyPush
         displayName: 'Build image, smoke-test SPA, push to ACR'
-        # The frontend build (npm ci + CRA production build) plus the Maven
-        # reactor takes well over the 60 minute default on a hosted agent.
+        # The frontend build (npm ci + CRA) plus the Maven reactor takes well
+        # over the 60 minute default on a hosted agent.
         timeoutInMinutes: 120
         steps:
 
-          # ── Version ──────────────────────────────────────────────────────
-          # Our release tags MUST carry the upstream release number they are
-          # built on:  release/<upstream>-enerkem.<n>,  e.g. release/1.6.0-enerkem.1
+          # ── Version and environment ─────────────────────────────────────
+          # Our tags MUST carry the upstream release number they are built on:
+          #   <test|release>/<upstream>-enerkem.<n>
           #
-          # The upstream half is checked against the UPSTREAM_VERSION file, which
-          # is bumped as part of each upstream release-tag merge. That is the only
+          # The upstream half is checked against the UPSTREAM_VERSION file,
+          # bumped as part of each upstream release-tag merge. That is the only
           # reliable source in CI: upstream's own v* tags are not mirrored into
-          # this repo, because tags newer than our merge base would drag their
-          # entire unreleased history in with them.
+          # this repo, because a tag newer than our merge base would drag its
+          # entire unreleased history in with it.
           - bash: |
               set -euo pipefail
               fail() { echo "##vso[task.logissue type=error]$1"; exit 1; }
 
-              TAG="${BUILD_SOURCEBRANCH#refs/tags/}"
-              VERSION="${TAG#release/}"
-              [ -n "$VERSION" ] && [ "$VERSION" != "$TAG" ] \
-                || fail "Expected a refs/tags/release/<version> tag, got '${BUILD_SOURCEBRANCH}'"
+              REF="${BUILD_SOURCEBRANCH#refs/tags/}"
+              case "$REF" in
+                release/*) ENV_NAME=prod; VERSION="${REF#release/}" ;;
+                test/*)    ENV_NAME=test; VERSION="${REF#test/}" ;;
+                *) fail "Expected refs/tags/release/<version> or refs/tags/test/<version>, got '${BUILD_SOURCEBRANCH}'" ;;
+              esac
 
               echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-enerkem\.[0-9]+$' \
-                || fail "Release tag must be release/<upstream>-enerkem.<n>, for example release/1.6.0-enerkem.1. Got 'release/${VERSION}'."
+                || fail "Tag must be <test|release>/<upstream>-enerkem.<n>, for example release/1.6.0-enerkem.1. Got '${REF}'."
 
               [ -f UPSTREAM_VERSION ] \
                 || fail "UPSTREAM_VERSION is missing from the repository root; it records the upstream release this branch is merged up to."
@@ -90,14 +93,27 @@ stages:
               UPSTREAM_IN_TAG="${VERSION%%-enerkem.*}"
 
               [ "$UPSTREAM_IN_TAG" = "$UPSTREAM_BASE" ] \
-                || fail "Tag claims upstream ${UPSTREAM_IN_TAG} but UPSTREAM_VERSION records ${UPSTREAM_BASE}. Either tag release/${UPSTREAM_BASE}-enerkem.<n>, or merge upstream v${UPSTREAM_IN_TAG} and bump UPSTREAM_VERSION in that merge."
+                || fail "Tag claims upstream ${UPSTREAM_IN_TAG} but UPSTREAM_VERSION records ${UPSTREAM_BASE}. Either tag ${UPSTREAM_BASE}-enerkem.<n>, or merge upstream v${UPSTREAM_IN_TAG} and bump UPSTREAM_VERSION in that merge."
 
-              echo "Releasing ${VERSION} (upstream ${UPSTREAM_BASE})"
+              # PUBLIC_URL_TEST / PUBLIC_URL_PROD. These two have to be pipeline
+              # variables rather than living in the OpenTofu config: Create
+              # React App compiles the URL into the SPA bundle here, long before
+              # any infrastructure is applied.
+              case "$ENV_NAME" in
+                prod) PUBLIC_URL="$(PUBLIC_URL_PROD)" ;;
+                test) PUBLIC_URL="$(PUBLIC_URL_TEST)" ;;
+              esac
+              [ -n "$PUBLIC_URL" ] && [ "${PUBLIC_URL#\$(}" = "$PUBLIC_URL" ] \
+                || fail "PUBLIC_URL_${ENV_NAME^^} is not set in the atlas-cmms-build variable group."
+
+              echo "Releasing ${VERSION} to ${ENV_NAME} at ${PUBLIC_URL} (upstream ${UPSTREAM_BASE})"
               echo "##vso[task.setvariable variable=releaseVersion]${VERSION}"
-              echo "##vso[build.updatebuildnumber]${VERSION}"
-            displayName: 'Resolve and validate the release tag'
+              echo "##vso[task.setvariable variable=targetEnv]${ENV_NAME}"
+              echo "##vso[task.setvariable variable=publicUrl]${PUBLIC_URL}"
+              echo "##vso[build.updatebuildnumber]${ENV_NAME}-${VERSION}"
+            displayName: 'Resolve and validate the tag'
 
-          # ── Build ────────────────────────────────────────────────────────
+          # ── Build ───────────────────────────────────────────────────────
           # Everything happens inside the image. api/Dockerfile stage 1 zips the
           # source bundle; stage 2 (maven:3.9.3-eclipse-temurin-17) runs the whole
           # reactor — frontend-maven-plugin fetches Node, runs npm ci and the CRA
@@ -105,15 +121,12 @@ stages:
           # classpath:/static, then packages the fat jar; stage 3 is a bare
           # amazoncorretto:17-alpine runtime. Java 17 throughout: newer JDKs break
           # Lombok in this codebase, so the version is pinned in the Dockerfile.
-          #
-          # PUBLIC_API_URL is baked into the SPA at build time, so the resulting
-          # image is specific to the environment it names. See REQUIREMENTS.md.
           - bash: |
               set -euo pipefail
               docker build \
                 --file "$(dockerfilePath)" \
                 --tag "$(imageRepository):$(candidateTag)" \
-                --build-arg FRONTEND_API_URL="$(PUBLIC_API_URL)" \
+                --build-arg FRONTEND_API_URL="$(publicUrl)" \
                 --build-arg FRONTEND_ENABLE_SSO="$(ENABLE_SSO)" \
                 --build-arg FRONTEND_OAUTH2_PROVIDER="$(OAUTH2_PROVIDER)" \
                 "$(buildContext)"
@@ -121,7 +134,7 @@ stages:
             env:
               DOCKER_BUILDKIT: 1
 
-          # ── Verify ───────────────────────────────────────────────────────
+          # ── Verify ──────────────────────────────────────────────────────
           # The app needs a real Postgres to boot: Liquibase runs the changelog
           # and JPA is on ddl-auto=validate. A blank database is enough.
           - bash: |
@@ -139,18 +152,13 @@ stages:
                   echo "Postgres ready after ${i}s"
                   break
                 fi
-                if [ "$i" -eq 60 ]; then
-                  echo "Postgres never became ready"
-                  exit 1
-                fi
+                if [ "$i" -eq 60 ]; then echo "Postgres never became ready"; exit 1; fi
                 sleep 1
               done
             displayName: 'Start Postgres for the smoke test'
 
-          # Only the variables that have no default in application.yml are
-          # strictly required to boot. The mail health check is off so the smoke
-          # test needs no reachable SMTP server, and storage is left
-          # unconfigured (MinioService.init() no-ops on blank MINIO_* values).
+          # Throwaway credentials against a scratch database. None of the real
+          # configuration is involved: OpenTofu owns that.
           - bash: |
               set -euo pipefail
               docker run -d --name atlas-ci-app --network atlas-ci -p 8080:8080 \
@@ -161,7 +169,7 @@ stages:
                 -e PUBLIC_API_URL='http://localhost:8080' \
                 -e PUBLIC_FRONT_URL='http://localhost:8080' \
                 -e MAIL_RECIPIENTS='ci@example.invalid' \
-                -e STORAGE_TYPE='minio' \
+                -e STORAGE_TYPE='azure' \
                 -e ENABLE_MAIL_HEALTH_CHECK='false' \
                 -e ENABLE_EMAIL_NOTIFICATIONS='false' \
                 -e ENABLE_SSO='false' \
@@ -174,14 +182,10 @@ stages:
                   break
                 fi
                 if ! docker ps --filter name=atlas-ci-app --filter status=running -q | grep -q .; then
-                  echo "Container exited during startup. Logs:"
-                  docker logs atlas-ci-app
-                  exit 1
+                  echo "Container exited during startup. Logs:"; docker logs atlas-ci-app; exit 1
                 fi
                 if [ "$i" -eq 180 ]; then
-                  echo "Application never became healthy. Logs:"
-                  docker logs --tail 200 atlas-ci-app
-                  exit 1
+                  echo "Application never became healthy. Logs:"; docker logs --tail 200 atlas-ci-app; exit 1
                 fi
                 sleep 1
               done
@@ -192,11 +196,7 @@ stages:
           # health check cannot see it.
           - bash: |
               set -euo pipefail
-              fail() {
-                echo "##vso[task.logissue type=error]$1"
-                docker logs --tail 200 atlas-ci-app
-                exit 1
-              }
+              fail() { echo "##vso[task.logissue type=error]$1"; docker logs --tail 200 atlas-ci-app; exit 1; }
 
               echo "1/5 SPA shell at /"
               BODY=$(curl -fsS http://localhost:8080/) || fail "GET / did not return 200"
@@ -235,7 +235,7 @@ stages:
             displayName: 'Tear down smoke-test containers'
             condition: always()
 
-          # ── Publish ──────────────────────────────────────────────────────
+          # ── Publish ─────────────────────────────────────────────────────
           # Only reached when the smoke test passed, so an image that fails to
           # serve the SPA can never reach the registry.
           - task: Docker@2
@@ -244,95 +244,54 @@ stages:
               command: login
               containerRegistry: '$(dockerRegistryServiceConnection)'
 
-          # :prod is the moving tag the web app pulls. The release version is
-          # pushed alongside it as an immutable tag so a bad release can be
-          # rolled back to a specific build rather than rebuilt from a tag.
+          # :test and :prod are the moving tags the web apps pull. The release
+          # version is pushed alongside as an immutable tag, so a rollback
+          # repoints at a specific build rather than rebuilding from a git tag.
           - bash: |
               set -euo pipefail
               SRC="$(imageRepository):$(candidateTag)"
-              for TAG in "$(imageTag)" "$(releaseVersion)"; do
+              for TAG in "$(targetEnv)" "$(releaseVersion)"; do
                 docker tag "$SRC" "$(acrLoginServer)/$(imageRepository):${TAG}"
                 docker push "$(acrLoginServer)/$(imageRepository):${TAG}"
               done
-              echo "Published $(acrLoginServer)/$(imageRepository):$(imageTag) (also tagged $(releaseVersion))"
+              echo "Published $(acrLoginServer)/$(imageRepository):$(targetEnv) (also tagged $(releaseVersion))"
             displayName: 'Tag and push to ACR'
 
-  - stage: Deploy
-    displayName: 'Deploy to cmms-prod'
-    dependsOn: Release
-    condition: succeeded()
+  # ══════════════════════════════════════════════════════════════════════
+  - stage: Test
+    displayName: 'Deploy to cmms-test'
+    dependsOn: Build
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/test/'))
     jobs:
-      - job: DeployWebApp
-        displayName: 'Deploy container to the Azure web app'
+      - job: TestRelease
+        displayName: 'Apply infrastructure and restart cmms-test'
         steps:
-          - checkout: none
+          - template: .azure/steps-deploy.yml
+            parameters:
+              environmentName: test
+              webAppName: cmms-test
+              publicUrl: $(PUBLIC_URL_TEST)
+              vnetSubnetId: $(VNET_SUBNET_ID_TEST)
 
-          # App settings are the container's entire runtime configuration -
-          # database, mail, storage, SSO. They are set on every deploy so the
-          # web app cannot drift from what the variable groups say. Every value
-          # is documented in REQUIREMENTS.md.
-          #
-          # WEBSITES_PORT is not application config: Web App for Containers
-          # needs it to know the container listens on 8080, and without it the
-          # platform probes the wrong port and the site returns 504.
-          - task: AzureWebAppContainer@1
-            displayName: 'Deploy $(imageRepository):$(imageTag) to $(webAppName)'
-            inputs:
-              azureSubscription: '$(azureSubscriptionServiceConnection)'
-              appName: '$(webAppName)'
-              containers: '$(acrLoginServer)/$(imageRepository):$(imageTag)'
-              appSettings: >-
-                -WEBSITES_PORT 8080
-                -SPRING_PROFILES_ACTIVE "$(SPRING_PROFILES_ACTIVE)"
-                -DB_URL "$(DB_URL)"
-                -DB_USER "$(DB_USER)"
-                -DB_PWD "$(DB_PWD)"
-                -JWT_SECRET_KEY "$(JWT_SECRET_KEY)"
-                -PUBLIC_API_URL "$(PUBLIC_API_URL)"
-                -PUBLIC_FRONT_URL "$(PUBLIC_FRONT_URL)"
-                -MAIL_RECIPIENTS "$(MAIL_RECIPIENTS)"
-                -MAIL_TYPE "$(MAIL_TYPE)"
-                -SMTP_HOST "$(SMTP_HOST)"
-                -SMTP_PORT "$(SMTP_PORT)"
-                -SMTP_USER "$(SMTP_USER)"
-                -SMTP_PWD "$(SMTP_PWD)"
-                -SMTP_FROM "$(SMTP_FROM)"
-                -ENABLE_EMAIL_NOTIFICATIONS "$(ENABLE_EMAIL_NOTIFICATIONS)"
-                -INVITATION_VIA_EMAIL "$(INVITATION_VIA_EMAIL)"
-                -STORAGE_TYPE "$(STORAGE_TYPE)"
-                -AZURE_STORAGE_ACCOUNT "$(AZURE_STORAGE_ACCOUNT)"
-                -AZURE_STORAGE_ACCOUNT_KEY "$(AZURE_STORAGE_ACCOUNT_KEY)"
-                -AZURE_STORAGE_CONTAINER "$(AZURE_STORAGE_CONTAINER)"
-                -AZURE_STORAGE_ENDPOINT "$(AZURE_STORAGE_ENDPOINT)"
-                -MINIO_ENDPOINT "$(MINIO_ENDPOINT)"
-                -PUBLIC_MINIO_ENDPOINT "$(PUBLIC_MINIO_ENDPOINT)"
-                -MINIO_BUCKET "$(MINIO_BUCKET)"
-                -MINIO_ACCESS_KEY "$(MINIO_ACCESS_KEY)"
-                -MINIO_SECRET_KEY "$(MINIO_SECRET_KEY)"
-                -ENABLE_SSO "$(ENABLE_SSO)"
-                -OAUTH2_PROVIDER "$(OAUTH2_PROVIDER)"
-                -OAUTH2_CLIENT_ID "$(OAUTH2_CLIENT_ID)"
-                -OAUTH2_CLIENT_SECRET "$(OAUTH2_CLIENT_SECRET)"
-                -OAUTH2_TENANT_ID "$(OAUTH2_TENANT_ID)"
-                -ENABLE_CORS "$(ENABLE_CORS)"
-                -ALLOWED_ORGANIZATION_ADMINS "$(ALLOWED_ORGANIZATION_ADMINS)"
-
-          # The deploy task returns as soon as the platform accepts the image.
-          # Confirm the running site actually serves the SPA before calling the
-          # release good - a container that fails to start still leaves the
-          # previous one serving, which looks like success from the task alone.
-          - bash: |
-              set -euo pipefail
-              URL="$(PUBLIC_API_URL)"
-              echo "Waiting for ${URL} to serve the SPA..."
-              for i in $(seq 1 60); do
-                BODY=$(curl -fsS --max-time 20 "${URL}/" 2>/dev/null) || BODY=""
-                if echo "$BODY" | grep -q 'id="root"'; then
-                  echo "${URL} is serving the SPA after $((i * 10))s"
-                  exit 0
-                fi
-                sleep 10
-              done
-              echo "##vso[task.logissue type=error]${URL} did not serve the SPA within 10 minutes"
-              exit 1
-            displayName: 'Verify the deployed site serves the SPA'
+  # ══════════════════════════════════════════════════════════════════════
+  # A deployment job bound to an environment, so production picks up the
+  # approval gate configured on that environment in Azure DevOps.
+  - stage: Prod
+    displayName: 'Deploy to cmms-prod'
+    dependsOn: Build
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/release/'))
+    jobs:
+      - deployment: ProdRelease
+        displayName: 'Apply infrastructure and restart cmms-prod'
+        environment: cmms-prod
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: .azure/steps-deploy.yml
+                  parameters:
+                    environmentName: prod
+                    webAppName: cmms-prod
+                    publicUrl: $(PUBLIC_URL_PROD)
+                    vnetSubnetId: $(VNET_SUBNET_ID_PROD)

@@ -63,16 +63,23 @@ would drag its entire unreleased history into the Enerkem repo.
 
 ## 2a. Release tags MUST carry the upstream release number
 
-Our release tags are:
+Two tag forms, one per environment:
 
 ```
-release/<upstream release>-enerkem.<n>        e.g. release/1.6.0-enerkem.1
+test/<upstream release>-enerkem.<n>       -> cmms-test, deploys straight through
+release/<upstream release>-enerkem.<n>    -> cmms-prod, behind an approval gate
 ```
+
+e.g. `test/1.6.0-enerkem.1` then `release/1.6.0-enerkem.1` for the same build.
 
 The first half names the upstream release this build is merged up to; `<n>`
 counts our own releases on that base and **resets to 1** after each upstream
 merge. Nothing else is accepted — the pipeline rejects `release/1.6.0`,
 `release/v1.6.0-enerkem.1` and anything without the counter.
+
+Both forms rebuild from source rather than promoting an image: the public URL
+is compiled into the SPA bundle at image build time, so an image is specific to
+one environment.
 
 The repo-root file **`UPSTREAM_VERSION`** records the upstream release we are
 merged up to (currently `1.6.0`). The pipeline reads it and fails the release
@@ -125,6 +132,30 @@ Measured against our base. When a merge touches these, expect work:
 When touching upstream files, prefer a config flag or a new file over an
 inline edit. Every line we add to a file upstream also edits is a line we
 re-resolve on every future merge.
+
+## 2b. Infrastructure is OpenTofu, and it owns the app settings
+
+`infra/` holds the OpenTofu config for both environments. **Application
+settings live in `infra/envs/<env>/main.tf`, not in the pipeline and not in the
+portal** — a `tofu apply` will revert anything changed elsewhere. Secrets live
+in per-environment Key Vaults, seeded by hand; Tofu never reads them, so no
+secret reaches the state file or the pipeline.
+
+Rules:
+
+- The config creates **only `cmms-*` resources**. The resource group, the
+  `enerkem` registry, the Log Analytics workspace, the database server and the
+  VNet integration subnets are read as data sources or passed in by id. A dozen
+  other teams share that resource group; never widen this.
+- Run `tofu fmt -recursive` and `tofu validate` on both envs before committing.
+- Each environment uses a **user-assigned** identity. Do not "simplify" it to
+  system-assigned: the role assignments need the principal id, and the web app
+  needs the roles before its first image pull and Key Vault resolve, which is a
+  cycle `tofu validate` rejects outright.
+- Prefer the pipeline over a local `apply`, so state and the audit trail stay
+  consistent.
+
+Details and prerequisites: `infra/README.md` and `REQUIREMENTS.md`.
 
 ## 3. Build essentials
 

@@ -308,3 +308,90 @@ signed URLs to the browser and the API never proxies file bytes, so the store
 must be reachable from end-user browsers, not just from the web app. A private
 endpoint is fine if users can resolve and reach it. Signatures are host-bound —
 the hostname the server signs with is the hostname the browser must use.
+
+---
+
+## 11. OpenTofu infrastructure, test + prod (2026-08-28)
+
+Two environments, both in the shared `New-Implementations` RG of the
+`Enterprise` subscription. `test/*` tags deploy `cmms-test` straight through;
+`release/*` tags deploy `cmms-prod` behind an approval gate on the `cmms-prod`
+Azure DevOps environment.
+
+**OpenTofu now owns the application settings.** They live in
+`infra/envs/<env>/main.tf`, not in the pipeline and not in the portal — the two
+were previously going to fight over the same 33 app settings on every deploy.
+The pipeline's deploy step is now `tofu apply` + `az webapp restart`.
+
+### Layout
+
+```
+infra/bootstrap/      enkmtfstate001 state account. Run once, by hand.
+infra/modules/cmms/   one module, both environments
+infra/envs/{test,prod}/
+```
+
+Per env it creates only `cmms-*`: user-assigned identity, App Service Plan
+(B2 test / P1v3 prod), Linux web app, storage account + `atlas-files`
+container, Key Vault, four role assignments, diagnostic setting. The RG, the
+`enerkem` ACR, the Log Analytics workspace, the DB server and the VNet subnets
+are data sources or passed-in ids, so `tofu destroy` cannot reach another
+team's app in that shared RG.
+
+Validated: `tofu validate` clean on all three configs, `tofu fmt` clean.
+
+### Two things that were caught by validating
+
+**Dependency cycle → user-assigned identity.** The first draft used a
+system-assigned identity. `tofu validate` rejected it outright: the role
+assignments need `identity[0].principal_id`, so they can only exist after the
+web app, but the app needs AcrPull to pull its first image and Key Vault access
+to resolve its first secret reference. A separate `id-cmms-<env>` identity lets
+every role land before the app is created, so a cold apply yields a working app
+instead of one needing a manual restart. Requires
+`key_vault_reference_identity_id` and
+`container_registry_managed_identity_client_id` to be set explicitly, or the
+platform falls back to the absent system-assigned identity.
+
+**Secrets never touch state.** Tofu creates the vaults empty and writes app
+settings containing literal `@Microsoft.KeyVault(VaultName=…;SecretName=…)`
+strings. It never reads a value, so nothing sensitive reaches the state file or
+the pipeline. Cost: the four secrets must be seeded by hand after the first
+apply and before the first deploy, or the container will not start.
+
+### OPEN, BLOCKING: which database, and the network path to it
+
+The plan was to reuse `db-cancen-it-poet-test` with new `atlasprod` /
+`atlastest` databases. That server:
+
+- has `publicNetworkAccess: Disabled`
+- is **VNet-injected** into `New-Implementations-vnet` (**canadacentral**),
+  whose only subnet is a /24 already delegated to
+  `Microsoft.DBforPostgreSQL/flexibleServers` — no room for an App Service
+  subnet, and being VNet-injected it cannot take a private endpoint either
+
+Every existing App Service integration subnet is a /28 in `VNET-CanEast-Tier1`
+(**canadaeast**, RG `RG-CanEast-Tier1`) — `Dev-Tier1-PMOProject`,
+`Prod-Tier1-PMDMS`, `Prod-Tier1-ITStatusDashboard` and friends. Regional VNet
+integration requires the subnet's VNet to be in the same region as the plan, so
+a canadaeast web app cannot integrate into the canadacentral VNet.
+
+The other server, `db-caneast-django-pmo-test`, is already reachable from
+`VNET-CanEast-Tier1/Prod-Tier1-BackEnd` via private endpoints.
+
+Options: (a) use `db-caneast-django-pmo-test` — by far the easiest, same region,
+path already exists; (b) peer the two VNets and link the private DNS zone;
+(c) move the app to canadacentral and widen `New-Implementations-vnet`.
+
+`infra/envs/*/main.tf` currently points at `db-cancen-it-poet-test` per the
+original instruction. **Resolve this before creating the databases.** Free /28s
+in the canadaeast VNet look like `10.225.5.48/28` and `10.225.5.64/28`.
+
+### Other prerequisites
+
+`REQUIREMENTS.md` has the full list and ordering. Highlights: the SPN needs
+**User Access Administrator** (Contributor cannot grant the four role
+assignments) plus Storage Blob Data Contributor on the state account; the
+`atlas-cmms-build` group drops to six non-secret variables; the old
+`atlas-cmms-secrets` group is retired in favour of Key Vault;
+`oauth2_client_id` is a `REPLACE-WITH-…` placeholder in both env files.
