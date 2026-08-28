@@ -1,0 +1,55 @@
+[Unit]
+Description=Atlas CMMS (Spring Boot, serves API + web frontend)
+After=network.target
+# If Postgres runs on the same host, uncomment:
+# After=network.target postgresql.service
+# Wants=postgresql.service
+
+[Service]
+Type=simple
+
+# ── Install location ──────────────────────────────────────────────────
+# Place atlas-cmms.jar, the .env file and (at runtime) cmms.log together in
+# this directory. Change it to wherever you deploy, and keep the three paths
+# below in sync with it.
+WorkingDirectory=/opt/cmms
+
+# Loads environment variables from the .env file next to the jar.
+# (systemd reads KEY=value lines and ignores lines starting with '#'.)
+EnvironmentFile=/opt/cmms/.env
+
+ExecStart=/usr/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED -jar /opt/cmms/atlas-cmms.jar
+
+# All application output (stdout + stderr, incl. JVM/startup errors) -> cmms.log
+# in the same folder. 'append' keeps logs across restarts.
+# Requires systemd v240+. On older systemd, see the note below.
+StandardOutput=append:/opt/cmms/cmms.log
+StandardError=append:/opt/cmms/cmms.log
+
+# Run as a dedicated unprivileged user (create with: useradd -r -s /usr/sbin/nologin cmms)
+User=cmms
+Group=cmms
+
+# Spring Boot exits with 143 on SIGTERM during graceful shutdown
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+# ── Notes ───────────────────────────────────────────────────────────────
+# Install:
+#   sudo mkdir -p /opt/cmms
+#   sudo cp dist/atlas-cmms.jar /opt/cmms/
+#   sudo cp dev.env /opt/cmms/.env        # then edit /opt/cmms/.env with real values
+#   sudo cp cmms.service /etc/systemd/system/cmms.service
+#   sudo chown -R cmms:cmms /opt/cmms
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now cmms
+#   sudo systemctl status cmms
+#   tail -f /opt/cmms/cmms.log
+#
+# On systemd older than v240 (no 'append:' support), drop the two Standard*
+# lines above and instead pipe via a shell:
+#   ExecStart=/bin/sh -c '/usr/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED -jar /opt/cmms/atlas-cmms.jar >> /opt/cmms/cmms.log 2>&1'

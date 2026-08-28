@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>cmms</artifactId>
+    <groupId>com.grash</groupId>
+    <version>1.0</version>
+    <packaging>pom</packaging>
+
+    <!--
+      Aggregator. `mvn package` here (or directly on the api module) builds the
+      whole product into one runnable fat jar at api/target/app.jar, which serves
+      BOTH the REST API and the React web UI.
+
+      The frontend build + deploy lives in api/pom.xml (NOT here): api's parent is
+      spring-boot-starter-parent, so Maven builds the api module before this
+      aggregator - putting the frontend copy here would run AFTER api's jar is
+      already packaged. Keeping it in api/pom.xml guarantees the SPA is bundled.
+
+      Options (forwarded to api/pom.xml):
+        mvn package -DskipFrontend=true                 # skip the SPA build
+        mvn package -Dfrontend.api.url=https://host      # bake a specific origin
+    -->
+    <modules>
+        <module>api</module>
+    </modules>
+</project>

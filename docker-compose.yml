@@ -13,6 +13,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
   api:
     image: intelloop/atlas-cmms-backend
+    # Build context is the repository root so the image can bundle the complete
+    # corresponding source (AGPLv3 §13). See api/Dockerfile.
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     container_name: atlas-cmms-backend
     depends_on:
       - postgres
@@ -91,6 +96,9 @@ services:
       - "8080:8080"
   frontend:
     image: intelloop/atlas-cmms-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: atlas-cmms-frontend
     environment:
         API_URL: ${PUBLIC_API_URL}

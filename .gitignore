@@ -1,4 +1,5 @@
 .env
+dev.env
 .env.genaiscript
 .genaiscript
 .DS_Store
@@ -6,3 +7,5 @@
 atlas_backups
 docker-compose-dev.yml
 logo
+# Build output from scripts/build.* (jar + deployment helpers)
+dist/

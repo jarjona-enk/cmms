@@ -1,0 +1,17 @@
+# Applies to builds whose context is the repository root (e.g. the API image,
+# which bundles the corresponding source — see api/Dockerfile).
+# Keeps the build context small and keeps build artifacts / dependencies out of
+# the generated source bundle (recipients restore these with mvn / npm install).
+.git
+.github
+.idea
+**/node_modules
+api/target
+**/build
+**/dist
+**/.gradle
+*.iml
+api/src/main/resources/static/source
+.env
+atlas_backups
+DEVELOPMENT-STATUS.md

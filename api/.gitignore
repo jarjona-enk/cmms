@@ -1,5 +1,23 @@
 HELP.md
 target/
+# Generated at build time by api/Dockerfile (AGPLv3 source bundle)
+src/main/resources/static/source/
+# Generated React SPA (built by `mvn package` at repo root or scripts/build-frontend.*).
+# The committed api assets here are api-docs.html, css/ and images/ - keep those.
+src/main/resources/static/static/
+src/main/resources/static/index.html
+src/main/resources/static/asset-manifest.json
+src/main/resources/static/manifest.json
+src/main/resources/static/robots.txt
+src/main/resources/static/_redirects
+src/main/resources/static/favicon.ico
+src/main/resources/static/favicon-16x16.png
+src/main/resources/static/favicon-32x32.png
+src/main/resources/static/logo192.png
+src/main/resources/static/logo512.png
+src/main/resources/static/runtime-env.js
+src/main/resources/static/.well-known/
+src/main/resources/static/*.txt
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
