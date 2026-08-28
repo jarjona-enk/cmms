@@ -29,6 +29,13 @@ public class OAuth2ClientRegistrationConfig {
         ClientRegistration registration;
         String clientId = System.getenv("OAUTH2_CLIENT_ID");
         String clientSecret = System.getenv("OAUTH2_CLIENT_SECRET");
+        // Entra authority segment. Single-tenant app registrations reject the
+        // /common endpoint (AADSTS50194), so allow pinning to a specific tenant
+        // id. Defaults to "common" (multi-tenant) to preserve prior behaviour.
+        String tenant = System.getenv("OAUTH2_TENANT_ID");
+        if (tenant == null || tenant.isBlank()) {
+            tenant = "common";
+        }
         registration = switch (provider) {
             case GOOGLE -> CommonOAuth2Provider.GOOGLE
                     .getBuilder("google")
@@ -44,9 +51,9 @@ public class OAuth2ClientRegistrationConfig {
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                     .scope("email", "profile", "openid")
-                    .authorizationUri("https://login.microsoftonline.com/common/oauth2/v2.0/authorize")
-                    .tokenUri("https://login.microsoftonline.com/common/oauth2/v2.0/token")
-                    .jwkSetUri("https://login.microsoftonline.com/common/discovery/v2.0/keys")
+                    .authorizationUri("https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize")
+                    .tokenUri("https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token")
+                    .jwkSetUri("https://login.microsoftonline.com/" + tenant + "/discovery/v2.0/keys")
                     .userInfoUri("https://graph.microsoft.com/oidc/userinfo")
                     .userNameAttributeName("sub")
                     .build();

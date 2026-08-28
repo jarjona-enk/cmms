@@ -61,6 +61,13 @@ public class WebSecurityConfig {
                         .requestMatchers("/license/state").permitAll()
                         .requestMatchers("/oauth2/**").permitAll()
                         .requestMatchers("/login/oauth2/**").permitAll()
+                        // AGPLv3 §13: public download of the complete corresponding source
+                        .requestMatchers("/source-code/**").permitAll()
+                        // Bundled React SPA (served from classpath:/static). These paths
+                        // only return the static app shell; the data APIs stay protected.
+                        .requestMatchers(HttpMethod.GET,
+                                "/", "/index.html", "/source-code",
+                                "/app/**", "/account/**", "/payment/**", "/request-portal/**").permitAll()
                         .requestMatchers("/health-check").permitAll()
                         .requestMatchers("/mail/send").permitAll()
                         .requestMatchers("/instance-config").permitAll()
@@ -88,7 +95,11 @@ public class WebSecurityConfig {
         );
 
         // OAuth2 Configuration
-        if (enableSso && licenseService.isSSOEnabled()) {
+        // Note: SSO is enabled purely via the ENABLE_SSO flag. The commercial-license
+        // entitlement check (licenseService.isSSOEnabled()) has been intentionally
+        // removed for this internal, AGPLv3-licensed deployment. See /source-code page
+        // and DEVELOPMENT-STATUS.md for the licensing rationale.
+        if (enableSso) {
             http.oauth2Login(oauth2 -> oauth2
                     .authorizationEndpoint(endpoint -> endpoint.baseUri("/oauth2/authorize"))
                     .redirectionEndpoint(endpoint -> endpoint.baseUri("/oauth2/callback/*"))
@@ -117,6 +128,12 @@ public class WebSecurityConfig {
                 .requestMatchers("/webjars/**")//
                 .requestMatchers("/public")
                 .requestMatchers("/images/**")
+                // Bundled React SPA static assets (frontend build copied to classpath:/static)
+                .requestMatchers("/static/**")
+                .requestMatchers("/favicon.ico", "/favicon-16x16.png", "/favicon-32x32.png")
+                .requestMatchers("/manifest.json", "/asset-manifest.json", "/robots.txt")
+                .requestMatchers("/runtime-env.js", "/logo192.png", "/logo512.png")
+                .requestMatchers("/.well-known/**")
                 // Un-secure H2 Database (for testing purposes, H2 console shouldn\'t be unprotected in production)
 //                .requestMatchers("/h2-console/**")
                 ;
