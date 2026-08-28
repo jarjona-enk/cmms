@@ -1,8 +1,51 @@
 # Development Status — Atlas CMMS internal build (Entra SSO + single-jar + AGPL)
 
-> Context hand-off for another session. Last updated: 2026-06-18 by jarjona@enerkem.com.
+> Context hand-off for another session. Last updated: 2026-08-28 by jarjona@enerkem.com.
 > Project = **Atlas CMMS** (open-source, AGPLv3/commercial dual-licensed).
 > Stack: backend Java **Spring Boot** (`api/`), frontend **React/TS** (`frontend/`), `mobile/` (RN, untouched).
+
+---
+
+## START HERE — state as of 2026-08-28
+
+Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
+
+**Where we are.** All Enerkem work is committed and pushed to `origin`
+(Azure DevOps), `main` at `35692d3a`, tree clean. The delivery path is built but
+**nothing has been applied to Azure yet** — no `tofu apply`, no pipeline run, no
+deployed container. Everything below is validated code, not running infrastructure.
+
+| Area | State |
+|---|---|
+| Fork boundary | Done. `origin` = Azure DevOps, `upstream` = GitHub, push `DISABLED` |
+| Merge policy | Done. Release tags only. Pinned to base `51341f8e` (post-v1.6.0) |
+| Build → single fat jar | Done, validated end to end |
+| Entra SSO, AGPLv3 §13 | Done |
+| Azure Blob storage backend | Done. `mvnw compile` BUILD SUCCESS |
+| CI/CD pipeline | Written, YAML valid. **Never run** |
+| OpenTofu infra | Written, `tofu validate` + `fmt` clean. **Never applied** |
+
+**What must happen before the first deploy** — ordered list with full detail in
+`REQUIREMENTS.md` §6:
+
+1. Two `/28` subnets in `RG-CanEast-Tier1`, delegated to `Microsoft.Web/serverFarms`.
+   `10.225.5.48/28` and `10.225.5.64/28` were free. **Network team.**
+2. `oauth2_client_id` is still `REPLACE-WITH-ENTRA-APP-CLIENT-ID` in both
+   `infra/envs/*/main.tf`.
+3. Service principal needs **User Access Administrator** on `New-Implementations`
+   — Contributor cannot create the role assignments. Most likely to need a request.
+4. `infra/bootstrap` applied once, to create the state account.
+5. Variable group `atlas-cmms-build` (six variables) and environment `cmms-prod`
+   with an approval check.
+6. Key Vaults seeded **between** the first apply and the first deploy.
+
+**Known open items:** upstream `v1.7.0` (+16 commits) is pending review — do not
+merge unprompted. `OAUTH2_CLIENT_SECRET` in `dev.env` still wants rotating. SSO
+auto-provisioning still creates a new org per first-of-domain user, which is
+probably wrong for an internal rollout. No live runtime smoke test has been done.
+
+Session-level detail — decisions, mistakes, preferences — is in `.wolf/cerebrum.md`,
+`.wolf/memory.md` and `.wolf/buglog.json`.
 
 ---
 

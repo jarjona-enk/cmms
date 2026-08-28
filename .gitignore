@@ -21,3 +21,13 @@ crash.log
 *.auto.tfvars
 override.tf
 override.tf.json
+
+# OpenWolf: durable memory (anatomy/cerebrum/memory/buglog/config/hooks) IS tracked
+# so it survives a fresh clone. These are per-machine runtime artefacts.
+.wolf/cron-state.json
+.wolf/token-ledger.json
+.wolf/suggestions.json
+.wolf/designqc-report.json
+.wolf/designqc-captures/
+.wolf/hooks/_session.json
+.wolf/hooks/node_modules/

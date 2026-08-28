@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-08-28T14:20:00-04:00",
+      "error_message": "SSO first login for a brand new company threw NoSuchElementException from Optional.get()",
+      "file": "api/src/main/java/com/grash/security/OAuth2AuthenticationSuccessHandler.java",
+      "root_cause": "The company-creation path read the Administrator role from the freshly created company's roleList, which is always empty at that point. Roles are global defaults, not per-company.",
+      "fix": "Resolve through roleService.findDefaultRoles() as UserService.signup() already does, and throw a typed CustomException instead of a bare NoSuchElementException if it is genuinely missing.",
+      "tags": ["sso", "oauth2", "entra", "signup", "roles", "npe"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T14:20:00-04:00"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-08-28T11:30:00-04:00",
+      "error_message": "Any image built by the pipeline would serve a SPA hardcoded to http://localhost:8080",
+      "file": "api/Dockerfile",
+      "root_cause": "Create React App compiles REACT_APP_API_URL into the JavaScript bundle at build time. api/pom.xml exposes it as the frontend.api.url property, but the Dockerfile ran `mvn package` with no way to receive it, so every image took the pom default.",
+      "fix": "Added FRONTEND_API_URL / FRONTEND_ENABLE_SSO / FRONTEND_OAUTH2_PROVIDER build args passed through to -Dfrontend.* Maven properties. Defaults unchanged so a bare docker build behaves as before. Consequence documented: images are environment-specific and cannot be promoted.",
+      "tags": ["docker", "cra", "build-args", "spa", "cicd", "environment"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T11:30:00-04:00"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-08-28T12:50:00-04:00",
+      "error_message": "REQUIREMENTS.md gave https://cmmsfiles.blob.core.windows.net as a MINIO_ENDPOINT value",
+      "file": "REQUIREMENTS.md",
+      "root_cause": "Wrote a plausible-looking Azure Blob URL without checking the SDK. STORAGE_TYPE=minio uses the MinIO Java SDK, which speaks the S3 API; Azure Blob Storage exposes no S3-compatible endpoint, so that value could never work regardless of network configuration.",
+      "fix": "Corrected the documentation, then implemented a real Azure Blob backend (see bug-004 context). Rule: verify an SDK can actually talk to a service before putting it in a config example.",
+      "tags": ["documentation", "storage", "minio", "azure-blob", "s3", "wrong-assumption"],
+      "related_bugs": ["bug-004"],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T12:50:00-04:00"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-08-28T12:50:00-04:00",
+      "error_message": "REQUIREMENTS.md described MINIO_ENDPOINT as 'the URL the server uses to reach the object store'",
+      "file": "REQUIREMENTS.md",
+      "root_cause": "Assumed the variable names described their roles. MinioService.init() actually builds the client on PUBLIC_MINIO_ENDPOINT for uploads, downloads and signing alike; MINIO_ENDPOINT is only an HTTP proxy target, and only when the public endpoint resolves to localhost.",
+      "fix": "Rewrote the storage section from the init() method. In a real deployment MINIO_ENDPOINT should simply match PUBLIC_MINIO_ENDPOINT; it must still be non-empty or storage silently no-ops.",
+      "tags": ["documentation", "storage", "minio", "config", "wrong-assumption"],
+      "related_bugs": ["bug-003"],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T12:50:00-04:00"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-08-28T14:35:00-04:00",
+      "error_message": "Error: Cycle: module.cmms.azurerm_role_assignment.blob_delegator, ...acr_pull, ...blob_contributor, module.cmms.azurerm_linux_web_app.cmms, ...kv_secrets",
+      "file": "infra/modules/cmms/main.tf",
+      "root_cause": "Used a system-assigned managed identity. The role assignments reference azurerm_linux_web_app.identity[0].principal_id, so they can only be created after the web app, but the web app needs AcrPull to pull its first image and Key Vault access to resolve its first secret reference, so it depends_on them. Circular.",
+      "fix": "Switched to a user-assigned identity (azurerm_user_assigned_identity.cmms). Role assignments hang off it, so every role lands before the web app exists and a cold apply produces a working app. Also required key_vault_reference_identity_id and container_registry_managed_identity_client_id, or the platform falls back to the absent system-assigned identity.",
+      "tags": ["opentofu", "terraform", "azure", "managed-identity", "rbac", "cycle"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T14:35:00-04:00"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-08-28T15:40:00-04:00",
+      "error_message": "An input variable with the name \"db_fqdn\" has not been declared",
+      "file": "infra/modules/cmms/main.tf",
+      "root_cause": "Renamed db_fqdn to db_host with a string replacement, but an earlier `tofu fmt -recursive` had realigned `DB_URL = ` to `DB_URL  = ` (two spaces), so the pattern no longer matched that one line and it kept the old variable reference.",
+      "fix": "Grepped for the stale name and used a regex on var.db_fqdn rather than the whole line. Lesson: after tofu fmt, re-grep before relying on any literal string match, and always re-run tofu validate after a bulk edit.",
+      "tags": ["opentofu", "terraform", "refactor", "sed", "formatting"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T15:40:00-04:00"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-08-28T11:00:00-04:00",
+      "error_message": "git@ssh.dev.azure.com: Permission denied (password,publickey)",
+      "file": ".git/config",
+      "root_cause": "The only local key is ~/.ssh/id_rsa (RSA, 2021) and it is not registered with the user's Azure DevOps account. Not the usual SHA-1 algorithm problem: retrying with PubkeyAcceptedAlgorithms=+ssh-rsa failed identically.",
+      "fix": "Switched origin to HTTPS (https://EnerkemIT@dev.azure.com/...) and authenticated through Git Credential Manager with a PAT.",
+      "tags": ["git", "azure-devops", "ssh", "authentication", "push"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T11:00:00-04:00"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-08-28T11:20:00-04:00",
+      "error_message": "/usr/bin/bash: -c: line 162: unexpected EOF while looking for matching `''",
+      "file": "azure-pipelines.yml",
+      "root_cause": "Tried to write a large YAML file through a bash heredoc. The embedded mixed quoting broke the shell and the file was never created, so the follow-up validation silently had nothing to check.",
+      "fix": "Used the Write tool instead. Rule: heredocs are fine for short, simple content; anything large or quote-heavy goes through Write.",
+      "tags": ["tooling", "bash", "heredoc", "yaml", "quoting"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T11:20:00-04:00"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-08-28T14:00:00-04:00",
+      "error_message": "/usr/bin/bash: line 1: ./mvnw: No such file or directory",
+      "file": "api/",
+      "root_cause": "Only mvnw.cmd is present in api/ — there is no POSIX mvnw wrapper in this repository.",
+      "fix": "Run Maven through the PowerShell tool: $env:JAVA_HOME='C:\\java\\jdk-17'; cd C:\\data\\src\\cmms\\api; .\\mvnw.cmd ...",
+      "tags": ["build", "maven", "windows", "tooling"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T14:00:00-04:00"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-08-28T14:15:00-04:00",
+      "error_message": "The term 'tofu' is not recognized as a name of a cmdlet, function, script file, or executable program",
+      "file": "-",
+      "root_cause": "winget install OpenTofu.Tofu succeeded and modified PATH, but the already-running shell does not pick up the new PATH value.",
+      "fix": "Invoke by full path: C:\\Users\\<user>\\AppData\\Local\\Microsoft\\WinGet\\Packages\\OpenTofu.Tofu_Microsoft.Winget.Source_8wekyb3d8bbwe\\tofu.exe",
+      "tags": ["tooling", "opentofu", "winget", "path", "windows"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T14:15:00-04:00"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-08-28T15:20:00-04:00",
+      "error_message": "Planned database db-cancen-it-poet-test is unreachable from a canadaeast web app",
+      "file": "infra/envs/*/main.tf",
+      "root_cause": "That server has publicNetworkAccess disabled and is VNet-injected into New-Implementations-vnet (canadacentral), whose only subnet is a /24 already delegated to Microsoft.DBforPostgreSQL/flexibleServers. No room for an App Service subnet, no private endpoint possible on a VNet-injected server, and regional VNet integration cannot cross regions.",
+      "fix": "Use 10.225.1.107 instead — the private endpoint in VNET-CanEast-Tier1/Prod-Tier1-BackEnd that the budget app already uses. Same region as the web apps and as every existing App Service integration subnet.",
+      "tags": ["azure", "networking", "vnet", "postgres", "private-endpoint", "region"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-28T15:35:00-04:00"
+    }
+  ]
+}
