@@ -178,7 +178,7 @@ resource "azurerm_linux_web_app" "cmms" {
     SPRING_PROFILES_ACTIVE = var.spring_profile
 
     # Host:port/database only. application.yml prepends jdbc:postgresql://
-    DB_URL  = "${var.db_fqdn}:5432/${var.db_name}"
+    DB_URL  = "${var.db_host}:5432/${var.db_name}"
     DB_USER = var.db_user
     DB_PWD  = local.kv["db-password"]
 

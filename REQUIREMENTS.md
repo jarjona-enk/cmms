@@ -106,7 +106,7 @@ Everything else lives in `infra/envs/test/main.tf` and
 | `enable_email_notifications` | `false` | turn on once SMTP is verified end to end |
 | `invitation_via_email` | `false` | requires working mail; enabling it with broken SMTP locks new users out |
 | `plan_sku` | `B2` test, `P1v3` prod | the JVM plus a cold-start Liquibase run needs the headroom |
-| `db_fqdn` / `db_name` / `db_user` | `db-cancen-it-poet-test…` | see the open question in §4 |
+| `db_host` / `db_name` / `db_user` | `10.225.1.107`, `atlastest` / `atlasprod` | the shared server the budget app uses |
 
 Defaults for the rest — storage, SMTP host and port, CORS — are in
 `infra/modules/cmms/variables.tf`.
@@ -117,40 +117,48 @@ Defaults for the rest — storage, SMTP host and port, CORS — are in
 
 Nothing deploys until these exist.
 
-### Databases — yours
+### Databases — done
 
-On the flexible server, owned by the `atlas` role with DDL rights (Liquibase
-runs the whole changelog on every boot, and JPA validates the schema after):
+On the shared PostgreSQL server at **`10.225.1.107`**, reached through its
+private endpoint in `VNET-CanEast-Tier1/Prod-Tier1-BackEnd` — the same server
+and the same address the budget app uses.
 
-```sql
-CREATE DATABASE atlastest OWNER atlas;
-CREATE DATABASE atlasprod OWNER atlas;
-```
+| Environment | Database | User |
+|---|---|---|
+| test | `atlastest` | `atlastest` |
+| prod | `atlasprod` | `atlasprod` |
+
+Each role needs DDL rights on its own database: Liquibase runs the whole
+changelog on every boot and JPA validates the schema afterwards.
+
+Addressed by IP rather than by name, matching the other apps on this server.
+That is safe here because pgJDBC defaults to `sslmode=prefer` — the connection
+is still encrypted, and no certificate hostname check is performed. Do not add
+`sslmode=verify-full` without switching to the private DNS name first.
+
+Each environment's database password goes into that environment's vault as
+`db-password`.
 
 ### VNet integration subnets — network team
 
-One per environment: a **/28 or larger, delegated to
-`Microsoft.Web/serverFarms`**, in a VNet with a route to the database. Pass the
-resource ids in as `VNET_SUBNET_ID_TEST` / `VNET_SUBNET_ID_PROD`.
+One per environment, so each app can reach `10.225.1.107`:
 
-These are not created by our config on purpose — they live in the shared network
-resource group, outside the blast radius we agreed on.
+- **/28 or larger**, delegated to `Microsoft.Web/serverFarms`
+- in **`VNET-CanEast-Tier1`** (resource group `RG-CanEast-Tier1`, canadaeast) —
+  regional VNet integration cannot cross regions, and this is the VNet holding
+  the database's private endpoint
+- free ranges at the time of writing: **`10.225.5.48/28`** and
+  **`10.225.5.64/28`** (`10.225.5.0/28`, `.16/28` and `.32/28` are taken)
 
-> ⚠️ **Open question, blocking.** `db-cancen-it-poet-test` has
-> `publicNetworkAccess: Disabled` and is injected into
-> `New-Implementations-vnet` (canadacentral), whose only subnet is a /24
-> already delegated to PostgreSQL — no room for an App Service subnet, and the
-> wrong region for a canadaeast web app, since regional VNet integration needs
-> the VNet in the same region as the plan.
->
-> Meanwhile every existing App Service integration subnet is a /28 in
-> `VNET-CanEast-Tier1` (canadaeast), and the *other* server,
-> `db-caneast-django-pmo-test`, is already reachable from there through a
-> private endpoint.
->
-> So one of: use `db-caneast-django-pmo-test` instead (easiest by far), peer
-> the two VNets and link the private DNS zone, or move the app to canadacentral
-> and widen that VNet. See DEVELOPMENT-STATUS.md §11.
+Suggested names, following the existing convention: `Dev-Tier1-CMMS` and
+`Prod-Tier1-CMMS`.
+
+This mirrors how the budget app reaches the same server — `itbudget` integrates
+into `Dev-Tier1-PMOProject` with `vnetRouteAll` on, exactly what our config
+sets. Pass the resource ids in as `VNET_SUBNET_ID_TEST` / `VNET_SUBNET_ID_PROD`.
+
+They are not created by our config on purpose: they live in `RG-CanEast-Tier1`,
+outside the blast radius we agreed on.
 
 ### Entra app registration — IT
 
@@ -255,8 +263,8 @@ Follow it by re-tagging and re-releasing the good version properly.
 ## 6. First-run order
 
 1. `infra/bootstrap` — create the state account
-2. Create the two databases
-3. Get the two subnets created, resolve the region question in §4 first
+2. ~~Create the two databases~~ — done
+3. Get the two subnets created in `RG-CanEast-Tier1` (§4)
 4. Entra app registrations; put the client id into both `main.tf` files
 5. Create the `atlas-cmms-build` variable group (all six variables)
 6. Create the `cmms-prod` environment with an approval check

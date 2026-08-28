@@ -50,10 +50,12 @@ module "cmms" {
   vnet_integration_subnet_id = var.vnet_integration_subnet_id
   log_analytics_workspace_id = data.azurerm_log_analytics_workspace.shared.id
 
-  # Existing shared server; the database itself is created out of band.
-  db_fqdn = "db-cancen-it-poet-test.postgres.database.azure.com"
+  # Shared server reached through its private endpoint in
+  # VNET-CanEast-Tier1/Prod-Tier1-BackEnd, the same one the budget app uses.
+  # Database and role are created out of band.
+  db_host = "10.225.1.107"
   db_name = "atlasprod"
-  db_user = "atlas"
+  db_user = "atlasprod"
 
   mail_recipients = "cmms-admins@enerkem.com"
   # Enable once SMTP is verified end to end.

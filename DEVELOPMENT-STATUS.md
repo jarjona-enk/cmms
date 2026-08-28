@@ -395,3 +395,29 @@ assignments) plus Storage Blob Data Contributor on the state account; the
 `atlas-cmms-build` group drops to six non-secret variables; the old
 `atlas-cmms-secrets` group is retired in favour of Key Vault;
 `oauth2_client_id` is a `REPLACE-WITH-…` placeholder in both env files.
+
+### §11 database question — RESOLVED (2026-08-28)
+
+Use the shared PostgreSQL server at **`10.225.1.107`**, the private-endpoint
+address in `VNET-CanEast-Tier1/Prod-Tier1-BackEnd`. Same server, same address,
+as the budget app (`itbudget` runs `jdbc:postgresql://10.225.1.107:5432/budget`).
+
+That settles the region problem: the database is reachable from canadaeast, so
+the web apps can use ordinary regional VNet integration into a subnet in
+`VNET-CanEast-Tier1`. `db-cancen-it-poet-test` in canadacentral is not used.
+
+Databases and roles exist already — `atlastest`/`atlastest` and
+`atlasprod`/`atlasprod`, user name matching database name in both cases.
+
+Addressed by **IP, not name**, matching the other apps on this server. Safe
+because pgJDBC defaults to `sslmode=prefer`: the connection is still encrypted
+and no certificate hostname check happens. Anyone adding `sslmode=verify-full`
+must move to the private DNS name first, or every connection will fail.
+
+Renamed the module input `db_fqdn` → `db_host` accordingly.
+
+Still outstanding: the two `/28` subnets in `RG-CanEast-Tier1`, delegated to
+`Microsoft.Web/serverFarms`. `10.225.5.48/28` and `10.225.5.64/28` are free.
+The reference implementation is `itbudget`, which integrates into
+`Dev-Tier1-PMOProject` with `vnetRouteAll` enabled — the same two settings our
+module applies.

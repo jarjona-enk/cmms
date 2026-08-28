@@ -52,9 +52,11 @@ variable "vnet_integration_subnet_id" {
     Resource id of a subnet delegated to Microsoft.Web/serverFarms, used for
     regional VNet integration so the app can reach the private database.
 
-    NOT created here: it lives in the shared network resource group, outside
-    this config's blast radius. It must be a /28 or larger in the same region
-    as the app, in a VNet with a route to the database.
+    NOT created here: it lives in RG-CanEast-Tier1, outside this config's
+    blast radius. It must be a /28 or larger in VNET-CanEast-Tier1 (canadaeast,
+    same region as the app - regional integration cannot cross regions), which
+    is where the database's private endpoint lives. This mirrors how the budget
+    app reaches the same server, via Dev-Tier1-PMOProject.
   EOT
   type        = string
 }
@@ -67,8 +69,15 @@ variable "log_analytics_workspace_id" {
 # ── Database ─────────────────────────────────────────────────────────────
 # The server itself is not managed here. Databases are created out of band.
 
-variable "db_fqdn" {
-  description = "Fully qualified hostname of the PostgreSQL flexible server."
+variable "db_host" {
+  description = <<-EOT
+    Host of the PostgreSQL server, as reached from the integrated subnet.
+
+    This is the private-endpoint IP rather than a name, matching how the other
+    Enerkem apps on this server address it. pgJDBC defaults to sslmode=prefer,
+    so the connection is still encrypted and an IP does not break certificate
+    validation the way sslmode=verify-full would.
+  EOT
   type        = string
 }
 
