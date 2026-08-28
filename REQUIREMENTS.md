@@ -150,14 +150,45 @@ ignored — leave them unset.
 
 The pipeline runs **only** on a `release/*` tag — no branch or PR builds.
 
-```bash
-git tag release/1.0.0
-git push origin release/1.0.0
+### Tag format
+
+Our release tags must carry the upstream release number they are built on:
+
+```
+release/<upstream release>-enerkem.<n>
 ```
 
-The version is the part after the slash (`1.0.0`) and becomes the build number
-and the immutable image tag. A tag that is not `release/<something>` fails the
-first step deliberately.
+The first half is the upstream Atlas CMMS release this build is merged up to;
+`<n>` counts our own releases on that base and resets to 1 after each upstream
+merge.
+
+```bash
+git tag release/1.6.0-enerkem.1
+git push origin release/1.6.0-enerkem.1
+```
+
+The whole version (`1.6.0-enerkem.1`) becomes the build number and the
+immutable image tag, alongside the moving `:prod` tag.
+
+The first pipeline step validates this and fails the run otherwise:
+
+| Tag | Result |
+|---|---|
+| `release/1.6.0-enerkem.1` | accepted while `UPSTREAM_VERSION` is `1.6.0` |
+| `release/1.6.0-enerkem.12` | accepted |
+| `release/1.7.0-enerkem.1` | **rejected** — upstream v1.7.0 is not merged yet |
+| `release/1.6.0` | **rejected** — no `-enerkem.<n>` counter |
+| `release/v1.6.0-enerkem.1` | **rejected** — no `v` prefix |
+
+The upstream half is checked against **`UPSTREAM_VERSION`** in the repository
+root, which records the upstream release the branch is merged up to and is
+bumped as part of each upstream release-tag merge. It is a file rather than a
+`git describe` because upstream's `v*` tags are deliberately not mirrored into
+this repo — a tag newer than our merge base would drag its entire unreleased
+history in with it.
+
+If the pipeline rejects a tag because `UPSTREAM_VERSION` disagrees, the fix is
+to merge the upstream release, not to edit the file.
 
 ### Stage 1 — Release
 
@@ -200,7 +231,7 @@ specific version tag:
 
 ```bash
 az webapp config container set --name cmms-prod --resource-group <rg> \
-  --docker-custom-image-name enerkem.azurecr.io/cmms:1.0.0
+  --docker-custom-image-name enerkem.azurecr.io/cmms:1.6.0-enerkem.1
 ```
 
 ### Timing

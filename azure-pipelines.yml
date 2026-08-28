@@ -64,19 +64,38 @@ stages:
         steps:
 
           # ── Version ──────────────────────────────────────────────────────
-          # Build.SourceBranch is refs/tags/release/1.2.3 -> version 1.2.3
+          # Our release tags MUST carry the upstream release number they are
+          # built on:  release/<upstream>-enerkem.<n>,  e.g. release/1.6.0-enerkem.1
+          #
+          # The upstream half is checked against the UPSTREAM_VERSION file, which
+          # is bumped as part of each upstream release-tag merge. That is the only
+          # reliable source in CI: upstream's own v* tags are not mirrored into
+          # this repo, because tags newer than our merge base would drag their
+          # entire unreleased history in with them.
           - bash: |
               set -euo pipefail
+              fail() { echo "##vso[task.logissue type=error]$1"; exit 1; }
+
               TAG="${BUILD_SOURCEBRANCH#refs/tags/}"
               VERSION="${TAG#release/}"
-              if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
-                echo "##vso[task.logissue type=error]Expected a refs/tags/release/<version> tag, got '${BUILD_SOURCEBRANCH}'"
-                exit 1
-              fi
-              echo "Releasing version ${VERSION}"
+              [ -n "$VERSION" ] && [ "$VERSION" != "$TAG" ] \
+                || fail "Expected a refs/tags/release/<version> tag, got '${BUILD_SOURCEBRANCH}'"
+
+              echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-enerkem\.[0-9]+$' \
+                || fail "Release tag must be release/<upstream>-enerkem.<n>, for example release/1.6.0-enerkem.1. Got 'release/${VERSION}'."
+
+              [ -f UPSTREAM_VERSION ] \
+                || fail "UPSTREAM_VERSION is missing from the repository root; it records the upstream release this branch is merged up to."
+              UPSTREAM_BASE="$(tr -d '[:space:]' < UPSTREAM_VERSION)"
+              UPSTREAM_IN_TAG="${VERSION%%-enerkem.*}"
+
+              [ "$UPSTREAM_IN_TAG" = "$UPSTREAM_BASE" ] \
+                || fail "Tag claims upstream ${UPSTREAM_IN_TAG} but UPSTREAM_VERSION records ${UPSTREAM_BASE}. Either tag release/${UPSTREAM_BASE}-enerkem.<n>, or merge upstream v${UPSTREAM_IN_TAG} and bump UPSTREAM_VERSION in that merge."
+
+              echo "Releasing ${VERSION} (upstream ${UPSTREAM_BASE})"
               echo "##vso[task.setvariable variable=releaseVersion]${VERSION}"
               echo "##vso[build.updatebuildnumber]${VERSION}"
-            displayName: 'Resolve version from release tag'
+            displayName: 'Resolve and validate the release tag'
 
           # ── Build ────────────────────────────────────────────────────────
           # Everything happens inside the image. api/Dockerfile stage 1 zips the

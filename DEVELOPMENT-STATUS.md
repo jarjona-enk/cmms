@@ -240,6 +240,26 @@ Two gotchas that are documented in REQUIREMENTS.md and easy to get wrong:
   post-deploy step therefore polls `PUBLIC_API_URL` for the SPA shell for up to
   10 minutes and fails the run if it never appears.
 
+### Release tags must carry the upstream release number
+
+Constraint added 2026-08-28. Our tags are
+`release/<upstream release>-enerkem.<n>`, e.g. `release/1.6.0-enerkem.1`. The
+counter is our own release number on that upstream base and resets to 1 after
+each upstream merge. The whole string becomes the build number and the
+immutable image tag.
+
+Enforced by the pipeline's first step, which rejects `release/1.6.0` (no
+counter), `release/v1.6.0-enerkem.1` (`v` prefix) and — the useful case —
+`release/1.7.0-enerkem.1` while upstream v1.7.0 is not actually merged.
+
+The upstream half is checked against the new repo-root file
+**`UPSTREAM_VERSION`** (currently `1.6.0`), which must be bumped **inside** each
+upstream release merge, not as a follow-up commit. It is a file rather than a
+`git describe` because upstream's `v*` tags are deliberately not mirrored into
+this repo: a tag newer than our merge base would drag its entire unreleased
+history in with it. If the pipeline rejects a tag because the file disagrees,
+the fix is to merge the upstream release, never to edit the file.
+
 ### Open
 
 - Access to `origin` switched from SSH to HTTPS (`git remote set-url`) because

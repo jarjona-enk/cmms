@@ -51,11 +51,41 @@ Procedure per tag:
 git fetch upstream --tags
 git switch -c merge/upstream-v1.7.0 main
 git merge v1.7.0            # resolve, then build and smoke-test before merging on
+echo 1.7.0 > UPSTREAM_VERSION   # REQUIRED, in the same merge - see below
 git switch main && git merge --no-ff merge/upstream-v1.7.0
 ```
 
 Always `merge`, never `rebase`. Rebasing replays our commits over theirs and
 makes us resolve the same conflicts once per commit.
+
+Never push upstream's `v*` tags to `origin`. A tag newer than our merge base
+would drag its entire unreleased history into the Enerkem repo.
+
+## 2a. Release tags MUST carry the upstream release number
+
+Our release tags are:
+
+```
+release/<upstream release>-enerkem.<n>        e.g. release/1.6.0-enerkem.1
+```
+
+The first half names the upstream release this build is merged up to; `<n>`
+counts our own releases on that base and **resets to 1** after each upstream
+merge. Nothing else is accepted — the pipeline rejects `release/1.6.0`,
+`release/v1.6.0-enerkem.1` and anything without the counter.
+
+The repo-root file **`UPSTREAM_VERSION`** records the upstream release we are
+merged up to (currently `1.6.0`). The pipeline reads it and fails the release
+unless the tag's upstream half matches, so:
+
+- **Bump `UPSTREAM_VERSION` inside the upstream merge itself**, never as a
+  follow-up commit. A merge that forgets it makes every later tag either wrong
+  or unreleasable.
+- Do not hand-edit it to unblock a tag. If the tag says `1.7.0`, the fix is to
+  merge upstream `v1.7.0`, not to change the file.
+
+It is a file rather than a `git describe` because upstream's `v*` tags are not
+mirrored into this repo (see above), so CI cannot see them.
 
 ### Current position
 
