@@ -117,6 +117,11 @@ storage:
     access-key: ${MINIO_ACCESS_KEY:}
     secret-key: ${MINIO_SECRET_KEY:}
     public-endpoint: ${PUBLIC_MINIO_ENDPOINT:}
+  azure:
+    account-name: ${AZURE_STORAGE_ACCOUNT:}
+    account-key: ${AZURE_STORAGE_ACCOUNT_KEY:}
+    container: ${AZURE_STORAGE_CONTAINER:}
+    endpoint: ${AZURE_STORAGE_ENDPOINT:}
   gcp:
     project-id: ${GCP_PROJECT_ID:}
     bucket-name: ${GCP_BUCKET_NAME:}

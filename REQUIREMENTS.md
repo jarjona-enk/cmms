@@ -64,7 +64,7 @@ at startup and the container exits.
 | `DB_USER` | `atlas` | Needs DDL rights — Liquibase runs the changelog on every boot and JPA validates the schema afterwards. |
 | `PUBLIC_FRONT_URL` | `https://cmms-prod.azurewebsites.net` | Where the OAuth2 success handler sends the browser (`${PUBLIC_FRONT_URL}/oauth2/success?token=…`). Same host as the API here. |
 | `MAIL_RECIPIENTS` | `cmms-admins@enerkem.com` | Comma-separated addresses for system notifications. Must be set **even when email is disabled** — it has no default. |
-| `STORAGE_TYPE` | `minio` | `minio` or `gcp`. Selects the file-attachment backend. |
+| `STORAGE_TYPE` | `azure` | `azure`, `minio` or `gcp`. Selects the file-attachment backend. |
 
 `DB_PWD` and `JWT_SECRET_KEY` are also required — they live in the secrets group.
 
@@ -82,32 +82,51 @@ at startup and the container exits.
 
 ### File storage (attachments, exports)
 
-⚠️ **The store must speak the S3 API.** `STORAGE_TYPE=minio` uses the MinIO
-Java SDK, and `StorageServiceFactory` offers only two backends: `minio` (S3)
-and `gcp` (Google Cloud Storage). **Azure Blob Storage will not work** — it has
-no S3-compatible endpoint, so a `*.blob.core.windows.net` URL fails here no
-matter how it is configured. On Azure this means hosting MinIO yourself, for
-example a container backed by a managed disk or an Azure Files share.
+`STORAGE_TYPE` picks the backend: **`azure`** (Azure Blob Storage — use this),
+`minio` (any S3-compatible store), or `gcp` (Google Cloud Storage).
 
 ⚠️ **The store must be reachable from end-user browsers, not just from the web
-app.** `FileMapper` turns every file reference into a pre-signed URL on its way
-out of the API, so browsers fetch every attachment, image and thumbnail
+app.** `FileMapper` turns every file reference into a time-limited signed URL on
+its way out of the API, so browsers fetch every attachment, image and thumbnail
 *directly* from the store — the API never proxies file bytes. A store locked to
 the web app's subnet leaves every image broken. It does not have to be
 internet-facing: a private endpoint with private DNS is fine as long as users
 are on a network that can resolve and reach it.
 
-Pre-signed signatures are **host-bound**: the hostname the server signs with is
-the hostname the browser must use. Split-horizon DNS on the *same* name is
-fine; a different external hostname invalidates the signature.
+Signatures are **host-bound**: the hostname the server signs with is the
+hostname the browser must use. Split-horizon DNS on the *same* name is fine; a
+different external hostname invalidates the signature.
 
-If **any** `MINIO_*` value is blank the storage client silently no-ops: the app
-boots normally and uploads fail only when a user tries one.
+#### `STORAGE_TYPE=azure` (recommended)
+
+Leave `AZURE_STORAGE_ACCOUNT_KEY` blank to authenticate as the web app's
+**managed identity**, which is the better option — nothing secret is stored and
+there is no key to rotate. The identity needs two roles on the storage account:
+**Storage Blob Data Contributor** (read/write) and **Storage Blob Delegator**
+(to mint the user delegation key that signs download URLs). Set the key only if
+you cannot use managed identity; the code then signs with a shared key instead.
+
+Storage stays dormant unless both `AZURE_STORAGE_ACCOUNT` and
+`AZURE_STORAGE_CONTAINER` are set: the app boots normally and only file
+operations fail.
 
 | Variable | Example | What to put in it |
 |---|---|---|
-| `PUBLIC_MINIO_ENDPOINT` | `https://files.enerkem.com` | **The one that matters.** Despite the name, `MinioService.init()` builds the client on this for *everything* — uploads, downloads and signing — so it must be reachable from the web app **and** from browsers, and it is the host that ends up in pre-signed URLs. |
-| `MINIO_ENDPOINT` | `https://files.enerkem.com` | Only used as an HTTP proxy target, and only when `PUBLIC_MINIO_ENDPOINT` resolves to localhost — a local-development escape hatch. It is otherwise ignored, but must still be non-empty or storage silently no-ops. In a real deployment set it to the same value as `PUBLIC_MINIO_ENDPOINT`. |
+| `AZURE_STORAGE_ACCOUNT` | `enerkemcmms` | Storage account name. |
+| `AZURE_STORAGE_CONTAINER` | `atlas-files` | Blob container. Created on first boot if missing. |
+| `AZURE_STORAGE_ACCOUNT_KEY` | *(blank)* | **Leave blank to use managed identity.** Secret — belongs in `atlas-cmms-secrets` if you do set it. |
+| `AZURE_STORAGE_ENDPOINT` | *(blank)* | Override the blob endpoint. Defaults to `https://<account>.blob.core.windows.net`. Set it for a custom domain or Azurite. |
+
+#### `STORAGE_TYPE=minio`
+
+If **any** `MINIO_*` value is blank the client silently no-ops. Note that Azure
+Blob cannot be used here — the MinIO SDK speaks the S3 API and Blob has no
+S3-compatible endpoint. Use `STORAGE_TYPE=azure` instead.
+
+| Variable | Example | What to put in it |
+|---|---|---|
+| `PUBLIC_MINIO_ENDPOINT` | `https://files.enerkem.com` | **The one that matters.** Despite the name, `MinioService.init()` builds the client on this for *everything* — uploads, downloads and signing — so it must be reachable from the web app **and** from browsers, and it is the host that ends up in signed URLs. |
+| `MINIO_ENDPOINT` | `https://files.enerkem.com` | Only used as an HTTP proxy target, and only when `PUBLIC_MINIO_ENDPOINT` resolves to localhost — a local-development escape hatch. Otherwise ignored, but must still be non-empty or storage silently no-ops. In a real deployment set it to the same value as `PUBLIC_MINIO_ENDPOINT`. |
 | `MINIO_BUCKET` | `atlas-bucket` | Created automatically on first boot if missing. |
 | `MINIO_ACCESS_KEY` | `atlas-cmms` | Access key. |
 
@@ -139,7 +158,8 @@ permissions `openid`, `email`, `profile`.
 | `JWT_SECRET_KEY` | Signing key for the app's own session tokens. `openssl rand -base64 48`. Never reuse across environments; rotating it invalidates every active session. |
 | `DB_PWD` | Password for `DB_USER`. |
 | `SMTP_PWD` | Password or app-password for `SMTP_USER`. May be blank while `ENABLE_EMAIL_NOTIFICATIONS` is `false`. |
-| `MINIO_SECRET_KEY` | Secret key for the object store account. |
+| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key. **Prefer leaving this blank** and granting the web app's managed identity *Storage Blob Data Contributor* + *Storage Blob Delegator* instead. |
+| `MINIO_SECRET_KEY` | Secret key for the object store account, when `STORAGE_TYPE=minio`. |
 | `OAUTH2_CLIENT_SECRET` | Client secret from the Entra app registration. **These expire** — record the expiry date, because SSO stops working silently when it lapses. |
 
 ---

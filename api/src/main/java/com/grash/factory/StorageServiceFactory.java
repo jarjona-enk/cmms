@@ -1,6 +1,7 @@
 package com.grash.factory;
 
 import com.grash.model.enums.StorageType;
+import com.grash.service.AzureBlobService;
 import com.grash.service.GCPService;
 import com.grash.service.MinioService;
 import com.grash.service.StorageService;
@@ -14,6 +15,7 @@ public class StorageServiceFactory {
     @Value("${storage.type}")
     private StorageType storageType;
 
+    private final AzureBlobService azureBlobService;
     private final GCPService gcpService;
     private final MinioService minioService;
 
@@ -21,6 +23,8 @@ public class StorageServiceFactory {
         switch (storageType) {
             case GCP:
                 return gcpService;
+            case AZURE:
+                return azureBlobService;
             default:
                 return minioService;
         }

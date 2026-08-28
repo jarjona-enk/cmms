@@ -270,3 +270,41 @@ the fix is to merge the upstream release, never to edit the file.
   add one.
 - The image is environment-specific (see the Dockerfile build args above), so
   `cmms:prod` cannot be promoted to another environment with a different URL.
+
+---
+
+## 10. Azure Blob storage backend (2026-08-28)
+
+`STORAGE_TYPE=azure` is now a real backend. Added because the original plan of
+pointing `MINIO_*` at a blob account cannot work: `MinioService` uses the MinIO
+Java SDK, which speaks the S3 API, and Azure Blob has no S3-compatible
+endpoint.
+
+`AzureBlobService` (new file) implements the 7-method `StorageService`
+interface. Two credential modes, chosen by whether an account key is set:
+
+- **blank key → managed identity.** `DefaultAzureCredential`, signing *user
+  delegation* SAS. Preferred: no stored secret. The identity needs *Storage
+  Blob Data Contributor* and *Storage Blob Delegator* on the account.
+- **key set → shared key**, signing service SAS.
+
+Delegation keys are cached (12 h TTL, 30 min refresh margin) because obtaining
+one is a network round trip and `FileMapper` signs every file of every listing
+individually. For the same reason `generateSignedUrl` deliberately does **not**
+check blob existence — a HEAD per file would multiply every page load by the
+number of attachments. `MinioService` behaves the same way; `GCPService` does
+check, and pays for it.
+
+Cost of the change, and why it was cheap: the two files needing edits,
+`StorageType` (enum) and `StorageServiceFactory` (switch), have **zero**
+upstream churn, so this is effectively conflict-free on future merges. New
+config block `storage.azure.*` in `application.yml`; `com.azure:azure-storage-blob`
+12.25.1 and `com.azure:azure-identity` 1.11.4 pinned explicitly in `api/pom.xml`,
+matching how minio and google-cloud-storage are already declared. Verified with
+`mvnw -DskipTests -DskipFrontend=true compile` → BUILD SUCCESS.
+
+**Network requirement, unchanged by the backend choice:** `FileMapper` hands
+signed URLs to the browser and the API never proxies file bytes, so the store
+must be reachable from end-user browsers, not just from the web app. A private
+endpoint is fine if users can resolve and reach it. Signatures are host-bound —
+the hostname the server signs with is the hostname the browser must use.

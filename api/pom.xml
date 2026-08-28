@@ -22,6 +22,8 @@
         <!-- Frontend build (bundled SPA served by Spring). Skip with -DskipFrontend=true -->
         <skipFrontend>false</skipFrontend>
         <node.version>v21.6.1</node.version>
+        <azure.storage.blob.version>12.25.1</azure.storage.blob.version>
+        <azure.identity.version>1.11.4</azure.identity.version>
         <frontend.dir>${project.basedir}/../frontend</frontend.dir>
         <!-- Baked into the SPA at build time (single-origin: same host as the API) -->
         <frontend.api.url>http://localhost:8080</frontend.api.url>
@@ -182,6 +184,19 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>8.5.17</version>
+        </dependency>
+        <!-- Azure Blob Storage backend (STORAGE_TYPE=azure). azure-identity supplies
+             DefaultAzureCredential so the app can authenticate as its managed
+             identity instead of holding an account key. -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>${azure.storage.blob.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${azure.identity.version}</version>
         </dependency>
         <dependency>
             <groupId>net.coobird</groupId>
