@@ -15,6 +15,8 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import useAuth from 'src/hooks/useAuth';
 import UpgradeTwoToneIcon from '@mui/icons-material/UpgradeTwoTone';
 import QuestionMarkTwoToneIcon from '@mui/icons-material/QuestionMarkTwoTone';
+import CodeTwoToneIcon from '@mui/icons-material/CodeTwoTone';
+import InfoTwoToneIcon from '@mui/icons-material/InfoTwoTone';
 import { homeUrl, isCloudVersion } from '../../../../config';
 import { useContext } from 'react';
 import { CompanySettingsContext } from '../../../../contexts/CompanySettingsContext';
@@ -122,6 +124,42 @@ function SidebarFooter() {
           </IconButton>
         </LightTooltip>
       )}
+      <LightTooltip placement="top" arrow title={t('source_code_notice')}>
+        <IconButton
+          sx={{
+            background: `${theme.colors.alpha.trueWhite[10]}`,
+            color: `${theme.colors.alpha.trueWhite[70]}`,
+            transition: `${theme.transitions.create(['all'])}`,
+
+            '&:hover': {
+              background: `${alpha(theme.colors.alpha.trueWhite[100], 0.2)}`,
+              color: `${theme.colors.alpha.trueWhite[100]}`
+            }
+          }}
+          to="/source-code"
+          component={RouterLink}
+        >
+          <CodeTwoToneIcon fontSize="small" />
+        </IconButton>
+      </LightTooltip>
+      <LightTooltip placement="top" arrow title={t('about')}>
+        <IconButton
+          sx={{
+            background: `${theme.colors.alpha.trueWhite[10]}`,
+            color: `${theme.colors.alpha.trueWhite[70]}`,
+            transition: `${theme.transitions.create(['all'])}`,
+
+            '&:hover': {
+              background: `${alpha(theme.colors.alpha.trueWhite[100], 0.2)}`,
+              color: `${theme.colors.alpha.trueWhite[100]}`
+            }
+          }}
+          to="/app/about"
+          component={RouterLink}
+        >
+          <InfoTwoToneIcon fontSize="small" />
+        </IconButton>
+      </LightTooltip>
       <LightTooltip placement="top" arrow title={t('Logout')}>
         <IconButton
           sx={{

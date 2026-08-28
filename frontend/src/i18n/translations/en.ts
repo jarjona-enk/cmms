@@ -1880,7 +1880,9 @@ const locale = {
   all_users: 'All Users',
   team_member: 'Team Member',
   no_data: 'No data',
-  hours_left: 'left'
+  hours_left: 'left',
+  source_code_notice: 'Source code & open-source licensing',
+  about: 'About'
 };
 
 export default locale;

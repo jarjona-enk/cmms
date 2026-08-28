@@ -30,12 +30,19 @@ const RequestPortalPublicPage = Loader(
   )
 );
 
+const SourceCode = Loader(lazy(() => import('../content/pages/SourceCode')));
+
 const router: RouteObject[] = [
   {
     path: 'account',
     children: accountRoutes
   },
   { path: 'oauth2', children: oauthRoutes },
+  {
+    // Public AGPLv3 source-code availability notice (offer to network users)
+    path: 'source-code',
+    element: <SourceCode />
+  },
   {
     path: 'payment/success',
     element: <PaymentSuccess />

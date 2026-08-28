@@ -61,6 +61,16 @@ function LoginCover() {
               </Typography>
             </Box>
             <JWTLogin />
+            <Box mt={3} textAlign="center">
+              <Link
+                component={RouterLink}
+                to="/source-code"
+                variant="body2"
+                color="text.secondary"
+              >
+                {t('source_code_notice')}
+              </Link>
+            </Box>
             {!ldapEnabled && (
               <Box my={4}>
                 <Typography

@@ -165,6 +165,7 @@ const Downgrade = Loader(
 const SwitchAccount = Loader(
   lazy(() => import('../content/own/SwitchAccount'))
 );
+const About = Loader(lazy(() => import('../content/own/About')));
 const appRoutes = [
   {
     path: 'settings',
@@ -482,7 +483,8 @@ const appRoutes = [
   },
   { path: 'upgrade', element: <Upgrade /> },
   { path: 'downgrade', element: <Downgrade /> },
-  { path: 'switch-account', element: <SwitchAccount /> }
+  { path: 'switch-account', element: <SwitchAccount /> },
+  { path: 'about', element: <About /> }
 ];
 
 export default appRoutes;
