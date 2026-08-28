@@ -258,6 +258,7 @@ function CompanyDetails(props: CompanyDetailsProps) {
                   if (key !== 'settings')
                     return (
                       <KeyAndValue
+                        key={key}
                         label={companyDetails[key].title}
                         value={companyDetails[key].value}
                         isLink={companyDetails[key].isLink}

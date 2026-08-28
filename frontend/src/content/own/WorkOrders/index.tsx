@@ -957,6 +957,7 @@ function WorkOrders() {
               .map((tab) =>
                 tab.disabled ? (
                   <Tooltip
+                    key={tab.value}
                     title={
                       tab.requiresUpgrade ? t('upgrade_now') : t('Coming Soon')
                     }
@@ -964,7 +965,6 @@ function WorkOrders() {
                   >
                     <span>
                       <Tab
-                        key={tab.value}
                         label={tab.label}
                         value={tab.value}
                         disabled={tab.disabled}

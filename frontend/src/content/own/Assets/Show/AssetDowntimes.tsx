@@ -129,12 +129,14 @@ const AssetDowntimes = ({ asset }: PropsType) => {
       getActions: (params: GridRowParams) => {
         let actions = [
           <GridActionsCellItem
+            showInMenu={false}
             key="edit"
             icon={<EditTwoToneIcon fontSize="small" color="primary" />}
             onClick={() => handleEdit(Number(params.id))}
             label={t('edit_downtime')}
           />,
           <GridActionsCellItem
+            showInMenu={false}
             key="delete"
             icon={<DeleteTwoToneIcon fontSize="small" color="error" />}
             onClick={() => handleDelete(Number(params.id))}

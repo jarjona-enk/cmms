@@ -49,6 +49,7 @@ const AssetFiles = ({ asset }: PropsType) => {
       getActions: (params: GridRowParams) => {
         let actions = [
           <GridActionsCellItem
+            showInMenu={false}
             key="delete"
             icon={<DeleteTwoToneIcon fontSize="small" color="error" />}
             onClick={() => handleDelete(Number(params.id))}

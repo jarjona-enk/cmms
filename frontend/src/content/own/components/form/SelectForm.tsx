@@ -37,6 +37,7 @@ export default (props: PropsType) => {
       // @ts-ignore
       isOptionEqualToValue={(option, value) => option.value == value.value}
       defaultValue={props.value || (props.multiple ? [] : null)}
+      // @ts-ignore
       options={props.options}
       // @ts-ignore
       getOptionLabel={(option) => option.label}

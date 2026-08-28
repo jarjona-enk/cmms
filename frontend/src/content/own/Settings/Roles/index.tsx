@@ -304,6 +304,7 @@ function Roles() {
       getActions: (params: GridRowParams<Role>) => {
         let actions = [
           <GridActionsCellItem
+            showInMenu={false}
             key="edit"
             disabled={!hasFeature(PlanFeature.ROLE)}
             icon={
@@ -316,6 +317,7 @@ function Roles() {
             label={t('edit')}
           />,
           <GridActionsCellItem
+            showInMenu={false}
             key="delete"
             disabled={!hasFeature(PlanFeature.ROLE)}
             icon={

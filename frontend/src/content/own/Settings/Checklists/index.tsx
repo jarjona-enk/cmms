@@ -97,6 +97,7 @@ function Checklists() {
       description: t('actions'),
       getActions: (params: GridRowParams<Checklist>) => [
         <GridActionsCellItem
+          showInMenu={false}
           key="delete"
           icon={<DeleteTwoToneIcon fontSize="small" color="error" />}
           onClick={() => {
