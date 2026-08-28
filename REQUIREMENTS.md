@@ -82,13 +82,32 @@ at startup and the container exits.
 
 ### File storage (attachments, exports)
 
+⚠️ **The store must speak the S3 API.** `STORAGE_TYPE=minio` uses the MinIO
+Java SDK, and `StorageServiceFactory` offers only two backends: `minio` (S3)
+and `gcp` (Google Cloud Storage). **Azure Blob Storage will not work** — it has
+no S3-compatible endpoint, so a `*.blob.core.windows.net` URL fails here no
+matter how it is configured. On Azure this means hosting MinIO yourself, for
+example a container backed by a managed disk or an Azure Files share.
+
+⚠️ **The store must be reachable from end-user browsers, not just from the web
+app.** `FileMapper` turns every file reference into a pre-signed URL on its way
+out of the API, so browsers fetch every attachment, image and thumbnail
+*directly* from the store — the API never proxies file bytes. A store locked to
+the web app's subnet leaves every image broken. It does not have to be
+internet-facing: a private endpoint with private DNS is fine as long as users
+are on a network that can resolve and reach it.
+
+Pre-signed signatures are **host-bound**: the hostname the server signs with is
+the hostname the browser must use. Split-horizon DNS on the *same* name is
+fine; a different external hostname invalidates the signature.
+
 If **any** `MINIO_*` value is blank the storage client silently no-ops: the app
 boots normally and uploads fail only when a user tries one.
 
 | Variable | Example | What to put in it |
 |---|---|---|
-| `MINIO_ENDPOINT` | `https://cmmsfiles.blob.core.windows.net` | URL the **server** uses to reach the object store — the internal address. |
-| `PUBLIC_MINIO_ENDPOINT` | `https://files.enerkem.com` | URL the **browser** uses in pre-signed download links. Frequently different from the above; swapping the two produces links that only work from inside the network. |
+| `PUBLIC_MINIO_ENDPOINT` | `https://files.enerkem.com` | **The one that matters.** Despite the name, `MinioService.init()` builds the client on this for *everything* — uploads, downloads and signing — so it must be reachable from the web app **and** from browsers, and it is the host that ends up in pre-signed URLs. |
+| `MINIO_ENDPOINT` | `https://files.enerkem.com` | Only used as an HTTP proxy target, and only when `PUBLIC_MINIO_ENDPOINT` resolves to localhost — a local-development escape hatch. It is otherwise ignored, but must still be non-empty or storage silently no-ops. In a real deployment set it to the same value as `PUBLIC_MINIO_ENDPOINT`. |
 | `MINIO_BUCKET` | `atlas-bucket` | Created automatically on first boot if missing. |
 | `MINIO_ACCESS_KEY` | `atlas-cmms` | Access key. |
 
