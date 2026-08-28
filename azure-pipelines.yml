@@ -23,8 +23,22 @@ pr: none
 variables:
   - group: atlas-cmms-build
   - group: atlas-cmms-secrets
+
+  # Shared Enerkem service connections, same ones the it-poet pipeline uses.
+  - name: dockerRegistryServiceConnection
+    value: '3531bbd9-3f78-490d-a3f2-263804a11891'
+  - name: azureSubscriptionServiceConnection
+    value: '9ce67bd0-4ae6-490b-9976-a14930a3cb1b'
+  - name: acrLoginServer
+    value: 'enerkem.azurecr.io'
+
   - name: imageRepository
-    value: 'atlas-cmms'
+    value: 'cmms'
+  - name: imageTag
+    value: 'prod'
+  - name: webAppName
+    value: 'cmms-prod'
+
   - name: dockerfilePath
     value: 'api/Dockerfile'
   # Build context is the REPOSITORY ROOT, not api/. The Dockerfile's first
@@ -209,14 +223,93 @@ stages:
             displayName: 'Log in to ACR'
             inputs:
               command: login
-              containerRegistry: '$(ACR_SERVICE_CONNECTION)'
+              containerRegistry: '$(dockerRegistryServiceConnection)'
 
+          # :prod is the moving tag the web app pulls. The release version is
+          # pushed alongside it as an immutable tag so a bad release can be
+          # rolled back to a specific build rather than rebuilt from a tag.
           - bash: |
               set -euo pipefail
               SRC="$(imageRepository):$(candidateTag)"
-              for TAG in "$(releaseVersion)" latest; do
-                docker tag "$SRC" "$(ACR_LOGIN_SERVER)/$(imageRepository):${TAG}"
-                docker push "$(ACR_LOGIN_SERVER)/$(imageRepository):${TAG}"
+              for TAG in "$(imageTag)" "$(releaseVersion)"; do
+                docker tag "$SRC" "$(acrLoginServer)/$(imageRepository):${TAG}"
+                docker push "$(acrLoginServer)/$(imageRepository):${TAG}"
               done
-              echo "Published $(ACR_LOGIN_SERVER)/$(imageRepository):$(releaseVersion)"
+              echo "Published $(acrLoginServer)/$(imageRepository):$(imageTag) (also tagged $(releaseVersion))"
             displayName: 'Tag and push to ACR'
+
+  - stage: Deploy
+    displayName: 'Deploy to cmms-prod'
+    dependsOn: Release
+    condition: succeeded()
+    jobs:
+      - job: DeployWebApp
+        displayName: 'Deploy container to the Azure web app'
+        steps:
+          - checkout: none
+
+          # App settings are the container's entire runtime configuration -
+          # database, mail, storage, SSO. They are set on every deploy so the
+          # web app cannot drift from what the variable groups say. Every value
+          # is documented in REQUIREMENTS.md.
+          #
+          # WEBSITES_PORT is not application config: Web App for Containers
+          # needs it to know the container listens on 8080, and without it the
+          # platform probes the wrong port and the site returns 504.
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy $(imageRepository):$(imageTag) to $(webAppName)'
+            inputs:
+              azureSubscription: '$(azureSubscriptionServiceConnection)'
+              appName: '$(webAppName)'
+              containers: '$(acrLoginServer)/$(imageRepository):$(imageTag)'
+              appSettings: >-
+                -WEBSITES_PORT 8080
+                -SPRING_PROFILES_ACTIVE "$(SPRING_PROFILES_ACTIVE)"
+                -DB_URL "$(DB_URL)"
+                -DB_USER "$(DB_USER)"
+                -DB_PWD "$(DB_PWD)"
+                -JWT_SECRET_KEY "$(JWT_SECRET_KEY)"
+                -PUBLIC_API_URL "$(PUBLIC_API_URL)"
+                -PUBLIC_FRONT_URL "$(PUBLIC_FRONT_URL)"
+                -MAIL_RECIPIENTS "$(MAIL_RECIPIENTS)"
+                -MAIL_TYPE "$(MAIL_TYPE)"
+                -SMTP_HOST "$(SMTP_HOST)"
+                -SMTP_PORT "$(SMTP_PORT)"
+                -SMTP_USER "$(SMTP_USER)"
+                -SMTP_PWD "$(SMTP_PWD)"
+                -SMTP_FROM "$(SMTP_FROM)"
+                -ENABLE_EMAIL_NOTIFICATIONS "$(ENABLE_EMAIL_NOTIFICATIONS)"
+                -INVITATION_VIA_EMAIL "$(INVITATION_VIA_EMAIL)"
+                -STORAGE_TYPE "$(STORAGE_TYPE)"
+                -MINIO_ENDPOINT "$(MINIO_ENDPOINT)"
+                -PUBLIC_MINIO_ENDPOINT "$(PUBLIC_MINIO_ENDPOINT)"
+                -MINIO_BUCKET "$(MINIO_BUCKET)"
+                -MINIO_ACCESS_KEY "$(MINIO_ACCESS_KEY)"
+                -MINIO_SECRET_KEY "$(MINIO_SECRET_KEY)"
+                -ENABLE_SSO "$(ENABLE_SSO)"
+                -OAUTH2_PROVIDER "$(OAUTH2_PROVIDER)"
+                -OAUTH2_CLIENT_ID "$(OAUTH2_CLIENT_ID)"
+                -OAUTH2_CLIENT_SECRET "$(OAUTH2_CLIENT_SECRET)"
+                -OAUTH2_TENANT_ID "$(OAUTH2_TENANT_ID)"
+                -ENABLE_CORS "$(ENABLE_CORS)"
+                -ALLOWED_ORGANIZATION_ADMINS "$(ALLOWED_ORGANIZATION_ADMINS)"
+
+          # The deploy task returns as soon as the platform accepts the image.
+          # Confirm the running site actually serves the SPA before calling the
+          # release good - a container that fails to start still leaves the
+          # previous one serving, which looks like success from the task alone.
+          - bash: |
+              set -euo pipefail
+              URL="$(PUBLIC_API_URL)"
+              echo "Waiting for ${URL} to serve the SPA..."
+              for i in $(seq 1 60); do
+                BODY=$(curl -fsS --max-time 20 "${URL}/" 2>/dev/null) || BODY=""
+                if echo "$BODY" | grep -q 'id="root"'; then
+                  echo "${URL} is serving the SPA after $((i * 10))s"
+                  exit 0
+                fi
+                sleep 10
+              done
+              echo "##vso[task.logissue type=error]${URL} did not serve the SPA within 10 minutes"
+              exit 1
+            displayName: 'Verify the deployed site serves the SPA'

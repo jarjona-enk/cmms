@@ -213,9 +213,40 @@ Every pipeline and runtime variable, in two groups (`atlas-cmms-build`,
 (host:port/db, no jdbc prefix), `DB_USER`, `DB_PWD`, `JWT_SECRET_KEY`,
 `PUBLIC_API_URL`, `PUBLIC_FRONT_URL`, `MAIL_RECIPIENTS`, `STORAGE_TYPE`.
 
+### Deploy stage → `cmms-prod`
+
+Modelled on the existing `it-poet` pipeline (`../itsheets/azure-pipelines-1.yml`),
+reusing the same shared service connections: registry
+`3531bbd9-3f78-490d-a3f2-263804a11891`, subscription
+`9ce67bd0-4ae6-490b-9976-a14930a3cb1b`, registry host `enerkem.azurecr.io`.
+
+Images publish as `enerkem.azurecr.io/cmms:prod` (the moving tag the web app
+pulls) plus an immutable `cmms:<version>` per release, so a rollback repoints
+the web app at a specific build instead of rebuilding from a tag.
+
+`AzureWebAppContainer@1` deploys to **`cmms-prod`** and rewrites the app
+settings from the variable groups on **every** deploy, so the web app cannot
+drift from what the groups say. `WEBSITES_PORT=8080` is set because Web App for
+Containers otherwise probes the wrong port and serves 504.
+
+Two gotchas that are documented in REQUIREMENTS.md and easy to get wrong:
+
+- Azure DevOps leaves an **undefined** `$(FOO)` as the literal string `$(FOO)`.
+  A missing variable therefore does not fail the build — it writes garbage into
+  the app setting. Every one of the 29 referenced variables must exist in a
+  group, blank if unused.
+- `AzureWebAppContainer@1` returns as soon as the platform accepts the image,
+  and a container that fails to start leaves the *previous* one serving. A
+  post-deploy step therefore polls `PUBLIC_API_URL` for the SPA shell for up to
+  10 minutes and fails the run if it never appears.
+
 ### Open
 
-- **Push to `origin` is blocked**: Azure DevOps SSH returns `Permission denied
-  (publickey)`. Only `~/.ssh/id_rsa` (RSA, 2021) exists and no agent is running.
-- No deploy stage — the pipeline publishes an image and stops. Needs a decision
-  on the target (App Service / AKS / the `cmms.service` systemd unit).
+- Access to `origin` switched from SSH to HTTPS (`git remote set-url`) because
+  the only local key, `~/.ssh/id_rsa` (RSA, 2021), is not registered with Azure
+  DevOps. Auth now goes through Git Credential Manager with a PAT.
+- No approval gate on the Deploy stage — it runs automatically after Release.
+  Converting `DeployWebApp` to a `deployment` job with an `environment` would
+  add one.
+- The image is environment-specific (see the Dockerfile build args above), so
+  `cmms:prod` cannot be promoted to another environment with a different URL.
