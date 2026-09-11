@@ -47,11 +47,21 @@ pr: none
 name: $(Date:yyyyMMdd)$(Rev:.rr)
 
 variables:
-  # Shared Enerkem service connections, the same two itsheets and budget use.
+  # Service connections in the "New Services Implementations" project.
+  #
+  # Service connections are PROJECT-SCOPED. The ids itsheets and budget use
+  # belong to their own project and do not resolve here, which is why these are
+  # the ones verified against this project with
+  # `az devops service-endpoint list`.
+  #
+  # 'DEVOPS - ACR' -> registry `enerkem` (enerkem.azurecr.io). Note the other
+  # docker connection in this project, 'Docker Registy connector', points at
+  # `sjusiccontainerregistry` and is NOT the one we want.
   - name: dockerRegistryServiceConnection
-    value: '3531bbd9-3f78-490d-a3f2-263804a11891'
+    value: '784814e7-aa27-4bd8-89dd-31cfbfaa46bc'
+  # 'Enterprise (d14f7b8e-d71d-4106-ab93-990c96df467c)', subscription-scoped.
   - name: azureSubscriptionServiceConnection
-    value: '9ce67bd0-4ae6-490b-9976-a14930a3cb1b'
+    value: 'ca8fb3b0-6089-454b-a98e-03739e391ab1'
   - name: acrLoginServer
     value: 'enerkem.azurecr.io'
   # Build context is the REPOSITORY ROOT, not api/. The Dockerfile's first
