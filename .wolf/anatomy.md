@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-11T18:50:33.309Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-11T18:51:30.107Z
 > Files: 563 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
@@ -40,7 +40,7 @@
 
 - `.dockerignore` — Governs the repo-root build context AND therefore the AGPLv3 source zip embedded in the image. Excludes `**/.terraform` (3 x 251 MB provider binaries) and every `*.env` — `dev.env` was reaching the publicly served bundle before 2026-09-10. Not merely a build-speed file (~420 tok)
 - `.easignore` (~70 tok)
-- `.gitattributes` — Line endings. (~312 tok)
+- `.gitattributes` — Line endings for the files Linux consumes at runtime. (~357 tok)
 - `.gitignore` — Git ignore rules (~102 tok)
 - `azure-pipelines.yml` — Atlas CMMS — Enerkem production release pipeline (~5938 tok)
 - `CLAUDE.md` — OpenWolf (~2372 tok)
