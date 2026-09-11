@@ -3,12 +3,33 @@
 Two environments, `test` and `prod`, both in the shared `New-Implementations`
 resource group in the `Enterprise` subscription.
 
+> # ⏸ PARKED — not in use
+>
+> **OpenTofu is parked for a later release.** Decided 2026-09-11 by the repo
+> owner: production infrastructure was built **by hand** — the web app,
+> storage account and container, networking, database and Key Vault are all in
+> place — and the release pipeline only builds a container and attaches it to
+> the existing web app.
+>
+> Nothing in this directory has ever been applied, and **none of it should be
+> applied now.** It still describes `cmms-test` / `cmms-prod` on dedicated
+> plans, so a `tofu apply` today would build a second, parallel set of
+> resources alongside the hand-made ones rather than adopting them.
+>
+> Picking this back up is its own release. The first task then is to reconcile
+> this config with what exists — either `tofu import` the hand-built
+> resources, or let Tofu own a fresh environment and retire the hand-built one.
+> Until that happens, treat everything below as design notes, not instructions.
+>
+> The live source of truth for how production is configured is
+> **`.azure/env/prod.env`** plus `REQUIREMENTS.md`.
+
 ```
 infra/
   bootstrap/          state storage account. Run once, by hand.
   modules/cmms/       everything one environment needs
-  envs/test/          cmms-test    B2 plan,    atlastest
-  envs/prod/          cmms-prod    P1v3 plan,  atlasprod
+  envs/test/          cmms-test    B2 plan,    atlastest on db-caneast-django-pmo-test
+  envs/prod/          cmms-prod    P1v3 plan,  atlas on db-caneast-pmdms
 ```
 
 ## Blast radius
@@ -29,10 +50,40 @@ assignments, and a diagnostic setting.
 | Prerequisite | Who | Notes |
 |---|---|---|
 | State storage account | `infra/bootstrap`, once | see below |
-| Database `atlastest` / `atlasprod` | DBA | on the existing flexible server, owned by the `atlas` role |
+| Database `atlastest` | DBA | on `db-caneast-django-pmo-test` (`10.225.1.107`) |
+| Database `atlas` | DBA | on `db-caneast-pmdms` (`10.225.1.104`), in `RG-CanEast-PMDMS` |
+| DNS + hostname binding for `cmms.enerkem.com` | Network/IT | the app's `public_url`; neither the record nor the binding exists yet |
+| **Reader on `RG-CanEast-PMDMS`** | you | prod reads that server and its private endpoint as data sources |
 | VNet integration subnet, one per env | Network team | `/28`, delegated to `Microsoft.Web/serverFarms`, in a VNet with a route to the database |
 | Entra app registration | IT | redirect URI `<public_url>/oauth2/callback/microsoft` |
 | The four Key Vault secrets | you, after first apply | see *Seed the vault* |
+
+### The two database servers
+
+The environments are on **different existing servers**, neither managed here:
+
+| Env | Server | Resource group | Private-endpoint address |
+|---|---|---|---|
+| test | `db-caneast-django-pmo-test` | `New-Implementations` | `10.225.1.107` |
+| prod | `db-caneast-pmdms` | `RG-CanEast-PMDMS` | `10.225.1.104` |
+
+Production's database and role are both **`atlas`** (renamed from `atlasprod`
+on 2026-09-10, matching `prod.env`).
+
+`envs/prod` references its server through two data sources — an
+`azurerm_postgresql_flexible_server` for identity and an
+`azurerm_private_endpoint_connection` for the address — so `db_host` is read,
+never hardcoded, and `tofu destroy` cannot reach the server. That is also why
+applying prod needs Reader on `RG-CanEast-PMDMS`.
+
+The host is an **IP, not the FQDN**: the server has public network access
+disabled and no `privatelink.postgres.database.azure.com` private DNS zone is
+linked to `VNET-CanEast-Tier1`, so
+`db-caneast-pmdms.postgres.database.azure.com` resolves inside the VNet the
+same way it does outside — through the privatelink CNAME to the server's public
+address, which refuses the connection. `prod-pmdms` and `itbudget`, the other
+apps on that server, use the same literal IP. Safe because pgJDBC defaults to
+`sslmode=prefer`, which encrypts without verifying the hostname.
 
 ### Why the subnet is not created here
 
@@ -82,9 +133,8 @@ tofu init
 tofu plan
 ```
 
-The pipeline runs exactly this. Prefer letting it, so state stays consistent —
-a local `apply` while a pipeline run is in flight will block on the state lease
-rather than corrupt anything, but it still confuses the audit trail.
+The pipeline does **not** run this — it never has, and while OpenTofu is
+parked it never will. See the banner at the top before running `apply`.
 
 ## Seed the vault
 
@@ -101,23 +151,38 @@ az keyvault secret set --vault-name $V --name oauth2-client-secret --value '...'
 az keyvault secret set --vault-name $V --name smtp-password        --value '...'
 ```
 
-Setting all four is required even when a value is unused — leave it blank
-rather than absent. Because references are unversioned, rotating a secret takes
-effect on the next app restart with no redeploy.
+⚠️ **`smtp-password` cannot be set blank** — Key Vault rejects an empty
+secret value. Omit it entirely while mail is off and leave the `SMTP_PWD` app
+setting unset; `application.yml` declares `${SMTP_PWD:}` and defaults it to
+empty. Only the first three are required. Because references are unversioned,
+rotating a secret takes effect on the next app restart with no redeploy.
+The live procedure is REQUIREMENTS.md §2, not this section.
 
 The vault uses RBAC, so your own account needs **Key Vault Secrets Officer** on
 it to run the commands above.
 
-## Permissions the pipeline service principal needs
+## Permissions needed to apply this
 
-On the `New-Implementations` resource group:
+Since 2026-09-10 the pipeline applies none of this, so these roles belong to
+**whoever runs `tofu apply` by hand** — the repo owner, as themselves — not to
+the pipeline service principal. That principal now needs only **Website
+Contributor** on `New-Implementations`, enough to read a web app's config,
+restart it and download its logs.
 
-- **Contributor** — create and manage the resources
-- **User Access Administrator** — the four role assignments. Contributor alone
-  cannot grant roles, and this is the permission most likely to need a request.
+- **Contributor** on `New-Implementations` — create and manage the resources
+- **User Access Administrator** on `New-Implementations` — the four role
+  assignments. Contributor alone cannot grant roles, and this is the permission
+  most likely to need a request.
 - **Storage Blob Data Contributor** on `enkmtfstate001` — the backend uses
-  `use_azuread_auth`, so it reads and writes state as the SPN rather than with
-  an account key
+  `use_azuread_auth`, so state is read and written as you rather than with an
+  account key
+- **Reader** on `RG-CanEast-PMDMS` — `envs/prod` reads the database server and
+  its private endpoint as data sources
+- **Reader** on `RG-CanEast-Tier1` — the VNet integration subnet is passed in
+  by id and read
+
+When these move back to the service principal, that is the point at which
+`tofu apply` can return to the pipeline.
 
 ## Identity
 

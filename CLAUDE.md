@@ -140,13 +140,47 @@ When touching upstream files, prefer a config flag or a new file over an
 inline edit. Every line we add to a file upstream also edits is a line we
 re-resolve on every future merge.
 
-## 2b. Infrastructure is OpenTofu, and it owns the app settings
+## 2b. Infrastructure is hand-built. OpenTofu is PARKED.
 
-`infra/` holds the OpenTofu config for both environments. **Application
-settings live in `infra/envs/<env>/main.tf`, not in the pipeline and not in the
-portal** — a `tofu apply` will revert anything changed elsewhere. Secrets live
-in per-environment Key Vaults, seeded by hand; Tofu never reads them, so no
-secret reaches the state file or the pipeline.
+**`infra/` is parked for a later release. Do not apply it, and do not add a
+`tofu` step to `azure-pipelines.yml`.** It has never been applied, and it
+describes `cmms-test` / `cmms-prod` on dedicated plans — applying it now would
+build a second, parallel set of resources next to the hand-made ones instead of
+adopting them. Reconciling the two (import, or a fresh environment) is the
+first task whenever that work resumes. See `infra/README.md`.
+
+**Production infrastructure was built by hand and is ready**: the web app
+**`cmms`** in `New-Implementations`, the storage account `stgcaneastcmms`,
+networking, the `atlas` database on `db-caneast-pmdms`, and a Key Vault for
+secrets. The pipeline creates none of it.
+
+**The pipeline is production-only.** One `release/*` tag, one job: build the
+image, smoke-test it, push to `enerkem.azurecr.io/cmms`, attach it to `cmms`
+and push the non-secret application settings. Same shape as
+`../itsheets/azure-pipelines-1.yml` and `../budget/azure-pipelines.yml`. There
+is no test environment and `test/*` tags build nothing.
+
+**Deployment settings live in `.azure/env/prod.env`**, committed and
+non-secret: web app name and resource group, image repository, the URL baked
+into the SPA, the SSO flags, the database host and user, the storage account
+and container, the Entra ids, mail settings. Edit that file rather than the
+YAML or the portal.
+
+**Never put a secret in `.azure/env/prod.env`** — it is committed. Secrets
+(`DB_PWD`, `JWT_SECRET_KEY`, `OAUTH2_CLIENT_SECRET`) are set once by hand as
+Key Vault references and the pipeline never touches them: its `appSettings`
+list only adds or updates the keys it names, so everything else on the app
+survives a deploy. See REQUIREMENTS.md §2. Note this file is **not** the
+repo-root `prod.env`/`dev.env`, which hold full runtime config including
+secrets and stay gitignored.
+
+The two environments use **two different existing PostgreSQL servers**, neither
+of them managed here: test is `db-caneast-django-pmo-test` (`10.225.1.107`),
+prod is `db-caneast-pmdms` (`10.225.1.104`, in `RG-CanEast-PMDMS`). Prod
+references its server as a data source and reads the host from the private
+endpoint. Both are addressed **by IP, never by FQDN** — there is no privatelink
+private DNS zone on `VNET-CanEast-Tier1`, so the FQDN resolves to the server's
+public address, which refuses connections.
 
 Rules:
 
@@ -154,13 +188,14 @@ Rules:
   `enerkem` registry, the Log Analytics workspace, the database server and the
   VNet integration subnets are read as data sources or passed in by id. A dozen
   other teams share that resource group; never widen this.
-- Run `tofu fmt -recursive` and `tofu validate` on both envs before committing.
+- While parked: if you do touch the config, still run `tofu fmt -recursive`
+  and `tofu validate` on both envs before committing, so it stays valid for
+  whoever unparks it.
 - Each environment uses a **user-assigned** identity. Do not "simplify" it to
   system-assigned: the role assignments need the principal id, and the web app
   needs the roles before its first image pull and Key Vault resolve, which is a
   cycle `tofu validate` rejects outright.
-- Prefer the pipeline over a local `apply`, so state and the audit trail stay
-  consistent.
+- **Do not apply.** Parked; see the top of this section.
 
 Details and prerequisites: `infra/README.md` and `REQUIREMENTS.md`.
 
@@ -178,3 +213,9 @@ Full detail in DEVELOPMENT-STATUS.md §2–3. The parts that break builds:
 - Full build ≈10 min. Use `-DskipFrontend=true` for ~30s Java-only loops.
 - Output is a single fat jar `api/target/app.jar` serving API + SPA on one
   port.
+- The container's **runtime stage is `eclipse-temurin:17-jre-noble`**, not
+  upstream's `amazoncorretto:17-alpine`. It carries an sshd on 2222 (root
+  password `Docker!`, both fixed by App Service) so the Azure SSH console can
+  attach, and `api/container/startup.sh` tees the app's console output to
+  `$LOG_FILE`, default `/home/cmms/atlas.log`. Both mirror `../budget`. Keep
+  Java 17: newer JDKs break Lombok here.

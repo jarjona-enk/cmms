@@ -1,30 +1,58 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-08-28T20:04:23.197Z
-> Files: 535 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-11T18:50:33.309Z
+> Files: 563 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
-- `atlas-cmms-azure-infrastructure.md` (~1118 tok)
+- `atlas-cmms-azure-infrastructure.md` (~1862 tok)
 - `atlas-cmms-fork-and-release-process.md` (~695 tok)
-- `atlas-cmms-internal-build-state.md` (~523 tok)
-- `MEMORY.md` — Memory index (~245 tok)
+- `atlas-cmms-internal-build-state.md` (~811 tok)
+- `MEMORY.md` — Memory index (~281 tok)
+
+## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-935e-57654313f459/scratchpad/
+
+- `wolf2.py` (~4 tok)
+
+## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/
+
+- `dbname.py` — -*- coding: utf-8 -*- (~1126 tok)
+- `dbuser.py` — -*- coding: utf-8 -*- (~1325 tok)
+- `deploydesc.py` — -*- coding: utf-8 -*- (~1390 tok)
+- `devstatus.py` — -*- coding: utf-8 -*- (~3624 tok)
+- `docs_update.py` — -*- coding: utf-8 -*- (~1732 tok)
+- `envfile.py` — -*- coding: utf-8 -*- (~2022 tok)
+- `park.py` — -*- coding: utf-8 -*- (~1694 tok)
+- `prodonly.py` — -*- coding: utf-8 -*- (~2152 tok)
+- `record.py` — -*- coding: utf-8 -*- (~1250 tok)
+- `record1210.py` — -*- coding: utf-8 -*- (~4718 tok)
+- `record128.py` — -*- coding: utf-8 -*- (~1528 tok)
+- `record129.py` — -*- coding: utf-8 -*- (~1943 tok)
+- `req_append.py` — -*- coding: utf-8 -*- (~1594 tok)
+- `req_update.py` — -*- coding: utf-8 -*- (~4279 tok)
+- `sec35.py` — -*- coding: utf-8 -*- (~1231 tok)
+- `secrets.py` — -*- coding: utf-8 -*- (~2124 tok)
+- `status.py` — -*- coding: utf-8 -*- (~2832 tok)
+- `wolf_update.py` — -*- coding: utf-8 -*- (~3388 tok)
+- `wolf2.py` — -*- coding: utf-8 -*- (~4398 tok)
 
 ## ./
 
-- `.dockerignore` — Docker ignore rules (~123 tok)
+- `.dockerignore` — Governs the repo-root build context AND therefore the AGPLv3 source zip embedded in the image. Excludes `**/.terraform` (3 x 251 MB provider binaries) and every `*.env` — `dev.env` was reaching the publicly served bundle before 2026-09-10. Not merely a build-speed file (~420 tok)
 - `.easignore` (~70 tok)
+- `.gitattributes` — Line endings. (~312 tok)
 - `.gitignore` — Git ignore rules (~102 tok)
-- `azure-pipelines.yml` — Atlas CMMS — Enerkem release pipeline (~4030 tok)
-- `CLAUDE.md` — OpenWolf (~1987 tok)
+- `azure-pipelines.yml` — Atlas CMMS — Enerkem production release pipeline (~5938 tok)
+- `CLAUDE.md` — OpenWolf (~2372 tok)
 - `cmms.service` (~553 tok)
 - `COMMERCIAL_LICENSE.MD` — Atlas CMMS Commercial License Agreement (~2818 tok)
 - `dev.env` — ────────────────────────────────────────────────────────────────────────── (~789 tok)
-- `DEVELOPMENT-STATUS.md` — Development Status — Atlas CMMS internal build (Entra SSO + single-jar + AGPL) (~7145 tok)
+- `DEVELOPMENT-STATUS.md` — Development Status — Atlas CMMS internal build (Entra SSO + single-jar + AGPL) (~11999 tok)
 - `docker-compose.yml` — Docker Compose services (~1487 tok)
 - `GCP-setup.md` — GCP Setup tutorial (~181 tok)
 - `LICENSE` — Project license (~9382 tok)
 - `pom.xml` — Maven project configuration (~354 tok)
+- `prod.env` — ────────────────────────────────────────────────────────────────────────── (~1200 tok)
 - `README.MD` — ⚡ **Features** (~4851 tok)
 - `REQUIREMENTS.md` — REQUIREMENTS.md — what the pipeline and the infrastructure need from you (~3093 tok)
 - `Security.md` — Security Policy (~549 tok)
@@ -32,7 +60,16 @@
 
 ## .azure/
 
-- `steps-deploy.yml` — Shared deploy steps for one environment: apply the OpenTofu config, then (~1295 tok)
+- `steps-deploy.yml` — Shared deploy steps for one environment: read that environment's settings, (~2408 tok)
+
+## .azure/env/
+
+- `prod.env` — ────────────────────────────────────────────────────────────────────────── (~835 tok)
+- `test.env` — ────────────────────────────────────────────────────────────────────────── (~303 tok)
+
+## .azure/env/ *(manual)*
+
+- `prod.env` — Committed, NON-SECRET production deployment settings, and the live source of truth for them: web app name/RG, image repository, the SPA build values (PUBLIC_URL, ENABLE_SSO, OAUTH2_PROVIDER), plus every application setting the deploy task pushes (WEBSITES_PORT, DB_URL, DB_USER, storage account/container, Entra ids, mail flags, ENABLE_CORS, LOG_FILE). **Not** the repo-root prod.env, which holds runtime config incl. secrets and is gitignored (~900 tok)
 
 ## .claude/
 
@@ -58,7 +95,7 @@
 - `api.iml` (~77 tok)
 - `CHANGELOG.md` — Change log (~74 tok)
 - `CONTRIBUTING.md` — Guidance on how to contribute (~179 tok)
-- `Dockerfile` — Docker container definition (~684 tok)
+- `Dockerfile` — Docker container definition (~1212 tok)
 - `mvnw.cmd` (~1846 tok)
 - `pom.xml` — Maven project configuration (~4610 tok)
 - `README.md` — Project documentation (~149 tok)
@@ -73,6 +110,11 @@
 
 - `settings.json` (~40 tok)
 - `settings.json.orig` (~20 tok)
+
+## api/container/
+
+- `sshd_config` — Verbatim copy of ../budget/container/sshd_config. Port 2222, PermitRootLogin yes, PasswordAuthentication yes. That port and the root/`Docker!` pair are what App Service's SSH console requires (~120 tok)
+- `startup.sh` — Container entrypoint. Starts sshd in the background, then runs the jar in the foreground teed to `$LOG_FILE` (default `/home/cmms/atlas.log`), so stdout still reaches `az webapp log tail`. No nginx, unlike budget: one jar serves API + SPA on 8080 (~330 tok)
 
 ## api/scripts/
 
@@ -679,6 +721,10 @@
 - `MinioService.java` — S3-compatible backend. NB: builds its client on `PUBLIC_MINIO_ENDPOINT`, not `MINIO_ENDPOINT`; the latter is only an HTTP proxy target when the public endpoint is localhost. No-ops if any `MINIO_*` value is blank (~1600 tok)
 - `StorageService.java` — Interface all storage backends implement: upload (MultipartFile and byte[]), download, generateSignedUrl. `uploadAndSign` is the default combo used by exports (~330 tok)
 
+## infra/
+
+- `README.md` — Project documentation (~2350 tok)
+
 ## infra/ *(manual)*
 
 - `README.md` — Layout, blast radius, prerequisites, bootstrap procedure, vault seeding, the four role assignments and why user-assigned identity (~1750 tok)
@@ -690,7 +736,7 @@
 ## infra/envs/prod/ *(manual)*
 
 - `backend.tf` — azurerm remote state, key `cmms/prod.tfstate`, AzureAD auth (~110 tok)
-- `main.tf` — P1v3 plan, `atlasprod` database and user, image tag `prod`. Key Vault purge protection on (~520 tok)
+- `main.tf` — P1v3 plan, `atlas` database on db-caneast-pmdms read via two data sources (server + private endpoint), database and user both `atlas`, `public_url` defaults to https://cmms.enerkem.com, image tag `prod`. Key Vault purge protection on (~700 tok)
 
 ## infra/envs/test/ *(manual)*
 

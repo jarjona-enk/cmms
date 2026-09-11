@@ -16,6 +16,10 @@ RUN apk add --no-cache zip \
       -x '*/dist/*' \
       -x '*/.gradle/*' \
       -x '*/.idea/*' \
+      -x '*/.terraform/*' \
+      -x '*.tfstate*' \
+      -x '*.env' \
+      -x '.env' \
  && mkdir -p /out \
  && mv /atlas-cmms-source.zip /out/atlas-cmms-source.zip
 
@@ -45,16 +49,59 @@ RUN mvn -f pom.xml -DskipTests \
       clean package
 
 # ── Runtime Stage ─────────────────────────────────────────────────────
-FROM amazoncorretto:17-alpine
+# Ubuntu-based (noble) rather than the upstream amazoncorretto:17-alpine, so
+# the SSH setup below is the same apt/openssh-server setup the budget app uses
+# (../budget/Dockerfile). Alpine's musl build of openssh does not behave the
+# same way with App Service's SSH console. Java 17 regardless: newer JDKs break
+# Lombok in this codebase.
+FROM eclipse-temurin:17-jre-noble
+
+USER root
 
 # Set the working directory in the container
 WORKDIR /app
 
+# ── SSH server, matching ../budget/Dockerfile ─────────────────────────
+# This is what lets the Azure portal's "SSH" blade (and `az webapp ssh`) open a
+# shell inside the running container to read the log file. App Service connects
+# to port 2222 as root with the password Docker! - both are fixed by the
+# platform, not choices, and neither is reachable from the internet: the only
+# route in is the authenticated SCM tunnel.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends apt-utils && \
+    apt-get install -y --no-install-recommends \
+      openssh-server sudo vim less passwd tcpdump net-tools telnet wget curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Directory for the SSH daemon, then the host keys.
+RUN mkdir /var/run/sshd && chmod 0755 /var/run/sshd
+RUN ssh-keygen -A
+
+# Non-root user for day-to-day poking around, as on budget.
+RUN useradd -ms /bin/bash cmms && \
+    echo "cmms:cmm5" | chpasswd && \
+    echo "cmms ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Required by App Service's SSH console.
+RUN echo "root:Docker!" | chpasswd
+
+COPY api/container/sshd_config /etc/ssh/
+
+# ── Application ───────────────────────────────────────────────────────
+# LOG_FILE is where startup.sh tees the console output. /home is not persisted
+# unless WEBSITES_ENABLE_APP_SERVICE_STORAGE is true, so by default this file
+# starts empty on every restart - which is usually what you want when reading
+# it over SSH.
+ENV LOG_FILE=/home/cmms/atlas.log
+RUN mkdir -p /home/cmms && chown cmms:cmms /home/cmms
+
 # Copy the compiled Spring Boot application JAR file into the container at /app
 COPY --from=build /app/api/target/*.jar my-spring-boot-app.jar
+COPY api/container/startup.sh startup.sh
+RUN chmod +x startup.sh
 
-# Expose the port that the Spring Boot application will run on
-EXPOSE 8080
+# 8080 is the app and the site container's target port; 2222 is sshd.
+EXPOSE 8080 2222
 
 # Specify the command to run on container startup
-CMD ["java", "--add-opens=java.base/java.lang=ALL-UNNAMED", "-jar", "/app/my-spring-boot-app.jar"]
+ENTRYPOINT ["sh", "/app/startup.sh"]

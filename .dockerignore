@@ -12,6 +12,25 @@ api/target
 **/.gradle
 *.iml
 api/src/main/resources/static/source
-.env
 atlas_backups
 DEVELOPMENT-STATUS.md
+
+# OpenTofu provider cache. Three copies of a 251 MB provider binary, which is
+# how the "source" bundle reached 278 MB compressed and the jar 442 MB. Not
+# source either way - `tofu init` fetches these.
+**/.terraform
+**/.terraform.tfstate*
+
+# State and plans can carry resource detail; the plan file is a build artifact.
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+
+# ⚠️ Every env file. These carry DB passwords, LICENSE_KEY and the Entra client
+# secret, and the bundle built from this context is served PUBLICLY at
+# GET /source-code/download for AGPLv3 §13. `dev.env` was reaching that zip.
+# Configuration is not "corresponding source" - do not narrow this pattern.
+.env
+*.env
+secrets-*.env

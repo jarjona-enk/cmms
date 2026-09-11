@@ -1,0 +1,24 @@
+# Line endings for the files Linux consumes at runtime.
+#
+# Most developers here are on Windows with core.autocrlf=true, which rewrites
+# checked-out files to CRLF. Harmless for source, but it breaks these:
+#
+#   api/container/startup.sh   copied into the image and run as the container
+#                              ENTRYPOINT. With CRLF, `sh /app/startup.sh`
+#                              fails on line 1 with $'\r': command not found
+#                              and the container never starts.
+#   .azure/env/*.env           sourced by bash in the pipeline. With CRLF every
+#                              value gets a trailing \r, so the web app name
+#                              becomes "cmms\r" and every az call fails.
+#   api/container/sshd_config  read by sshd inside the image.
+#   api/Dockerfile             RUN lines are executed by a shell in the image.
+#
+# Deliberately scoped to our own files rather than a repo-wide `* text=auto`:
+# this is a downstream fork, and a blanket rule renormalises upstream files
+# (mobile/android/gradlew.bat and friends), which is 100+ lines of pure
+# line-ending churn to re-resolve on every upstream merge. See CLAUDE.md.
+
+api/container/startup.sh    text eol=lf
+api/container/sshd_config   text eol=lf
+api/Dockerfile              text eol=lf
+.azure/env/*.env            text eol=lf

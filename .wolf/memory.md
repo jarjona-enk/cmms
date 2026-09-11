@@ -61,3 +61,172 @@ the service principal needs **User Access Administrator** (Contributor cannot gr
 the role assignments); Key Vaults must be seeded between first apply and first
 deploy. Upstream `v1.7.0` (+16 commits) is pending review and must not be merged
 unprompted.
+| 16:05 | Session end: 4 writes across 4 files (atlas-cmms-internal-build-state.md, atlas-cmms-fork-and-release-process.md, atlas-cmms-azure-infrastructure.md, MEMORY.md) | 1 reads | ~2870 tok |
+
+## Session: 2026-09-10 17:11
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 17:22 | Created .azure/steps-deploy.yml | — | ~1147 |
+| 17:29 | Created api/container/sshd_config | — | ~88 |
+| 17:29 | Created api/container/startup.sh | — | ~283 |
+| 17:30 | Edited api/Dockerfile | expanded (+43 lines) | ~646 |
+| 17:31 | Created .azure/steps-deploy.yml | — | ~2023 |
+| 17:31 | Edited azure-pipelines.yml | 3→3 lines | ~36 |
+| 17:31 | Edited azure-pipelines.yml | 7→11 lines | ~154 |
+| 17:31 | Edited azure-pipelines.yml | 8→8 lines | ~91 |
+| 17:31 | Edited azure-pipelines.yml | 3→3 lines | ~41 |
+| 17:32 | Edited azure-pipelines.yml | 13→18 lines | ~312 |
+| 17:32 | Edited azure-pipelines.yml | 2→5 lines | ~94 |
+| 17:36 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/req_update.py | — | ~4279 |
+| 17:37 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/req_append.py | — | ~1594 |
+| 17:38 | Edited .azure/steps-deploy.yml | expanded (+9 lines) | ~179 |
+| 17:38 | Edited .azure/steps-deploy.yml | 7→7 lines | ~150 |
+| 17:40 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs_update.py | — | ~1732 |
+| 17:40 | Edited CLAUDE.md | expanded (+6 lines) | ~134 |
+| 17:41 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/devstatus.py | — | ~3624 |
+| 17:44 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/wolf_update.py | — | ~3388 |
+| 17:52 | Edited azure-pipelines.yml | expanded (+7 lines) | ~218 |
+| 17:55 | Edited .dockerignore | expanded (+19 lines) | ~205 |
+| 17:55 | Edited api/Dockerfile | 8→12 lines | ~80 |
+| 17:56 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-935e-57654313f459/scratchpad/wolf2.py | — | ~4 |
+| 17:57 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/wolf2.py | — | ~4398 |
+
+## Session summary — 2026-09-10
+
+Four owner decisions, all implemented: (1) OpenTofu out of the pipeline entirely,
+which also drops the User Access Administrator requirement from the service
+principal; (2) prod DB is `db-caneast-pmdms`, referenced via two read-only data
+sources, host taken from the private endpoint (`10.225.1.104`) because the FQDN
+resolves to the server's public address with no privatelink DNS zone linked;
+(3) `:latest` pushed on every release — which is the tag the hand-made
+`cmms` site-containers app actually pulls, so a `test/…` tag currently
+redeploys production; (4) sshd on 2222 + log teed to `/home/cmms/atlas.log`,
+ported from `../budget`, runtime base image moved to `eclipse-temurin:17-jre-noble`.
+
+Found and fixed three latent defects while verifying: a cross-stage
+`task.setvariable` reference in my own preflight; a hyphenated `JWT_SECRET_KEY`
+in the CI smoke test that would have failed every run on `Illegal base64
+character 2d`; and `dev.env` plus 754 MB of OpenTofu provider binaries reaching
+the publicly served AGPLv3 source bundle (278 MB -> 93 MB after the
+`.dockerignore` fix).
+
+Verified in the real image: builds clean, boots to `/health-check` in 7s, sshd
+on `0.0.0.0:2222`, app on `:::8080`, full Spring log in `/home/cmms/atlas.log`,
+SPA and source bundle both served. `tofu validate` + `fmt` clean on both envs;
+both pipeline YAML files parse.
+
+Still blocking a real deploy: `cmms` has no app settings, no VNet integration,
+and `keyVaultReferenceIdentity` points at a non-existent system-assigned
+identity. REQUIREMENTS.md §7.
+| 17:59 | Session end: 24 writes across 13 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 0 reads | ~25003 tok |
+| 18:05 | Edited prod.env | expanded (+26 lines) | ~396 |
+| 18:05 | Session end: 25 writes across 14 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 0 reads | ~25427 tok |
+| 18:18 | Edited infra/envs/prod/main.tf | 3→3 lines | ~41 |
+| 18:18 | Edited infra/envs/prod/main.tf | expanded (+10 lines) | ~208 |
+| 18:19 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/dbname.py | — | ~1126 |
+| 18:19 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/record.py | — | ~1250 |
+| 18:20 | Session end: 29 writes across 17 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 0 reads | ~28070 tok |
+| 09:53 | Edited infra/envs/prod/main.tf | 2→2 lines | ~11 |
+| 09:54 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/dbuser.py | — | ~1325 |
+| 09:55 | Session end: 31 writes across 18 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 0 reads | ~29407 tok |
+| 10:32 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/status.py | — | ~2832 |
+| 10:32 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~865 |
+| 10:33 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-azure-infrastructure.md | — | ~1986 |
+| 10:34 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/MEMORY.md | — | ~300 |
+
+## Session summary — 2026-09-11
+
+Follow-ups to the 2026-09-10 session, then a full records pass.
+
+Changes: prod `db_name` and `db_user` are both **`atlas`** (was `atlasprod`/`atlasprod`),
+matching `prod.env`; `variable "public_url"` in `infra/envs/prod/main.tf` now
+defaults to `https://cmms.enerkem.com` instead of requiring `TF_VAR_public_url`,
+which nothing supplies now that OpenTofu is out of the pipeline. Azure Blob
+variables were added to `prod.env` after the MinIO block. Production no longer
+follows the user-matches-database `atlasprod` convention; test still does.
+
+Records pass: rewrote DEVELOPMENT-STATUS.md START HERE around the real blockers
+(all Azure-side config, not code), retracted the role-name warnings once the
+owner settled it, removed a duplicate `## infra/envs/prod/` section from
+anatomy.md and enriched the auto-generated one-liners for `.dockerignore`,
+`azure-pipelines.yml` and `steps-deploy.yml`, noted in cerebrum that `cmms`
+breaks the `<env>-<app>` naming convention, and refreshed four persistent
+memories — most importantly correcting the `10.225.1.107` database claim, which
+was a test server, and dropping the stale "pipeline needs User Access
+Administrator" requirement.
+
+Verified: `tofu validate` + `fmt` clean on both envs after each edit;
+`nslookup cmms.enerkem.com` still NXDOMAIN; ACR repository `cmms` still does not
+exist. Nothing committed — working tree carries all of it.
+
+Single biggest open item: `cmms` cannot boot a container (no app settings, no
+VNet integration, `keyVaultReferenceIdentity` pointing at an identity that does
+not exist), and `cmms.enerkem.com` must be real before the first image build
+because the URL is compiled into the SPA bundle.
+| 10:35 | Edited infra/README.md | expanded (+12 lines) | ~303 |
+| 10:35 | Edited DEVELOPMENT-STATUS.md | expanded (+6 lines) | ~186 |
+| 10:35 | Edited DEVELOPMENT-STATUS.md | 6→11 lines | ~192 |
+| 10:36 | Session end: 38 writes across 24 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 1 reads | ~36343 tok |
+| 13:32 | Created .azure/env/prod.env | — | ~533 |
+| 13:32 | Created .azure/env/test.env | — | ~303 |
+| 13:32 | Edited azure-pipelines.yml | 13→14 lines | ~198 |
+| 13:33 | Edited azure-pipelines.yml | expanded (+23 lines) | ~626 |
+| 13:33 | Edited azure-pipelines.yml | 3→3 lines | ~58 |
+| 13:33 | Created .azure/steps-deploy.yml | — | ~2408 |
+| 13:35 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/envfile.py | — | ~2022 |
+| 13:36 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/record128.py | — | ~1528 |
+
+## Session note — 2026-09-11 (pipeline config)
+
+Replaced the `atlas-cmms-build` variable group with committed
+`.azure/env/prod.env` + `.azure/env/test.env`, five non-secret keys each.
+Declined to ship the root `prod.env` to CI as a secure file: the pipeline needs
+no secrets now that it writes no app settings and applies no infrastructure, so
+handing it any would only widen the blast radius. Both the Build job and the
+deploy template source the file independently, because `task.setvariable` is
+job-scoped. Validated the parse logic locally including a negative test. See
+DEVELOPMENT-STATUS.md §12.8.
+| 13:37 | Session end: 46 writes across 27 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 1 reads | ~44079 tok |
+| 13:49 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/secrets.py | — | ~2124 |
+| 13:51 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/record129.py | — | ~1943 |
+
+## Session note — 2026-09-11 (secret storage)
+
+Settled secret storage: per-env Key Vault + unversioned app-setting references,
+resolved by the app's user-assigned identity. Rewrote REQUIREMENTS.md section 2
+with the runnable sequence and a management table. Found that the old section 2
+instructed an impossible command (empty Key Vault secret value) - logged as
+bug-028. Confirmed no CMMS vault exists yet, and that only DB_PWD and
+JWT_SECRET_KEY are boot-critical (no defaults in application.yml); SMTP_PWD has
+a default and should simply be omitted. See DEVELOPMENT-STATUS.md section 12.9.
+| 13:51 | Session end: 48 writes across 29 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 1 reads | ~48146 tok |
+| 13:56 | Created .azure/env/prod.env | — | ~835 |
+| 13:59 | Created azure-pipelines.yml | — | ~5938 |
+| 13:59 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/park.py | — | ~1694 |
+| 14:00 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/prodonly.py | — | ~2152 |
+| 14:01 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/sec35.py | — | ~1231 |
+| 14:02 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/deploydesc.py | — | ~1390 |
+| 14:03 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/record1210.py | — | ~4718 |
+
+## Session note — 2026-09-11 (park tofu, production-only pipeline)
+
+Parked OpenTofu behind a banner in infra/README.md and rewrote CLAUDE.md 2b
+around the hand-built environment. Rebuilt azure-pipelines.yml as a single
+production-only job in the itsheets/budget shape: release/* trigger, build,
+smoke-test, push :<version> + :latest, AzureWebAppContainer@1 onto `cmms` with
+non-secret appSettings, poll, log. Deleted .azure/steps-deploy.yml and
+.azure/env/test.env. Expanded .azure/env/prod.env to the full non-secret set.
+
+Two divergences from itsheets/budget, both deliberate: plain `docker build`
+(Docker@2 buildAndPush ignores `arguments`, so --build-arg would be dropped and
+localhost:8080 baked into the SPA), and the smoke test kept.
+
+Two problems surfaced from Azure: `stgcaneastcmms` has publicNetworkAccess
+Disabled with defaultAction Deny, which breaks the browser-side SAS download
+path the app depends on (uploads would still work); and
+AzureWebAppContainer@1 will convert `cmms` off the site-containers model on
+first run. Both flagged, neither silently decided. See DEVELOPMENT-STATUS.md
+section 12.10.
+| 14:04 | Session end: 55 writes across 34 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~71154 tok |
+| 14:50 | Created .gitattributes | — | ~312 |

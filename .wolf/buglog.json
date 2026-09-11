@@ -8,7 +8,14 @@
       "file": "api/src/main/java/com/grash/security/OAuth2AuthenticationSuccessHandler.java",
       "root_cause": "The company-creation path read the Administrator role from the freshly created company's roleList, which is always empty at that point. Roles are global defaults, not per-company.",
       "fix": "Resolve through roleService.findDefaultRoles() as UserService.signup() already does, and throw a typed CustomException instead of a bare NoSuchElementException if it is genuinely missing.",
-      "tags": ["sso", "oauth2", "entra", "signup", "roles", "npe"],
+      "tags": [
+        "sso",
+        "oauth2",
+        "entra",
+        "signup",
+        "roles",
+        "npe"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T14:20:00-04:00"
@@ -20,7 +27,14 @@
       "file": "api/Dockerfile",
       "root_cause": "Create React App compiles REACT_APP_API_URL into the JavaScript bundle at build time. api/pom.xml exposes it as the frontend.api.url property, but the Dockerfile ran `mvn package` with no way to receive it, so every image took the pom default.",
       "fix": "Added FRONTEND_API_URL / FRONTEND_ENABLE_SSO / FRONTEND_OAUTH2_PROVIDER build args passed through to -Dfrontend.* Maven properties. Defaults unchanged so a bare docker build behaves as before. Consequence documented: images are environment-specific and cannot be promoted.",
-      "tags": ["docker", "cra", "build-args", "spa", "cicd", "environment"],
+      "tags": [
+        "docker",
+        "cra",
+        "build-args",
+        "spa",
+        "cicd",
+        "environment"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T11:30:00-04:00"
@@ -32,8 +46,17 @@
       "file": "REQUIREMENTS.md",
       "root_cause": "Wrote a plausible-looking Azure Blob URL without checking the SDK. STORAGE_TYPE=minio uses the MinIO Java SDK, which speaks the S3 API; Azure Blob Storage exposes no S3-compatible endpoint, so that value could never work regardless of network configuration.",
       "fix": "Corrected the documentation, then implemented a real Azure Blob backend (see bug-004 context). Rule: verify an SDK can actually talk to a service before putting it in a config example.",
-      "tags": ["documentation", "storage", "minio", "azure-blob", "s3", "wrong-assumption"],
-      "related_bugs": ["bug-004"],
+      "tags": [
+        "documentation",
+        "storage",
+        "minio",
+        "azure-blob",
+        "s3",
+        "wrong-assumption"
+      ],
+      "related_bugs": [
+        "bug-004"
+      ],
       "occurrences": 1,
       "last_seen": "2026-08-28T12:50:00-04:00"
     },
@@ -44,8 +67,16 @@
       "file": "REQUIREMENTS.md",
       "root_cause": "Assumed the variable names described their roles. MinioService.init() actually builds the client on PUBLIC_MINIO_ENDPOINT for uploads, downloads and signing alike; MINIO_ENDPOINT is only an HTTP proxy target, and only when the public endpoint resolves to localhost.",
       "fix": "Rewrote the storage section from the init() method. In a real deployment MINIO_ENDPOINT should simply match PUBLIC_MINIO_ENDPOINT; it must still be non-empty or storage silently no-ops.",
-      "tags": ["documentation", "storage", "minio", "config", "wrong-assumption"],
-      "related_bugs": ["bug-003"],
+      "tags": [
+        "documentation",
+        "storage",
+        "minio",
+        "config",
+        "wrong-assumption"
+      ],
+      "related_bugs": [
+        "bug-003"
+      ],
       "occurrences": 1,
       "last_seen": "2026-08-28T12:50:00-04:00"
     },
@@ -56,7 +87,14 @@
       "file": "infra/modules/cmms/main.tf",
       "root_cause": "Used a system-assigned managed identity. The role assignments reference azurerm_linux_web_app.identity[0].principal_id, so they can only be created after the web app, but the web app needs AcrPull to pull its first image and Key Vault access to resolve its first secret reference, so it depends_on them. Circular.",
       "fix": "Switched to a user-assigned identity (azurerm_user_assigned_identity.cmms). Role assignments hang off it, so every role lands before the web app exists and a cold apply produces a working app. Also required key_vault_reference_identity_id and container_registry_managed_identity_client_id, or the platform falls back to the absent system-assigned identity.",
-      "tags": ["opentofu", "terraform", "azure", "managed-identity", "rbac", "cycle"],
+      "tags": [
+        "opentofu",
+        "terraform",
+        "azure",
+        "managed-identity",
+        "rbac",
+        "cycle"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T14:35:00-04:00"
@@ -68,7 +106,13 @@
       "file": "infra/modules/cmms/main.tf",
       "root_cause": "Renamed db_fqdn to db_host with a string replacement, but an earlier `tofu fmt -recursive` had realigned `DB_URL = ` to `DB_URL  = ` (two spaces), so the pattern no longer matched that one line and it kept the old variable reference.",
       "fix": "Grepped for the stale name and used a regex on var.db_fqdn rather than the whole line. Lesson: after tofu fmt, re-grep before relying on any literal string match, and always re-run tofu validate after a bulk edit.",
-      "tags": ["opentofu", "terraform", "refactor", "sed", "formatting"],
+      "tags": [
+        "opentofu",
+        "terraform",
+        "refactor",
+        "sed",
+        "formatting"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T15:40:00-04:00"
@@ -80,7 +124,13 @@
       "file": ".git/config",
       "root_cause": "The only local key is ~/.ssh/id_rsa (RSA, 2021) and it is not registered with the user's Azure DevOps account. Not the usual SHA-1 algorithm problem: retrying with PubkeyAcceptedAlgorithms=+ssh-rsa failed identically.",
       "fix": "Switched origin to HTTPS (https://EnerkemIT@dev.azure.com/...) and authenticated through Git Credential Manager with a PAT.",
-      "tags": ["git", "azure-devops", "ssh", "authentication", "push"],
+      "tags": [
+        "git",
+        "azure-devops",
+        "ssh",
+        "authentication",
+        "push"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T11:00:00-04:00"
@@ -92,7 +142,13 @@
       "file": "azure-pipelines.yml",
       "root_cause": "Tried to write a large YAML file through a bash heredoc. The embedded mixed quoting broke the shell and the file was never created, so the follow-up validation silently had nothing to check.",
       "fix": "Used the Write tool instead. Rule: heredocs are fine for short, simple content; anything large or quote-heavy goes through Write.",
-      "tags": ["tooling", "bash", "heredoc", "yaml", "quoting"],
+      "tags": [
+        "tooling",
+        "bash",
+        "heredoc",
+        "yaml",
+        "quoting"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T11:20:00-04:00"
@@ -104,7 +160,12 @@
       "file": "api/",
       "root_cause": "Only mvnw.cmd is present in api/ — there is no POSIX mvnw wrapper in this repository.",
       "fix": "Run Maven through the PowerShell tool: $env:JAVA_HOME='C:\\java\\jdk-17'; cd C:\\data\\src\\cmms\\api; .\\mvnw.cmd ...",
-      "tags": ["build", "maven", "windows", "tooling"],
+      "tags": [
+        "build",
+        "maven",
+        "windows",
+        "tooling"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T14:00:00-04:00"
@@ -116,7 +177,13 @@
       "file": "-",
       "root_cause": "winget install OpenTofu.Tofu succeeded and modified PATH, but the already-running shell does not pick up the new PATH value.",
       "fix": "Invoke by full path: C:\\Users\\<user>\\AppData\\Local\\Microsoft\\WinGet\\Packages\\OpenTofu.Tofu_Microsoft.Winget.Source_8wekyb3d8bbwe\\tofu.exe",
-      "tags": ["tooling", "opentofu", "winget", "path", "windows"],
+      "tags": [
+        "tooling",
+        "opentofu",
+        "winget",
+        "path",
+        "windows"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T14:15:00-04:00"
@@ -128,10 +195,306 @@
       "file": "infra/envs/*/main.tf",
       "root_cause": "That server has publicNetworkAccess disabled and is VNet-injected into New-Implementations-vnet (canadacentral), whose only subnet is a /24 already delegated to Microsoft.DBforPostgreSQL/flexibleServers. No room for an App Service subnet, no private endpoint possible on a VNet-injected server, and regional VNet integration cannot cross regions.",
       "fix": "Use 10.225.1.107 instead — the private endpoint in VNET-CanEast-Tier1/Prod-Tier1-BackEnd that the budget app already uses. Same region as the web apps and as every existing App Service integration subnet.",
-      "tags": ["azure", "networking", "vnet", "postgres", "private-endpoint", "region"],
+      "tags": [
+        "azure",
+        "networking",
+        "vnet",
+        "postgres",
+        "private-endpoint",
+        "region"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-08-28T15:35:00-04:00"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-09-10T21:30:06.757Z",
+      "error_message": "Significant refactor of ",
+      "file": "api/Dockerfile",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 14→57 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "unknown"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10T21:30:06.757Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-09-10T21:31:35.109Z",
+      "error_message": "Significant refactor of ",
+      "file": "azure-pipelines.yml",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→11 lines (2 removed) | Also: #   :test | :prod        the moving tag that envir; #                        pulls. Restarting the app",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-09-10T21:32:02.476Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-09-10",
+      "error_message": "Deploy-stage preflight compared the running image tag against $(targetEnv)/$(releaseVersion), which are empty outside the Build stage",
+      "file": ".azure/steps-deploy.yml",
+      "root_cause": "Azure DevOps task.setvariable is job-scoped. targetEnv and releaseVersion are set in the Build stage's job, so referencing them from the Test/Prod stages yields empty strings and the tag comparison would match nothing, failing every release.",
+      "fix": "Re-derive the environment from the template's environmentName parameter and the version from $(Build.SourceBranch) (REF=${BUILD_SOURCEBRANCH#refs/tags/}; VERSION=${REF#*/}) inside the preflight step instead of reading cross-stage variables.",
+      "tags": [
+        "azure-pipelines",
+        "task.setvariable",
+        "cross-stage-variables",
+        "ci"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-09-10",
+      "error_message": "Both environments pointed at db_host 10.225.1.107, which is a test server, not the production database",
+      "file": "infra/envs/prod/main.tf",
+      "root_cause": "10.225.1.107 is the private endpoint of db-caneast-django-pmo-test, a canadacentral TEST server. It was recorded as 'the shared server the budget app uses', but itbudget's DB_URL is 10.225.1.104 = db-caneast-pmdms. Production was aimed at a test database.",
+      "fix": "infra/envs/prod/main.tf reads db_host from data.azurerm_private_endpoint_connection.prod_db (PMDMSPrivateEndpointPostgreSQL, RG-CanEast-PMDMS) and references the server via data.azurerm_postgresql_flexible_server. Both read-only, so tofu never manages them. Corrected the fact in cerebrum, REQUIREMENTS.md, infra/README.md and CLAUDE.md.",
+      "tags": [
+        "opentofu",
+        "postgres",
+        "private-endpoint",
+        "db-caneast-pmdms",
+        "wrong-server"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-09-10",
+      "error_message": "db-caneast-pmdms.postgres.database.azure.com resolves to 52.229.73.241 (public) from inside the VNet, so connecting by FQDN is refused",
+      "file": "infra/envs/prod/main.tf",
+      "root_cause": "The server has publicNetworkAccess disabled and is reachable only through a private endpoint, but no privatelink.postgres.database.azure.com private DNS zone is linked to VNET-CanEast-Tier1. The public FQDN CNAMEs to <server>.privatelink.postgres.database.azure.com, which without that zone resolves to the server's public address.",
+      "fix": "Use the private endpoint IP (10.225.1.104) as db_host, read from the private endpoint data source rather than hardcoded. Documented the one-line switch to data.azurerm_postgresql_flexible_server.prod_db.fqdn for if a private DNS zone is ever linked. prod-pmdms and itbudget use the same literal IP.",
+      "tags": [
+        "azure",
+        "private-dns",
+        "privatelink",
+        "postgres",
+        "dns-resolution"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-09-10",
+      "error_message": "Preflight read the running image from linuxFxVersion, which is the literal string 'sitecontainers' on the cmms web app",
+      "file": ".azure/steps-deploy.yml",
+      "root_cause": "cmms was created as a site containers (sidecar-model) app. Such apps report linuxFxVersion == 'sitecontainers' and keep the image on the main site container instead. Stripping the 'DOCKER|' prefix yields 'sitecontainers', matching no expected repository.",
+      "fix": "Branch on linuxFxVersion: when it equals 'sitecontainers', read the image with `az webapp sitecontainers list --query \"[?isMain].image | [0]\"`; otherwise strip the DOCKER| prefix as before.",
+      "tags": [
+        "azure",
+        "app-service",
+        "sitecontainers",
+        "linuxFxVersion",
+        "ci"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-09-10",
+      "error_message": "IllegalArgumentException: Illegal base64 character 2d at JwtTokenProvider.init - container exits during startup",
+      "file": "azure-pipelines.yml",
+      "root_cause": "JwtTokenProvider.init() runs JWT_SECRET_KEY through Base64.getDecoder().decode() and then Keys.hmacShaKeyFor(), so the value must be strict base64 decoding to at least 32 bytes. The pipeline's smoke test hardcoded 'ci-only-secret-not-used-outside-this-job'; the hyphens (0x2d) are illegal base64, so the Spring context never started. The pipeline had never run, so this had never surfaced.",
+      "fix": "The smoke test now generates the key with `openssl rand -base64 48`, with a comment explaining the constraint. Verified: the same image boots to /health-check in 7s with a generated key and fails identically with a hyphenated one.",
+      "tags": [
+        "jwt",
+        "base64",
+        "azure-pipelines",
+        "smoke-test",
+        "startup-failure"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-09-10",
+      "error_message": "dev.env was included in the AGPLv3 source bundle served publicly at GET /source-code/download",
+      "file": ".dockerignore",
+      "root_cause": "The source zip is built from the Docker build context, so .dockerignore governs its contents. It excluded '.env' but not 'dev.env' or 'prod.env', both of which exist locally and are gitignored precisely because they carry DB passwords, LICENSE_KEY and the Entra client secret. Confirmed by unzipping the bundle from the running container: entry 'dev.env' was present.",
+      "fix": "Added '*.env', '.env' and 'secrets-*.env' to .dockerignore, plus matching -x excludes on the zip in api/Dockerfile as defence in depth. Re-verified: the rebuilt bundle contains no .env entries. Any secrets already in dev.env should still be treated as exposed if an image built before this was ever published.",
+      "tags": [
+        "security",
+        "secret-disclosure",
+        "dockerignore",
+        "agplv3",
+        "source-bundle"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-09-10",
+      "error_message": "Source bundle 278 MB and jar 442 MB: three copies of a 251 MB OpenTofu provider binary shipped in every image",
+      "file": ".dockerignore",
+      "root_cause": "infra/{bootstrap,envs/test,envs/prod}/.terraform each cache terraform-provider-azurerm.exe (251 MB). They are gitignored but not dockerignored, so they entered the build context and the AGPLv3 source zip embedded in the jar.",
+      "fix": "Added '**/.terraform', tfstate and tfplan patterns to .dockerignore and matching zip excludes in api/Dockerfile. Bundle went 278 MB -> 93.2 MB; the three .terraform.lock.hcl files are deliberately kept, since they pin provider versions and are genuine source.",
+      "tags": [
+        "docker",
+        "image-size",
+        "dockerignore",
+        "opentofu",
+        "source-bundle"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-09-10",
+      "error_message": "NOT-LISTENING reported for sshd on port 2222 inside the container",
+      "file": "api/container/startup.sh",
+      "root_cause": "False alarm from the check rather than a real fault: the verification used `ss`, which lives in iproute2 and is not installed (the Dockerfile installs net-tools, i.e. netstat, matching budget). A missing binary produced the same output as a dead service.",
+      "fix": "Verified with `sshd -D -e` in the foreground ('Server listening on 0.0.0.0 port 2222'), `sshd -T` (port 2222, permitrootlogin yes, passwordauthentication yes), and finally `netstat -tlnp` in the real image showing 0.0.0.0:2222 alongside :::8080. Use netstat here, or confirm the tool exists before trusting a negative result.",
+      "tags": [
+        "docker",
+        "sshd",
+        "diagnostics",
+        "false-positive",
+        "net-tools"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-09-10T22:18:08.067Z",
+      "error_message": "Incorrect value in code",
+      "file": "infra/envs/prod/main.tf",
+      "root_cause": "Had \"atlasprod\"",
+      "fix": "Changed to \"atlas\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tf"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10T22:18:08.067Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-09-10T22:18:42.003Z",
+      "error_message": "Significant refactor of ",
+      "file": "infra/envs/prod/main.tf",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 6→16 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tf"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-10T22:18:42.003Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-09-11T13:53:44.294Z",
+      "error_message": "Incorrect value in code",
+      "file": "infra/envs/prod/main.tf",
+      "root_cause": "Had \"atlasprod\"",
+      "fix": "Changed to \"atlas\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tf"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T13:53:44.294Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-09-11T14:35:33.054Z",
+      "error_message": "Significant refactor of ",
+      "file": "infra/README.md",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 10→22 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T14:35:33.054Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-09-11T17:32:51.012Z",
+      "error_message": "Significant refactor of ",
+      "file": "azure-pipelines.yml",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 13→14 lines (3 removed) | Also: # PUBLIC_URL_TEST / PUBLIC_URL_PROD. These two hav; # variables rather than living in the OpenTofu con",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-09-11T17:33:08.984Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-09-11T17:33:15.222Z",
+      "error_message": "Incorrect value in code",
+      "file": "azure-pipelines.yml",
+      "root_cause": "Had \"$(ENABLE_SSO)\"",
+      "fix": "Changed to \"$(enableSso)\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T17:33:15.222Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-09-11",
+      "error_message": "REQUIREMENTS.md told the operator to run `az keyvault secret set --name smtp-password --value ''`, which Key Vault rejects",
+      "file": "REQUIREMENTS.md",
+      "root_cause": "The instruction assumed an unused secret could be stored as a blank placeholder, to avoid an unresolvable Key Vault reference stopping the container. Azure Key Vault does not accept an empty secret value, so the documented command cannot succeed and the documented setup could never be completed as written.",
+      "fix": "Rewrote REQUIREMENTS.md section 2: only three secrets are required, and smtp-password is omitted entirely while mail is off - application.yml declares ${SMTP_PWD:} so the app defaults it to empty with no reference needed. Verified against application.yml which secrets have no default (DB_PWD, JWT_SECRET_KEY) and are therefore boot-critical.",
+      "tags": [
+        "key-vault",
+        "secrets",
+        "documentation",
+        "impossible-instruction",
+        "smtp"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11"
     }
   ]
 }

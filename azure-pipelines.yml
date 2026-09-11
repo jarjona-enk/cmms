@@ -1,297 +1,422 @@
-# Atlas CMMS — Enerkem release pipeline
+# Atlas CMMS — Enerkem production release pipeline
 #
-# Two environments, selected by the tag that triggered the run:
+# Same shape as ../itsheets/azure-pipelines-1.yml and ../budget/azure-pipelines.yml:
+# a release/* tag triggers one job that builds an image, pushes it to
+# enerkem.azurecr.io, and attaches it to an EXISTING web app.
 #
-#   test/1.6.0-enerkem.1      -> builds, verifies, deploys to cmms-test   (no gate)
-#   release/1.6.0-enerkem.1   -> builds, verifies, deploys to cmms-prod   (approval gate)
+#   git tag release/1.6.0-enerkem.1 && git push origin release/1.6.0-enerkem.1
 #
-# Both tag forms must carry the upstream release number they are built on;
-# the first step enforces that against the UPSTREAM_VERSION file.
+# ── PRODUCTION ONLY ───────────────────────────────────────────────────────
+# One environment. There is no test stage and no test web app; a test/* tag
+# does nothing. Production is the hand-built web app `cmms`.
 #
-# OpenTofu owns the infrastructure AND the application settings, so this
-# pipeline never writes app settings itself. See REQUIREMENTS.md.
+# ── This pipeline CREATES NO INFRASTRUCTURE ───────────────────────────────
+# The web app, its plan, the storage account and container, the VNet
+# integration, the database and the Key Vault were all built by hand and are
+# expected to exist. The pipeline builds a container, pushes it, points the app
+# at it, pushes the non-secret application settings, and checks the site came
+# back. Nothing else.
+#
+# OpenTofu under infra/ is PARKED for a later release — see infra/README.md.
+# Do not add a `tofu` step here.
+#
+# ── Settings live in .azure/env/prod.env ──────────────────────────────────
+# Committed, non-secret: the web app name, the URL baked into the SPA, the
+# storage account, the database host, the Entra ids. Edit that file, not this
+# one, and not the Azure portal.
+#
+# ── Secrets are NOT touched by this pipeline ──────────────────────────────
+# Same principle as budget: `appSettings` below ADDS/UPDATES only the keys it
+# lists, so everything else on the app survives a deploy. DB_PWD,
+# JWT_SECRET_KEY and OAUTH2_CLIENT_SECRET are set once by hand as Key Vault
+# references and never appear here, in the repo, or in a pipeline variable.
+# See REQUIREMENTS.md §2.
 
 trigger:
+  # A release/* tag is the only thing that ships. Branches are excluded so a
+  # push to main never deploys.
   branches:
     exclude:
       - '*'
   tags:
     include:
-      - release/*
-      - test/*
+      - 'release/*'
 
 pr: none
 
-variables:
-  - group: atlas-cmms-build
+name: $(Date:yyyyMMdd)$(Rev:.rr)
 
-  # Shared Enerkem service connections, same ones the it-poet pipeline uses.
+variables:
+  # Shared Enerkem service connections, the same two itsheets and budget use.
   - name: dockerRegistryServiceConnection
     value: '3531bbd9-3f78-490d-a3f2-263804a11891'
   - name: azureSubscriptionServiceConnection
     value: '9ce67bd0-4ae6-490b-9976-a14930a3cb1b'
   - name: acrLoginServer
     value: 'enerkem.azurecr.io'
-  - name: resourceGroup
-    value: 'New-Implementations'
-
-  - name: imageRepository
-    value: 'cmms'
-  - name: dockerfilePath
-    value: 'api/Dockerfile'
   # Build context is the REPOSITORY ROOT, not api/. The Dockerfile's first
   # stage zips the whole repo into the image to satisfy AGPLv3 §13.
+  - name: dockerfilePath
+    value: 'api/Dockerfile'
   - name: buildContext
     value: '.'
-  # Local-only tag used between build and smoke test; never pushed.
+  # Local-only tag, used between build and smoke test. Never pushed.
   - name: candidateTag
     value: 'candidate-$(Build.BuildId)'
-  - name: tofuVersion
-    value: '1.12.5'
 
-pool:
-  vmImage: 'ubuntu-latest'
+jobs:
+  - job: Release
+    displayName: 'Build, verify and deploy to production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    # The frontend build (npm ci + CRA) plus the Maven reactor runs well over
+    # the 60 minute default on a hosted agent.
+    timeoutInMinutes: 120
+    steps:
+      - checkout: self
 
-stages:
-  # ══════════════════════════════════════════════════════════════════════
-  - stage: Build
-    displayName: 'Build, verify and publish'
-    jobs:
-      - job: BuildVerifyPush
-        displayName: 'Build image, smoke-test SPA, push to ACR'
-        # The frontend build (npm ci + CRA) plus the Maven reactor takes well
-        # over the 60 minute default on a hosted agent.
-        timeoutInMinutes: 120
-        steps:
+      # ── Resolve the release ───────────────────────────────────────────────
+      # Our tags MUST carry the upstream release number they are built on:
+      #   release/<upstream>-enerkem.<n>
+      #
+      # The upstream half is checked against the UPSTREAM_VERSION file, bumped
+      # as part of each upstream release-tag merge. That file is the only
+      # reliable source in CI: upstream's own v* tags are deliberately not
+      # mirrored into this repo.
+      - bash: |
+          set -euo pipefail
+          fail() { echo "##vso[task.logissue type=error]$1"; exit 1; }
 
-          # ── Version and environment ─────────────────────────────────────
-          # Our tags MUST carry the upstream release number they are built on:
-          #   <test|release>/<upstream>-enerkem.<n>
-          #
-          # The upstream half is checked against the UPSTREAM_VERSION file,
-          # bumped as part of each upstream release-tag merge. That is the only
-          # reliable source in CI: upstream's own v* tags are not mirrored into
-          # this repo, because a tag newer than our merge base would drag its
-          # entire unreleased history in with it.
-          - bash: |
-              set -euo pipefail
-              fail() { echo "##vso[task.logissue type=error]$1"; exit 1; }
+          REF="${BUILD_SOURCEBRANCH#refs/tags/}"
+          case "$REF" in
+            release/*) VERSION="${REF#release/}" ;;
+            *) fail "Expected refs/tags/release/<version>, got '${BUILD_SOURCEBRANCH}'. This pipeline is production-only; test/* tags are not built." ;;
+          esac
 
-              REF="${BUILD_SOURCEBRANCH#refs/tags/}"
-              case "$REF" in
-                release/*) ENV_NAME=prod; VERSION="${REF#release/}" ;;
-                test/*)    ENV_NAME=test; VERSION="${REF#test/}" ;;
-                *) fail "Expected refs/tags/release/<version> or refs/tags/test/<version>, got '${BUILD_SOURCEBRANCH}'" ;;
-              esac
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-enerkem\.[0-9]+$' \
+            || fail "Tag must be release/<upstream>-enerkem.<n>, for example release/1.6.0-enerkem.1. Got '${REF}'."
 
-              echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-enerkem\.[0-9]+$' \
-                || fail "Tag must be <test|release>/<upstream>-enerkem.<n>, for example release/1.6.0-enerkem.1. Got '${REF}'."
+          [ -f UPSTREAM_VERSION ] \
+            || fail "UPSTREAM_VERSION is missing from the repository root; it records the upstream release this branch is merged up to."
+          UPSTREAM_BASE="$(tr -d '[:space:]' < UPSTREAM_VERSION)"
+          UPSTREAM_IN_TAG="${VERSION%%-enerkem.*}"
 
-              [ -f UPSTREAM_VERSION ] \
-                || fail "UPSTREAM_VERSION is missing from the repository root; it records the upstream release this branch is merged up to."
-              UPSTREAM_BASE="$(tr -d '[:space:]' < UPSTREAM_VERSION)"
-              UPSTREAM_IN_TAG="${VERSION%%-enerkem.*}"
+          [ "$UPSTREAM_IN_TAG" = "$UPSTREAM_BASE" ] \
+            || fail "Tag claims upstream ${UPSTREAM_IN_TAG} but UPSTREAM_VERSION records ${UPSTREAM_BASE}. Either tag ${UPSTREAM_BASE}-enerkem.<n>, or merge upstream v${UPSTREAM_IN_TAG} and bump UPSTREAM_VERSION in that merge."
 
-              [ "$UPSTREAM_IN_TAG" = "$UPSTREAM_BASE" ] \
-                || fail "Tag claims upstream ${UPSTREAM_IN_TAG} but UPSTREAM_VERSION records ${UPSTREAM_BASE}. Either tag ${UPSTREAM_BASE}-enerkem.<n>, or merge upstream v${UPSTREAM_IN_TAG} and bump UPSTREAM_VERSION in that merge."
+          # Deployment settings, from the committed file rather than an Azure
+          # DevOps variable group. An undefined $(VAR) in Azure DevOps is left
+          # as the literal string "$(VAR)", so a forgotten variable would feed
+          # garbage into a build argument instead of failing the run; reading a
+          # file lets us check each key by name.
+          ENV_FILE='.azure/env/prod.env'
+          [ -f "$ENV_FILE" ] || fail "${ENV_FILE} is missing."
 
-              # PUBLIC_URL_TEST / PUBLIC_URL_PROD. These two have to be pipeline
-              # variables rather than living in the OpenTofu config: Create
-              # React App compiles the URL into the SPA bundle here, long before
-              # any infrastructure is applied.
-              case "$ENV_NAME" in
-                prod) PUBLIC_URL="$(PUBLIC_URL_PROD)" ;;
-                test) PUBLIC_URL="$(PUBLIC_URL_TEST)" ;;
-              esac
-              [ -n "$PUBLIC_URL" ] && [ "${PUBLIC_URL#\$(}" = "$PUBLIC_URL" ] \
-                || fail "PUBLIC_URL_${ENV_NAME^^} is not set in the atlas-cmms-build variable group."
+          set -a
+          # shellcheck disable=SC1091
+          . "$ENV_FILE"
+          set +a
 
-              echo "Releasing ${VERSION} to ${ENV_NAME} at ${PUBLIC_URL} (upstream ${UPSTREAM_BASE})"
-              echo "##vso[task.setvariable variable=releaseVersion]${VERSION}"
-              echo "##vso[task.setvariable variable=targetEnv]${ENV_NAME}"
-              echo "##vso[task.setvariable variable=publicUrl]${PUBLIC_URL}"
-              echo "##vso[build.updatebuildnumber]${ENV_NAME}-${VERSION}"
-            displayName: 'Resolve and validate the tag'
+          for KEY in WEBAPP_NAME WEBAPP_RESOURCE_GROUP IMAGE_REPOSITORY \
+                     PUBLIC_URL ENABLE_SSO OAUTH2_PROVIDER; do
+            eval "VAL=\${$KEY:-}"
+            [ -n "$VAL" ] || fail "${KEY} is empty or missing in ${ENV_FILE}."
+          done
 
-          # ── Build ───────────────────────────────────────────────────────
-          # Everything happens inside the image. api/Dockerfile stage 1 zips the
-          # source bundle; stage 2 (maven:3.9.3-eclipse-temurin-17) runs the whole
-          # reactor — frontend-maven-plugin fetches Node, runs npm ci and the CRA
-          # production build, copies frontend/build into the api module's
-          # classpath:/static, then packages the fat jar; stage 3 is a bare
-          # amazoncorretto:17-alpine runtime. Java 17 throughout: newer JDKs break
-          # Lombok in this codebase, so the version is pinned in the Dockerfile.
-          - bash: |
-              set -euo pipefail
-              docker build \
-                --file "$(dockerfilePath)" \
-                --tag "$(imageRepository):$(candidateTag)" \
-                --build-arg FRONTEND_API_URL="$(publicUrl)" \
-                --build-arg FRONTEND_ENABLE_SSO="$(ENABLE_SSO)" \
-                --build-arg FRONTEND_OAUTH2_PROVIDER="$(OAUTH2_PROVIDER)" \
-                "$(buildContext)"
-            displayName: 'Build container image (frontend + API + fat jar)'
-            env:
-              DOCKER_BUILDKIT: 1
+          case "$PUBLIC_URL" in
+            https://*) ;;
+            *) fail "PUBLIC_URL in ${ENV_FILE} must be an https:// URL, got '${PUBLIC_URL}'." ;;
+          esac
+          case "$PUBLIC_URL" in
+            */) fail "PUBLIC_URL in ${ENV_FILE} must not end in a slash, got '${PUBLIC_URL}'." ;;
+          esac
 
-          # ── Verify ──────────────────────────────────────────────────────
-          # The app needs a real Postgres to boot: Liquibase runs the changelog
-          # and JPA is on ddl-auto=validate. A blank database is enough.
-          - bash: |
-              set -euo pipefail
-              docker network create atlas-ci
-              docker run -d --name atlas-ci-db --network atlas-ci \
-                -e POSTGRES_DB=atlas \
-                -e POSTGRES_USER=atlas \
-                -e POSTGRES_PASSWORD=ci-only-password \
-                postgres:16-alpine
+          echo "Releasing ${VERSION} (upstream ${UPSTREAM_BASE})"
+          echo "  web app: ${WEBAPP_NAME} in ${WEBAPP_RESOURCE_GROUP}"
+          echo "  image:   $(acrLoginServer)/${IMAGE_REPOSITORY}:${VERSION}"
+          echo "  url:     ${PUBLIC_URL}"
 
-              echo "Waiting for Postgres..."
-              for i in $(seq 1 60); do
-                if docker exec atlas-ci-db pg_isready -U atlas -d atlas >/dev/null 2>&1; then
-                  echo "Postgres ready after ${i}s"
-                  break
-                fi
-                if [ "$i" -eq 60 ]; then echo "Postgres never became ready"; exit 1; fi
-                sleep 1
-              done
-            displayName: 'Start Postgres for the smoke test'
+          echo "##vso[task.setvariable variable=releaseVersion]${VERSION}"
+          echo "##vso[task.setvariable variable=webAppName]${WEBAPP_NAME}"
+          echo "##vso[task.setvariable variable=webAppResourceGroup]${WEBAPP_RESOURCE_GROUP}"
+          echo "##vso[task.setvariable variable=imageRepository]${IMAGE_REPOSITORY}"
+          echo "##vso[task.setvariable variable=publicUrl]${PUBLIC_URL}"
+          echo "##vso[task.setvariable variable=enableSso]${ENABLE_SSO}"
+          echo "##vso[task.setvariable variable=oauth2Provider]${OAUTH2_PROVIDER}"
 
-          # Throwaway credentials against a scratch database. None of the real
-          # configuration is involved: OpenTofu owns that.
-          - bash: |
-              set -euo pipefail
-              docker run -d --name atlas-ci-app --network atlas-ci -p 8080:8080 \
-                -e DB_URL='atlas-ci-db:5432/atlas' \
-                -e DB_USER='atlas' \
-                -e DB_PWD='ci-only-password' \
-                -e JWT_SECRET_KEY='ci-only-secret-not-used-outside-this-job' \
-                -e PUBLIC_API_URL='http://localhost:8080' \
-                -e PUBLIC_FRONT_URL='http://localhost:8080' \
-                -e MAIL_RECIPIENTS='ci@example.invalid' \
-                -e STORAGE_TYPE='azure' \
-                -e ENABLE_MAIL_HEALTH_CHECK='false' \
-                -e ENABLE_EMAIL_NOTIFICATIONS='false' \
-                -e ENABLE_SSO='false' \
-                "$(imageRepository):$(candidateTag)"
+          # Application settings, forwarded to the deploy task below.
+          echo "##vso[task.setvariable variable=websitesPort]${WEBSITES_PORT}"
+          echo "##vso[task.setvariable variable=springProfile]${SPRING_PROFILES_ACTIVE}"
+          echo "##vso[task.setvariable variable=dbUrl]${DB_URL}"
+          echo "##vso[task.setvariable variable=dbUser]${DB_USER}"
+          echo "##vso[task.setvariable variable=storageType]${STORAGE_TYPE}"
+          echo "##vso[task.setvariable variable=storageAccount]${AZURE_STORAGE_ACCOUNT}"
+          echo "##vso[task.setvariable variable=storageContainer]${AZURE_STORAGE_CONTAINER}"
+          echo "##vso[task.setvariable variable=oauth2ClientId]${OAUTH2_CLIENT_ID}"
+          echo "##vso[task.setvariable variable=oauth2TenantId]${OAUTH2_TENANT_ID}"
+          echo "##vso[task.setvariable variable=mailRecipients]${MAIL_RECIPIENTS}"
+          echo "##vso[task.setvariable variable=enableEmail]${ENABLE_EMAIL_NOTIFICATIONS}"
+          echo "##vso[task.setvariable variable=invitationViaEmail]${INVITATION_VIA_EMAIL}"
+          echo "##vso[task.setvariable variable=enableCors]${ENABLE_CORS}"
+          echo "##vso[task.setvariable variable=logFile]${LOG_FILE}"
 
-              echo "Waiting for the application to become healthy..."
-              for i in $(seq 1 180); do
-                if curl -fsS http://localhost:8080/health-check >/dev/null 2>&1; then
-                  echo "Application healthy after ${i}s"
-                  break
-                fi
-                if ! docker ps --filter name=atlas-ci-app --filter status=running -q | grep -q .; then
-                  echo "Container exited during startup. Logs:"; docker logs atlas-ci-app; exit 1
-                fi
-                if [ "$i" -eq 180 ]; then
-                  echo "Application never became healthy. Logs:"; docker logs --tail 200 atlas-ci-app; exit 1
-                fi
-                sleep 1
-              done
-            displayName: 'Start the application container'
+          echo "##vso[build.updatebuildnumber]prod-${VERSION}"
+        displayName: 'Resolve the tag and read .azure/env/prod.env'
 
-          # This is the check that matters. A jar that boots but serves no SPA is
-          # the exact failure this packaging is designed to prevent, and a plain
-          # health check cannot see it.
-          - bash: |
-              set -euo pipefail
-              fail() { echo "##vso[task.logissue type=error]$1"; docker logs --tail 200 atlas-ci-app; exit 1; }
+      # ── Build ─────────────────────────────────────────────────────────────
+      # Everything happens inside the image, so the agent needs no JDK, Node or
+      # Maven — unlike itsheets and budget, which build on the agent first.
+      # api/Dockerfile stage 1 zips the source bundle for AGPLv3 §13; stage 2
+      # (maven:3.9.3-eclipse-temurin-17) runs the whole reactor, with
+      # frontend-maven-plugin fetching Node, running npm ci and the CRA
+      # production build, copying frontend/build into the api module's
+      # classpath:/static, then packaging the fat jar; stage 3 is
+      # eclipse-temurin:17-jre-noble carrying sshd on 2222 and startup.sh.
+      #
+      # Plain `docker build` rather than Docker@2 buildAndPush, deliberately:
+      # buildAndPush ignores the `arguments` input, which would silently drop
+      # the three --build-arg values below and bake localhost:8080 into the SPA.
+      - bash: |
+          set -euo pipefail
+          docker build \
+            --file "$(dockerfilePath)" \
+            --tag "$(imageRepository):$(candidateTag)" \
+            --build-arg FRONTEND_API_URL="$(publicUrl)" \
+            --build-arg FRONTEND_ENABLE_SSO="$(enableSso)" \
+            --build-arg FRONTEND_OAUTH2_PROVIDER="$(oauth2Provider)" \
+            "$(buildContext)"
+        displayName: 'Build container image (frontend + API + fat jar)'
+        env:
+          DOCKER_BUILDKIT: 1
 
-              echo "1/5 SPA shell at /"
-              BODY=$(curl -fsS http://localhost:8080/) || fail "GET / did not return 200"
-              echo "$BODY" | grep -q 'id="root"' || fail "GET / returned a page with no SPA root element"
+      # ── Verify before publishing ──────────────────────────────────────────
+      # Not in the itsheets/budget pattern, kept on purpose: this packaging's
+      # characteristic failure is a jar that boots fine and serves no SPA,
+      # which a health check cannot see. Costs a few minutes and has already
+      # caught one startup bug.
+      #
+      # The app needs a real Postgres to boot — Liquibase runs the changelog
+      # and JPA is on ddl-auto=validate. A blank database is enough.
+      - bash: |
+          set -euo pipefail
+          docker network create atlas-ci
+          docker run -d --name atlas-ci-db --network atlas-ci \
+            -e POSTGRES_DB=atlas \
+            -e POSTGRES_USER=atlas \
+            -e POSTGRES_PASSWORD=ci-only-password \
+            postgres:16-alpine
 
-              echo "2/5 CRA asset manifest"
-              MANIFEST=$(curl -fsS http://localhost:8080/asset-manifest.json) \
-                || fail "asset-manifest.json missing - the frontend build was not copied into the jar"
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 60); do
+            if docker exec atlas-ci-db pg_isready -U atlas -d atlas >/dev/null 2>&1; then
+              echo "Postgres ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then echo "Postgres never became ready"; exit 1; fi
+            sleep 1
+          done
+        displayName: 'Start Postgres for the smoke test'
 
-              echo "3/5 main bundle is actually served"
-              MAIN_JS=$(echo "$MANIFEST" | python3 -c 'import json,sys; print(json.load(sys.stdin)["files"]["main.js"])')
-              [ -n "$MAIN_JS" ] || fail "Could not resolve main.js from the asset manifest"
-              curl -fsS -o /dev/null "http://localhost:8080${MAIN_JS}" \
-                || fail "Main JS bundle ${MAIN_JS} is not served"
+      # Throwaway credentials against a scratch database. None of the real
+      # configuration is involved.
+      - bash: |
+          set -euo pipefail
+          # JwtTokenProvider.init() runs the key through
+          # Base64.getDecoder().decode() then Keys.hmacShaKeyFor(), so it must
+          # be STRICT base64 (a '-' throws "Illegal base64 character 2d")
+          # decoding to at least 32 bytes. Generated, not hardcoded — a
+          # readable string here used to fail the container at startup.
+          CI_JWT_KEY="$(openssl rand -base64 48)"
 
-              echo "4/5 client-side deep link survives a hard refresh"
-              DEEP=$(curl -fsS http://localhost:8080/app/work-orders) \
-                || fail "Deep link /app/work-orders did not return 200 - SpaForwardController is not forwarding"
-              echo "$DEEP" | grep -q 'id="root"' || fail "Deep link did not return the SPA shell"
+          docker run -d --name atlas-ci-app --network atlas-ci -p 8080:8080 \
+            -e DB_URL='atlas-ci-db:5432/atlas' \
+            -e DB_USER='atlas' \
+            -e DB_PWD='ci-only-password' \
+            -e JWT_SECRET_KEY="$CI_JWT_KEY" \
+            -e PUBLIC_API_URL='http://localhost:8080' \
+            -e PUBLIC_FRONT_URL='http://localhost:8080' \
+            -e MAIL_RECIPIENTS='ci@example.invalid' \
+            -e STORAGE_TYPE='azure' \
+            -e ENABLE_MAIL_HEALTH_CHECK='false' \
+            -e ENABLE_EMAIL_NOTIFICATIONS='false' \
+            -e ENABLE_SSO='false' \
+            "$(imageRepository):$(candidateTag)"
 
-              echo "5/5 AGPLv3 source bundle is publicly downloadable"
-              SIZE=$(curl -fsS -o /dev/null -w '%{size_download}' http://localhost:8080/source-code/download) \
-                || fail "GET /source-code/download failed - this image does not meet the AGPLv3 §13 obligation"
-              [ "$SIZE" -gt 1000000 ] || fail "Source bundle is only ${SIZE} bytes - it looks empty or truncated"
+          echo "Waiting for the application to become healthy..."
+          for i in $(seq 1 180); do
+            if curl -fsS http://localhost:8080/health-check >/dev/null 2>&1; then
+              echo "Application healthy after ${i}s"
+              break
+            fi
+            if ! docker ps --filter name=atlas-ci-app --filter status=running -q | grep -q .; then
+              echo "Container exited during startup. Logs:"; docker logs atlas-ci-app; exit 1
+            fi
+            if [ "$i" -eq 180 ]; then
+              echo "Application never became healthy. Logs:"; docker logs --tail 200 atlas-ci-app; exit 1
+            fi
+            sleep 1
+          done
+        displayName: 'Start the application container'
 
-              echo "Container serves the frontend correctly."
-            displayName: 'Verify the container serves the SPA'
+      - bash: |
+          set -euo pipefail
+          fail() { echo "##vso[task.logissue type=error]$1"; docker logs --tail 200 atlas-ci-app; exit 1; }
 
-          - bash: docker logs --tail 400 atlas-ci-app || true
-            displayName: 'Application logs'
-            condition: always()
+          echo "1/5 SPA shell at /"
+          BODY=$(curl -fsS http://localhost:8080/) || fail "GET / did not return 200"
+          echo "$BODY" | grep -q 'id="root"' || fail "GET / returned a page with no SPA root element"
 
-          - bash: |
-              docker rm -f atlas-ci-app atlas-ci-db >/dev/null 2>&1 || true
-              docker network rm atlas-ci >/dev/null 2>&1 || true
-            displayName: 'Tear down smoke-test containers'
-            condition: always()
+          echo "2/5 CRA asset manifest"
+          MANIFEST=$(curl -fsS http://localhost:8080/asset-manifest.json) \
+            || fail "asset-manifest.json missing - the frontend build was not copied into the jar"
 
-          # ── Publish ─────────────────────────────────────────────────────
-          # Only reached when the smoke test passed, so an image that fails to
-          # serve the SPA can never reach the registry.
-          - task: Docker@2
-            displayName: 'Log in to ACR'
-            inputs:
-              command: login
-              containerRegistry: '$(dockerRegistryServiceConnection)'
+          echo "3/5 main bundle is actually served"
+          MAIN_JS=$(echo "$MANIFEST" | python3 -c 'import json,sys; print(json.load(sys.stdin)["files"]["main.js"])')
+          [ -n "$MAIN_JS" ] || fail "Could not resolve main.js from the asset manifest"
+          curl -fsS -o /dev/null "http://localhost:8080${MAIN_JS}" \
+            || fail "Main JS bundle ${MAIN_JS} is not served"
 
-          # :test and :prod are the moving tags the web apps pull. The release
-          # version is pushed alongside as an immutable tag, so a rollback
-          # repoints at a specific build rather than rebuilding from a git tag.
-          - bash: |
-              set -euo pipefail
-              SRC="$(imageRepository):$(candidateTag)"
-              for TAG in "$(targetEnv)" "$(releaseVersion)"; do
-                docker tag "$SRC" "$(acrLoginServer)/$(imageRepository):${TAG}"
-                docker push "$(acrLoginServer)/$(imageRepository):${TAG}"
-              done
-              echo "Published $(acrLoginServer)/$(imageRepository):$(targetEnv) (also tagged $(releaseVersion))"
-            displayName: 'Tag and push to ACR'
+          echo "4/5 client-side deep link survives a hard refresh"
+          DEEP=$(curl -fsS http://localhost:8080/app/work-orders) \
+            || fail "Deep link /app/work-orders did not return 200 - SpaForwardController is not forwarding"
+          echo "$DEEP" | grep -q 'id="root"' || fail "Deep link did not return the SPA shell"
 
-  # ══════════════════════════════════════════════════════════════════════
-  - stage: Test
-    displayName: 'Deploy to cmms-test'
-    dependsOn: Build
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/test/'))
-    jobs:
-      - job: TestRelease
-        displayName: 'Apply infrastructure and restart cmms-test'
-        steps:
-          - template: .azure/steps-deploy.yml
-            parameters:
-              environmentName: test
-              webAppName: cmms-test
-              publicUrl: $(PUBLIC_URL_TEST)
-              vnetSubnetId: $(VNET_SUBNET_ID_TEST)
+          echo "5/5 AGPLv3 source bundle is publicly downloadable"
+          SIZE=$(curl -fsS -o /dev/null -w '%{size_download}' http://localhost:8080/source-code/download) \
+            || fail "GET /source-code/download failed - this image does not meet the AGPLv3 §13 obligation"
+          [ "$SIZE" -gt 1000000 ] || fail "Source bundle is only ${SIZE} bytes - it looks empty or truncated"
 
-  # ══════════════════════════════════════════════════════════════════════
-  # A deployment job bound to an environment, so production picks up the
-  # approval gate configured on that environment in Azure DevOps.
-  - stage: Prod
-    displayName: 'Deploy to cmms-prod'
-    dependsOn: Build
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/release/'))
-    jobs:
-      - deployment: ProdRelease
-        displayName: 'Apply infrastructure and restart cmms-prod'
-        environment: cmms-prod
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - checkout: self
-                - template: .azure/steps-deploy.yml
-                  parameters:
-                    environmentName: prod
-                    webAppName: cmms-prod
-                    publicUrl: $(PUBLIC_URL_PROD)
-                    vnetSubnetId: $(VNET_SUBNET_ID_PROD)
+          echo "Container serves the frontend correctly."
+        displayName: 'Verify the container serves the SPA'
+
+      - bash: docker logs --tail 400 atlas-ci-app || true
+        displayName: 'Smoke-test application logs'
+        condition: always()
+
+      - bash: |
+          docker rm -f atlas-ci-app atlas-ci-db >/dev/null 2>&1 || true
+          docker network rm atlas-ci >/dev/null 2>&1 || true
+        displayName: 'Tear down smoke-test containers'
+        condition: always()
+
+      # ── Publish ───────────────────────────────────────────────────────────
+      # Only reached when the smoke test passed, so an image that fails to
+      # serve the SPA can never reach the registry.
+      - task: Docker@2
+        displayName: 'Log in to ACR'
+        inputs:
+          command: login
+          containerRegistry: '$(dockerRegistryServiceConnection)'
+
+      # Two tags. :<version> is immutable and is what the web app is pointed at
+      # below, so a rollback is a one-line change rather than a rebuild.
+      # :latest moves to the newest release, for `docker pull` and the registry
+      # UI; nothing deploys from it.
+      - bash: |
+          set -euo pipefail
+          SRC="$(imageRepository):$(candidateTag)"
+          for TAG in "$(releaseVersion)" latest; do
+            docker tag "$SRC" "$(acrLoginServer)/$(imageRepository):${TAG}"
+            docker push "$(acrLoginServer)/$(imageRepository):${TAG}"
+          done
+          echo "Published $(acrLoginServer)/$(imageRepository):$(releaseVersion) (also tagged latest)"
+        displayName: 'Push to ACR'
+
+      # ── Deploy ────────────────────────────────────────────────────────────
+      # Attaches the image to the existing web app and pushes the non-secret
+      # application settings, exactly as budget does.
+      #
+      # appSettings ADDS/UPDATES only the keys listed. Settings not listed —
+      # DB_PWD, JWT_SECRET_KEY, OAUTH2_CLIENT_SECRET and anything else set by
+      # hand — are left untouched, which is what keeps secrets out of here.
+      #
+      # ⚠️ `cmms` is currently a *site containers* app (linuxFxVersion is the
+      # literal string "sitecontainers"). This task sets linuxFxVersion to
+      # DOCKER|<image>, which moves it to the classic single-container model.
+      # Functionally the same for one container on port 8080, but it IS a change
+      # to a hand-built app, and it happens on the first run. If you would
+      # rather keep the site-containers shape, use the AzureCLI alternative
+      # commented out below instead.
+      - task: AzureWebAppContainer@1
+        displayName: 'Deploy $(releaseVersion) to $(webAppName)'
+        inputs:
+          azureSubscription: '$(azureSubscriptionServiceConnection)'
+          appName: '$(webAppName)'
+          resourceGroupName: '$(webAppResourceGroup)'
+          containers: '$(acrLoginServer)/$(imageRepository):$(releaseVersion)'
+          appSettings: >-
+            -WEBSITES_PORT $(websitesPort)
+            -SPRING_PROFILES_ACTIVE $(springProfile)
+            -DB_URL $(dbUrl)
+            -DB_USER $(dbUser)
+            -PUBLIC_API_URL $(publicUrl)
+            -PUBLIC_FRONT_URL $(publicUrl)
+            -STORAGE_TYPE $(storageType)
+            -AZURE_STORAGE_ACCOUNT $(storageAccount)
+            -AZURE_STORAGE_CONTAINER $(storageContainer)
+            -ENABLE_SSO $(enableSso)
+            -OAUTH2_PROVIDER $(oauth2Provider)
+            -OAUTH2_CLIENT_ID $(oauth2ClientId)
+            -OAUTH2_TENANT_ID $(oauth2TenantId)
+            -MAIL_RECIPIENTS $(mailRecipients)
+            -ENABLE_EMAIL_NOTIFICATIONS $(enableEmail)
+            -INVITATION_VIA_EMAIL $(invitationViaEmail)
+            -ENABLE_CORS $(enableCors)
+            -LOG_FILE $(logFile)
+          restartApp: true
+
+      # Alternative to the task above, for keeping `cmms` as a site containers
+      # app: sets the image on the main site container instead of touching
+      # linuxFxVersion. If you swap to this, the application settings need a
+      # separate `az webapp config appsettings set` call.
+      #
+      # - task: AzureCLI@2
+      #   displayName: 'Point the main site container at $(releaseVersion)'
+      #   inputs:
+      #     azureSubscription: '$(azureSubscriptionServiceConnection)'
+      #     scriptType: bash
+      #     scriptLocation: inlineScript
+      #     inlineScript: |
+      #       set -euo pipefail
+      #       az webapp sitecontainers update \
+      #         --name '$(webAppName)' --resource-group '$(webAppResourceGroup)' \
+      #         --container-name '$(webAppName)' \
+      #         --image '$(acrLoginServer)/$(imageRepository):$(releaseVersion)'
+      #       az webapp restart --name '$(webAppName)' --resource-group '$(webAppResourceGroup)'
+
+      # ── Confirm ───────────────────────────────────────────────────────────
+      # AzureWebAppContainer@1 returns as soon as the platform accepts the
+      # request, and a container that fails to start leaves the previous one
+      # serving — which looks exactly like success. So poll for real content.
+      - bash: |
+          set -euo pipefail
+          URL='$(publicUrl)'
+          echo "Waiting for ${URL} to serve the SPA..."
+          for i in $(seq 1 60); do
+            BODY=$(curl -fsS --max-time 20 "${URL}/" 2>/dev/null) || BODY=""
+            if echo "$BODY" | grep -q 'id="root"'; then
+              echo "${URL} is serving the SPA after $((i * 10))s"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "##vso[task.logissue type=error]${URL} did not serve the SPA within 10 minutes"
+          exit 1
+        displayName: 'Verify $(webAppName) serves the SPA'
+
+      # What tells you WHY a failed release failed. Always runs. The same output
+      # is teed to $LOG_FILE inside the container, readable over SSH with
+      # `az webapp ssh --name cmms --resource-group New-Implementations`.
+      - task: AzureCLI@2
+        displayName: 'Container startup log'
+        condition: always()
+        inputs:
+          azureSubscription: '$(azureSubscriptionServiceConnection)'
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            set -uo pipefail
+            az webapp log download --name '$(webAppName)' --resource-group '$(webAppResourceGroup)' \
+              --log-file "$(Agent.TempDirectory)/logs.zip" >/dev/null 2>&1 \
+              && unzip -p "$(Agent.TempDirectory)/logs.zip" '*docker*' 2>/dev/null | tail -200 \
+              || echo "Could not download the log bundle; check the Log stream blade."

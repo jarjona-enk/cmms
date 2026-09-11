@@ -31,3 +31,4 @@ override.tf.json
 .wolf/designqc-captures/
 .wolf/hooks/_session.json
 .wolf/hooks/node_modules/
+/prod.env

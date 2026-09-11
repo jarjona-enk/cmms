@@ -2,7 +2,7 @@
 
 > OpenWolf's learning memory. Updated automatically as the AI learns from interactions.
 > Do not edit manually unless correcting an error.
-> Last updated: 2026-08-28
+> Last updated: 2026-09-10
 
 ## User Preferences
 
@@ -21,6 +21,35 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **OpenTofu is PARKED and the pipeline is PRODUCTION-ONLY.** Decided
+  2026-09-11, superseding the 2026-09-10 version of this: infrastructure was
+  built by hand and is ready, `infra/` must not be applied (it would build a
+  parallel environment), and there is no test environment at all. The pipeline
+  builds a container, pushes it, and attaches it to the existing `cmms` app.
+  Do not reintroduce a `tofu` step, a test stage, or an environment gate.
+- **`Docker@2` with `command: buildAndPush` IGNORES the `arguments` input.** So
+  it cannot pass `--build-arg`. For this repo that would silently bake
+  `localhost:8080` into the SPA bundle. Use `command: login` plus a plain
+  `docker build`/`docker push`, which is why this pipeline diverges from
+  itsheets and budget on that one point.
+- **`AzureWebAppContainer@1` sets `linuxFxVersion`**, so pointing it at a *site
+  containers* app converts that app to the classic single-container model. Use
+  `az webapp sitecontainers update --container-name <n> --image <img>` to set
+  the image without changing the shape.
+- **Existing resources owned by other teams are referenced, never managed.**
+  Data sources are welcome; `resource` blocks for them are not.
+- **Prefers configuration in committed files over Azure DevOps variable groups
+  and portal settings.** Asked directly whether a file could replace the
+  variable group (2026-09-11). Same instinct as "infrastructure as code owns
+  configuration": if it is not secret, it belongs in git where it is
+  reviewable. Corollary: do NOT solve that by shipping a secret-bearing env
+  file to CI — give the pipeline only what it needs.
+- **Mirror `../budget` for container-level concerns** (sshd, log file, startup
+  script), the same way the pipeline mirrors `../itsheets`. When the user says
+  "exactly as they are on budgets", copy the files rather than reinventing.
+- The user renames/creates Azure resources by hand between sessions. **Read the
+  live environment before touching anything that names a resource** — `cmms`
+  replaced `cmms-prod` with no repo change.
 
 ## Key Learnings
 
@@ -71,10 +100,57 @@
 - Registry **`enerkem.azurecr.io`**, Log Analytics `workspacenewimplementations9584`.
 - Web apps are named `<env>-<app>`; storage `<app>storage<env>001`; vaults `<app>-<env>`.
   Custom domains `<app>.enerkem.com` with App Service certificates.
-- **App PostgreSQL is at `10.225.1.107`** — a private endpoint in
-  `VNET-CanEast-Tier1/Prod-Tier1-BackEnd`. Apps address it **by IP**, not name
-  (`itbudget` uses `jdbc:postgresql://10.225.1.107:5432/budget`). Safe because pgJDBC
-  defaults to `sslmode=prefer`, which encrypts but skips hostname verification.
+  **CMMS breaks this:** the production app is plain **`cmms`**, not `prod-cmms`,
+  and the custom domain `cmms.enerkem.com` does **not exist yet** (NXDOMAIN, no
+  hostname binding as of 2026-09-11). A custom domain here is manual work — the
+  OpenTofu module creates no hostname binding.
+- **Three postgres private endpoints live in
+  `VNET-CanEast-Tier1/Prod-Tier1-BackEnd`, and they are not the same server.**
+  Verified 2026-09-10:
+
+  | PE | IP | server | region |
+  |---|---|---|---|
+  | `DevPostgresDB` | `10.225.1.107` | `db-caneast-django-pmo-test` | canadacentral |
+  | `PrivateEndpointPostgreSQL` | `10.225.1.100` | `db-caneast-django-pmo-test` | canadacentral |
+  | `PMDMSPrivateEndpointPostgreSQL` | `10.225.1.104` | `db-caneast-pmdms` (RG `RG-CanEast-PMDMS`) | canadaeast |
+
+  `itbudget` uses **`10.225.1.104`** (`jdbc:postgresql://10.225.1.104:5432/budget`),
+  as does `prod-pmdms` (`POSTGRES_HOST`). CMMS **prod** uses it too. CMMS test
+  still points at `10.225.1.107`, which is a *test* server.
+- **Apps address these servers by IP, never by FQDN, and they have to.** No
+  `privatelink.postgres.database.azure.com` private DNS zone exists in the
+  subscription, and `VNET-CanEast-Tier1` uses corporate DNS (`10.250.0.11/12`).
+  So `<server>.postgres.database.azure.com` resolves inside the VNet exactly as
+  outside — via the privatelink CNAME to the server's PUBLIC address (verified:
+  `db-caneast-pmdms` → `52.229.73.241`), which refuses connections because
+  public access is disabled. Safe because pgJDBC defaults to `sslmode=prefer`:
+  encrypted, no hostname check. **Before writing an Azure DB FQDN into a
+  config, check that a private DNS zone exists and is linked to the app's
+  VNet.**
+- **Some Enerkem web apps are "site containers" apps.** `cmms` reports
+  `linuxFxVersion == "sitecontainers"` — a literal string, not `DOCKER|…`; the
+  image lives on the main site container instead, read with
+  `az webapp sitecontainers list --query "[?isMain].image"`. Anything parsing
+  `linuxFxVersion` to find the running image must handle both shapes.
+- **`JWT_SECRET_KEY` must be strict base64 decoding to ≥32 bytes.**
+  `JwtTokenProvider.init()` does `Base64.getDecoder().decode(secretKey)` then
+  `Keys.hmacShaKeyFor()`. A readable string with a `-` throws
+  `IllegalArgumentException: Illegal base64 character 2d` and the context never
+  starts. Use `openssl rand -base64 48`.
+- **The AGPLv3 source bundle is built from the Docker build context**, so
+  `.dockerignore` is what keeps secrets and junk out of a zip served publicly
+  at `GET /source-code/download`. It is not just a build-speed file.
+- **Azure Key Vault will not store an empty secret value.** So "set it blank as
+  a placeholder" is not an option; either store a real value or omit the
+  reference and let the app's own default apply. `SMTP_PWD` is
+  `${SMTP_PWD:}` in `application.yml`, so omitting it is correct while mail is
+  off. `DB_PWD` and `JWT_SECRET_KEY` have no defaults and are boot-critical.
+- **Key Vault references must be unversioned** (`VaultName=…;SecretName=…`, no
+  `SecretVersion`) so rotation takes effect on the next restart instead of
+  needing a redeploy. And `keyVaultReferenceIdentity` must name the identity
+  that actually exists — on `cmms` it says `SystemAssigned` while only a
+  user-assigned identity is attached, which makes every reference fail and the
+  container refuse to start.
 - App Service VNet integration uses one **/28 per app in `VNET-CanEast-Tier1`**
   (RG `RG-CanEast-Tier1`), delegated to `Microsoft.Web/serverFarms`, with `vnetRouteAll` on.
 - `New-Implementations-vnet` (canadacentral) is a dead end: a single /24 fully delegated to
@@ -93,6 +169,34 @@
   `%LOCALAPPDATA%\Microsoft\WinGet\Packages\OpenTofu.Tofu_*\tofu.exe`.
 
 ## Do-Not-Repeat
+
+- **[2026-09-11]** Broke the shell with a quote-heavy python heredoc for the
+  THIRD time in two days (`syntax error near unexpected token '('` on text
+  containing `$(...)`). The rule is not "be careful with heredocs", it is
+  **write the script to the scratchpad with the Write tool and run it by
+  path** whenever the content contains backticks, `$(`, or markdown.
+
+- **[2026-09-10]** Wrote a preflight in `.azure/steps-deploy.yml` that compared
+  against `$(targetEnv)` / `$(releaseVersion)`. Those are set with
+  `task.setvariable` in the **Build** stage, and task.setvariable is
+  **job-scoped** — they arrive empty in another stage. Either publish them as
+  output variables or re-derive them from `$(Build.SourceBranch)`, which every
+  stage can see. Chose the latter.
+- **[2026-09-10]** Claimed `itbudget` uses `10.225.1.107`. It uses
+  `10.225.1.104`. Read the actual app settings (`az webapp config appsettings
+  list`) instead of trusting an earlier note.
+- **[2026-09-10]** Asserted "nothing pulls `:latest`, it must never be what a
+  web app tracks" in a pipeline comment, one step after being told to push
+  `:latest` — and the `cmms` app pulls exactly that. Check what the live app is
+  configured with before writing a comment about what "nothing" does.
+- **[2026-09-10]** Concluded sshd was not listening from a `docker exec ss …`
+  check: `ss` is in iproute2, which is not installed (budget installs
+  net-tools, so it is `netstat`). A missing tool reads exactly like a failing
+  service — verify the tool exists before believing the negative result.
+- **[2026-09-10]** Broke the shell *again* with a python heredoc containing
+  markdown tables and quotes, despite the 2026-08-28 entry saying not to. For
+  anything with mixed quoting, write the script to the scratchpad with the
+  Write tool and run it by path.
 
 - **[2026-08-28]** Documented Azure Blob Storage as a `MINIO_ENDPOINT` value. It can never
   work — the MinIO SDK speaks S3 and Blob exposes no S3 endpoint. Check that an SDK can
@@ -136,7 +240,28 @@
   attachments directly via SAS, so locking storage to the app's subnet would break every image.
 - **VNet subnets are created out of band**, not by our config — they live in
   `RG-CanEast-Tier1`, outside the agreed blast radius.
-- **Reuse `10.225.1.107`** (the budget app's server) rather than `db-cancen-it-poet-test`,
-  which is VNet-injected in canadacentral where regional VNet integration cannot reach it.
+- **Prod reuses `db-caneast-pmdms`** (`10.225.1.104`, RG `RG-CanEast-PMDMS`) — the
+  server `itbudget` and `prod-pmdms` already use — rather than
+  `db-cancen-it-poet-test`, which is VNet-injected in canadacentral where regional
+  VNet integration cannot reach it. Referenced as data sources only; the resource is
+  never managed. Superseded the earlier note that named `10.225.1.107`, which is
+  actually `db-caneast-django-pmo-test`, a test server. **[corrected 2026-09-10]**
 - **Images are built per environment, never promoted**, because the public URL is baked into
   the SPA bundle.
+- **[2026-09-10] Production database is `atlas`, production URL is
+  `https://cmms.enerkem.com`.** `db_name = "atlas"` in `infra/envs/prod/main.tf`
+  and `public_url` now defaults to that URL there, rather than depending on
+  `TF_VAR_public_url` — the pipeline no longer supplies it. `db_user` is
+  `atlas` as well, matching `prod.env`; production no longer follows the
+  old user-matches-database `atlasprod` convention, though test still does.
+  Open: `cmms.enerkem.com` has no DNS record or hostname binding yet (verified
+  NXDOMAIN), and it must be settled before the first image build, because CRA
+  compiles the URL into the SPA bundle.
+- **[2026-09-11] OpenTofu parked; hand-built infrastructure is the reality.**
+  Production is the hand-made `cmms` web app plus the `stgcaneastcmms` storage
+  account, `atlas`/`atlas` on `db-caneast-pmdms`, and a Key Vault for secrets.
+  `.azure/env/prod.env` is the live source of truth for deployment settings;
+  `infra/` is reference-only until someone reconciles it. Open question at the
+  time of writing: `stgcaneastcmms` has public network access disabled, which
+  breaks the browser-side SAS download path the app depends on.
+
