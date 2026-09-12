@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-11T18:51:30.107Z
-> Files: 563 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-12T00:56:32.586Z
+> Files: 568 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -16,6 +16,7 @@
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/
 
+- `checkvars.py` — Find every $(macro) in the pipeline and classify where it comes from. (~853 tok)
 - `dbname.py` — -*- coding: utf-8 -*- (~1126 tok)
 - `dbuser.py` — -*- coding: utf-8 -*- (~1325 tok)
 - `deploydesc.py` — -*- coding: utf-8 -*- (~1390 tok)
@@ -32,8 +33,11 @@
 - `req_update.py` — -*- coding: utf-8 -*- (~4279 tok)
 - `sec35.py` — -*- coding: utf-8 -*- (~1231 tok)
 - `secrets.py` — -*- coding: utf-8 -*- (~2124 tok)
+- `smtp_docs.py` — -*- coding: utf-8 -*- (~1314 tok)
 - `status.py` — -*- coding: utf-8 -*- (~2832 tok)
+- `status1211.py` — -*- coding: utf-8 -*- (~2456 tok)
 - `wolf_update.py` — -*- coding: utf-8 -*- (~3388 tok)
+- `wolf1211.py` — -*- coding: utf-8 -*- (~2664 tok)
 - `wolf2.py` — -*- coding: utf-8 -*- (~4398 tok)
 
 ## ./
@@ -745,6 +749,10 @@
 
 ## infra/modules/cmms/ *(manual)*
 
-- `main.tf` — The whole environment: user-assigned identity, App Service Plan, storage account + `atlas-files` container, Key Vault (RBAC, empty), Linux web app with VNet integration and all app settings, four role assignments, diagnostic setting. App settings hold literal `@Microsoft.KeyVault(...)` strings so no secret enters state (~2600 tok)
+- `main.tf` — The whole environment: user-assigned identity, App Service Plan, storage account + `atlas-files` container (the PARKED config's own names; production actually uses `stgcaneastcmms`/`cmms`), Key Vault (RBAC, empty), Linux web app with VNet integration and all app settings, four role assignments, diagnostic setting. App settings hold literal `@Microsoft.KeyVault(...)` strings so no secret enters state (~2600 tok)
 - `outputs.tf` — web_app_name, default_hostname, principal_id, key_vault_name, storage_account_name, image (~230 tok)
 - `variables.tf` — Inputs. Notable: `db_host` is a private-endpoint IP not a name; `vnet_integration_subnet_id` is created out of band; `public_url` is also baked into the SPA at image build time (~1300 tok)
+
+## scripts/
+
+- `setup-keyvault.ps1` — Declares Write (~4647 tok)

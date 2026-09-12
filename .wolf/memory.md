@@ -231,3 +231,42 @@ section 12.10.
 | 14:04 | Session end: 55 writes across 34 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~71154 tok |
 | 14:50 | Created .gitattributes | — | ~312 |
 | 14:51 | Created .gitattributes | — | ~357 |
+| 14:52 | Session end: 57 writes across 35 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~71870 tok |
+| 15:35 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/checkvars.py | — | ~853 |
+| 15:35 | Session end: 58 writes across 36 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~72723 tok |
+| 18:16 | Session end: 58 writes across 36 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~72723 tok |
+| 18:26 | Session end: 58 writes across 36 files (steps-deploy.yml, sshd_config, startup.sh, Dockerfile, azure-pipelines.yml) | 2 reads | ~72723 tok |
+
+## Session: 2026-09-11 19:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 20:50 | Created scripts/setup-keyvault.ps1 | — | ~4571 |
+| 20:52 | Edited scripts/setup-keyvault.ps1 | modified with() | ~218 |
+| 20:54 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/smtp_docs.py | — | ~1314 |
+| 20:55 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/status1211.py | — | ~2456 |
+| 20:56 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/wolf1211.py | — | ~2664 |
+
+## Session note — 2026-09-11 (DevOps verification, mail, Key Vault script)
+
+Verified the Azure DevOps pipeline with the CLI before its first run and found
+it would not have worked: service connection ids were from another project
+(they are project-scoped), there were two pipelines on the same repo and YAML
+racing each other, pipeline 41 was not authorised for the Azure connection, and
+the deploy SPN had no deploy permission. Fixed all four - deleted the duplicate,
+corrected the ids, authorised the pipeline, granted Website Contributor.
+Confirmed AcrPush/AcrPull and the storage roles (incl. Blob Delegator) were
+already right.
+
+Graph is blocked by Conditional Access here, so role assignments have to be read
+via `az rest` on ARM and principals addressed by object id.
+
+Mail: smtp.enerkem.com:25, no auth. Discovered SMTP_AUTH/SMTP_STARTTLS are inert
+- application.yml hardcodes them - and that leaving SMTP_USER empty is what
+actually skips authentication.
+
+Wrote scripts/setup-keyvault.ps1. Shipped it with a parameter-binding bug the
+owner hit immediately (`-o` ambiguous, from naming a param $Args on an advanced
+function); fixed and then actually ran it with -WhatIf, which is what I should
+have done first. Also corrected AZURE_STORAGE_CONTAINER from a guessed
+atlas-files to the real `cmms`. See DEVELOPMENT-STATUS.md section 12.11.

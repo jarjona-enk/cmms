@@ -68,10 +68,12 @@ needs is committed in one file, and all of it is non-secret:
 | `DB_USER` | `atlas` | |
 | `STORAGE_TYPE` | `azure` | Selects `AzureBlobService` |
 | `AZURE_STORAGE_ACCOUNT` | `stgcaneastcmms` | The existing storage account |
-| `AZURE_STORAGE_CONTAINER` | `atlas-files` | The existing container |
+| `AZURE_STORAGE_CONTAINER` | `cmms` | The existing container |
 | `OAUTH2_CLIENT_ID` / `OAUTH2_TENANT_ID` | `635e54c9-…` / `cddc5ffd-…` | Public identifiers, not secrets |
+| `MAIL_TYPE` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | `SMTP` / `smtp.enerkem.com` / `25` / `noreply@enerkem.com` | Internal relay, no authentication. `SMTP_USER` and `SMTP_PWD` are deliberately unset — JavaMail skips auth when the username is empty |
 | `MAIL_RECIPIENTS` | `cmms-admins@enerkem.com` | Required even with mail off — no default in `application.yml` |
-| `ENABLE_EMAIL_NOTIFICATIONS` / `INVITATION_VIA_EMAIL` | `false` | Until SMTP is verified |
+| `ENABLE_EMAIL_NOTIFICATIONS` | `true` | |
+| `INVITATION_VIA_EMAIL` | `false` | ⚠️ Leave off until a real send is confirmed: if the relay drops mail, new users never get an invitation and cannot get in |
 | `ENABLE_CORS` | `false` | One jar, one origin |
 | `LOG_FILE` | `/home/cmms/atlas.log` | Where `startup.sh` tees the console output, for reading over SSH |
 
@@ -145,48 +147,36 @@ future `tofu apply` able to adopt it instead of making a second vault.
 
 ### Setting it up, once
 
-```bash
-RG=New-Implementations
-APP=cmms
-V=enkm-cmms-prod
-IDENTITY=/subscriptions/d14f7b8e-d71d-4106-ab93-990c96df467c/resourcegroups/New-Implementations/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ua-id-9ca4
-PRINCIPAL=11b7cf2e-710f-4401-987d-4f98e466486b   # ua-id-9ca4's principal id
-
-# 1. The vault. RBAC rather than access policies; purge protection on for prod.
-az keyvault create --name $V --resource-group $RG --location canadaeast \
-  --enable-rbac-authorization true --enable-purge-protection true \
-  --retention-days 7
-
-# 2. Let yourself write secrets, and the app read them.
-ME=$(az ad signed-in-user show --query id -o tsv)
-SCOPE=$(az keyvault show --name $V --query id -o tsv)
-az role assignment create --assignee-object-id $ME --assignee-principal-type User \
-  --role "Key Vault Secrets Officer" --scope $SCOPE
-az role assignment create --assignee-object-id $PRINCIPAL --assignee-principal-type ServicePrincipal \
-  --role "Key Vault Secrets User" --scope $SCOPE
-
-# 3. The secrets. Values come from the repo-root prod.env.
-az keyvault secret set --vault-name $V --name db-password          --value '<from prod.env DB_PWD>'
-az keyvault secret set --vault-name $V --name jwt-secret-key       --value "$(openssl rand -base64 48)"
-az keyvault secret set --vault-name $V --name oauth2-client-secret --value '<from prod.env OAUTH2_CLIENT_SECRET>'
-
-# 4. ⚠️ THE STEP THAT IS CURRENTLY WRONG ON `cmms`.
-#    keyVaultReferenceIdentity is "SystemAssigned", but the app has no
-#    system-assigned identity - only the user-assigned ua-id-9ca4. Every
-#    reference would fail to resolve, and an unresolvable reference stops the
-#    container from starting. Point it at the identity that actually exists:
-az webapp update --name $APP --resource-group $RG \
-  --set keyVaultReferenceIdentity="$IDENTITY"
-
-# 5. The app settings that reference them.
-az webapp config appsettings set --name $APP --resource-group $RG --settings \
-  DB_PWD="@Microsoft.KeyVault(VaultName=$V;SecretName=db-password)" \
-  JWT_SECRET_KEY="@Microsoft.KeyVault(VaultName=$V;SecretName=jwt-secret-key)" \
-  OAUTH2_CLIENT_SECRET="@Microsoft.KeyVault(VaultName=$V;SecretName=oauth2-client-secret)"
+```powershell
+.\scripts\setup-keyvault.ps1 -WhatIf    # review
+.\scripts\setup-keyvault.ps1            # do it
 ```
 
-Role assignments take a minute or two to propagate; if the container starts
-before they land, restart it.
+The script reads the three secrets out of the **repo-root `prod.env`** (the
+gitignored one) and does the whole sequence: creates the vault with RBAC and
+purge protection, grants you *Key Vault Secrets Officer* and the web app's
+identity *Key Vault Secrets User*, pushes the secrets, fixes
+`keyVaultReferenceIdentity`, sets the three referencing application settings,
+and reports whether each reference resolved.
+
+It is idempotent — re-running it re-reads `prod.env` and updates any secret
+whose value changed, which is also how you rotate.
+
+Three things it handles that are easy to get wrong by hand:
+
+- **Parsing.** It splits each line on the *first* `=` only. Base64 values are
+  `=`-padded, so a naive split silently truncates `jwt-secret-key` and the app
+  then dies at startup with `Illegal base64 character`.
+- **Validation before writing.** `JWT_SECRET_KEY` is checked as strict base64
+  decoding to ≥ 32 bytes, because `JwtTokenProvider.init()` runs it through
+  `Base64.getDecoder().decode()` then `Keys.hmacShaKeyFor()`.
+- **RBAC propagation.** A role assignment made seconds earlier may not have
+  reached the data plane, so the first secret write is retried for a couple of
+  minutes rather than failing with a bare `Forbidden`.
+
+Microsoft Graph is blocked by Conditional Access in this tenant, so
+`az ad signed-in-user show` fails; the script reads your object id from the
+access token's `oid` claim instead.
 
 ### Checking it worked
 

@@ -23,11 +23,11 @@ pipeline has never run.
 | Merge policy | Done. Release tags only. Pinned to base `51341f8e` (post-v1.6.0) |
 | Build → single fat jar | **Verified 2026-09-10**: full container build, boots to `/health-check` in 7s, serves the SPA, deep links and the AGPLv3 source bundle |
 | Entra SSO, AGPLv3 §13 | Done |
-| Azure Blob storage backend | Code done. Account `stgcaneastcmms` exists; the pipeline sets `STORAGE_TYPE`/account/container |
+| Azure Blob storage backend | Code done. Account `stgcaneastcmms` + container `cmms` exist, and the app identity already has Blob Data Contributor **and** Blob Delegator |
 | Container SSH + log file | **Verified.** sshd on `0.0.0.0:2222`, app on `:::8080`, log teed to `/home/cmms/atlas.log` |
 | CI/CD pipeline | **Production-only, single job.** Build → smoke-test → push → attach to `cmms` + app settings → verify. Creates no infrastructure. Never run |
 | Deployment settings | `.azure/env/prod.env`, committed, non-secret. No Azure DevOps variable group |
-| Secrets | Key Vault references, set by hand, never touched by the pipeline (REQUIREMENTS.md §2). **Vault not created yet** |
+| Secrets | Key Vault references, never touched by the pipeline. `scripts/setup-keyvault.ps1` does the whole setup from `prod.env`. **Vault not created yet** |
 | OpenTofu infra | ⏸ **PARKED.** Never applied, and must not be applied — it would build a parallel set of resources |
 | Production web app `cmms` | Exists, hand-built, Running. Needs secrets + the identity fix before a container can boot |
 | ACR repository `cmms` | **Does not exist.** Nothing has ever been pushed |
@@ -40,23 +40,26 @@ pipeline has never run.
 | Web app | `cmms` in `New-Implementations` | **site containers** app; `linuxFxVersion` is the literal `sitecontainers`. On shared plan `ASP-dev-pmo-project-tracking-a972` (B3). Breaks the `<env>-<app>` naming convention |
 | Identity | user-assigned `ua-id-9ca4` | client `dbb349c1-…`, principal `11b7cf2e-710f-4401-987d-4f98e466486b` |
 | Database | `atlas` / `atlas` on `db-caneast-pmdms` | reached at `10.225.1.104:5432` — IP, not FQDN (§12.4) |
-| Storage | `stgcaneastcmms`, container `atlas-files` | ⚠️ **`publicNetworkAccess: Disabled`**, `defaultAction: Deny`, private endpoint only — see below |
+| Storage | `stgcaneastcmms`, container **`cmms`** | ⚠️ **`publicNetworkAccess: Disabled`**, `defaultAction: Deny`, private endpoint only — see below |
 | Registry | `enerkem.azurecr.io/cmms` | repository does not exist yet |
 
 ### Blocking the first release
 
-1. **Secrets.** Create the `enkm-cmms-prod` vault, seed `db-password`,
-   `jwt-secret-key` and `oauth2-client-secret`, grant *Key Vault Secrets User*
-   to `11b7cf2e-…`, and set the three referencing app settings. All of
-   REQUIREMENTS.md §2.
-2. **`keyVaultReferenceIdentity` is `SystemAssigned`** on an app whose only
-   identity is user-assigned. Every Key Vault reference fails to resolve, and an
-   unresolvable reference stops the container. §2 step 4 has the command.
-3. **DNS + hostname binding + certificate for `cmms.enerkem.com`.** Must be in
+1. **Secrets and the identity fix.** Run
+   `.\scripts\setup-keyvault.ps1` (try `-WhatIf` first). It creates
+   `enkm-cmms-prod`, grants both roles, loads the three secrets from the
+   repo-root `prod.env`, repoints `keyVaultReferenceIdentity` at `ua-id-9ca4`,
+   and sets the referencing app settings. Verified working in `-WhatIf`;
+   see REQUIREMENTS.md §2.
+2. **DNS + hostname binding + certificate for `cmms.enerkem.com`.** Must be in
    place *before* the first release build: the URL is compiled into the SPA
    bundle at image build time.
-4. **Service principal needs Website Contributor** on `New-Implementations`.
-5. **Decide the storage-account question below.**
+3. **`git push origin main`** — the remote is still behind.
+4. **Decide the storage-account question below.**
+
+Done since: ✅ Website Contributor granted to the deploy service principal,
+✅ pipeline authorised for the Azure service connection, ✅ duplicate pipeline
+removed, ✅ service connection ids corrected (§12.11).
 
 ### Open items
 
@@ -81,9 +84,10 @@ pipeline has never run.
 - **Rotate `OAUTH2_CLIENT_SECRET`** — it sits in `dev.env` and `prod.env` on
   disk, and was inside the AGPLv3 source bundle until 2026-09-10 (§12.5). No
   such image was ever pushed, but treat it as exposed.
-- `AZURE_STORAGE_ENDPOINT` in the repo-root `prod.env` points at
-  `https://cmms-storage.enerkem.com`, which does not front the account. Leave it
-  unset unless (c) above is chosen.
+- `AZURE_STORAGE_ENDPOINT` in the repo-root `prod.env` now correctly reads
+  `https://stgcaneastcmms.blob.core.windows.net`, which is also the default, so
+  it is no longer a problem. The committed `.azure/env/prod.env` leaves it
+  unset on purpose.
 - **No test environment.** `test/*` tags build nothing. The in-pipeline smoke
   test stands in for it.
 - SSO auto-provisioning still creates a **new org per first-of-domain user**,
@@ -913,8 +917,9 @@ by hand (§12.9) and the pipeline never names them.
 - **Storage account `stgcaneastcmms`** (canadaeast, `New-Implementations`) has
   `publicNetworkAccess: Disabled`, `defaultAction: Deny`, `allowBlobPublicAccess:
   false`, and one approved private endpoint. The container could not be listed
-  from outside the network, so `atlas-files` in `prod.env` is the documented
-  name, unverified. More importantly the app hands browsers **signed SAS URLs**
+  from outside the network, so the name was guessed as `atlas-files`; the
+  owner's `prod.env` later showed it is actually **`cmms`**, now corrected in
+  `.azure/env/prod.env`. More importantly the app hands browsers **signed SAS URLs**
   and never proxies file bytes, so uploads will work through the private
   endpoint while every download in the UI fails. Options are in START HERE;
   the parked Tofu config deliberately set `public_network_access_enabled = true`
@@ -931,4 +936,109 @@ described the runtime image as `amazoncorretto:17-alpine`.
 Validated: `azure-pipelines.yml` parses, one job, 13 steps; every key the YAML
 reads is present in `.azure/env/prod.env`, checked by running the pipeline's own
 parse logic locally.
+
+### 12.11 Azure DevOps verified; mail relay; Key Vault script (2026-09-11)
+
+The pipeline was created in Azure DevOps and checked with the CLI before its
+first run. **It would not have worked.** Four things found, three fixed here.
+
+**1. The service connection ids were from another project.** Service
+connections are project-scoped, and the two ids were copied from
+`../itsheets` / `../budget`, whose pipelines live elsewhere. Neither resolved
+in "New Services Implementations", so the ACR login and the deploy would both
+have failed. Corrected against `az devops service-endpoint list`:
+
+| purpose | id | name |
+|---|---|---|
+| registry | `784814e7-aa27-4bd8-89dd-31cfbfaa46bc` | `DEVOPS - ACR` -> registry `enerkem` |
+| subscription | `ca8fb3b0-6089-454b-a98e-03739e391ab1` | `Enterprise (d14f7b8e-...)` |
+
+The project's other docker connection, `Docker Registy connector`, points at
+`sjusiccontainerregistry` and is the wrong one.
+
+**2. Two pipelines, same repo, same YAML.** `cmms` (id 41, created 2026-08-28)
+and `cmms (42)` (created 2026-09-11). One tag push would have started two runs
+racing onto the same web app. Neither had ever run; 42 deleted on the owner's
+instruction.
+
+**3. Pipeline 41 was not authorised for the Azure service connection.** That
+connection has no "all pipelines" grant, only an explicit allow-list. Added 41.
+The registry connection is open to all pipelines, so it needed nothing.
+
+**4. The deploy service principal had no permission to deploy.** Object id
+`1b4bea4e-71c0-45c1-8571-671d6b46edd0` held only Key Vault roles on seven
+unrelated vaults — nothing at subscription or resource-group scope.
+**Website Contributor** granted on `New-Implementations` (assignment
+`eb4548e2-9798-4083-b237-879214af66c6`), verified present.
+
+Confirmed healthy without changes: the ACR connection's principal has
+**AcrPush** on `enerkem`; the web app identity `ua-id-9ca4` has **AcrPull**
+there plus **Storage Blob Data Contributor** and **Storage Blob Delegator** on
+`stgcaneastcmms` — the Delegator role being the one that is easy to forget;
+Microsoft-hosted agents are working (PMDMS ran successfully the same day).
+
+Worth noting for the future: **Microsoft Graph is blocked by Conditional
+Access** in this tenant, so `az ad sp show` and `az role assignment list`'s
+name resolution both fail. Role assignments have to be read through
+`az rest` against the ARM authorization API, and principals addressed by object
+id with `--assignee-object-id` + `--assignee-principal-type`.
+
+### Mail
+
+Owner's decision: the relay is **`smtp.enerkem.com:25`, no authentication, no
+password**. Added to `.azure/env/prod.env` as `MAIL_TYPE`, `SMTP_HOST`,
+`SMTP_PORT` and `SMTP_FROM`, and forwarded by the pipeline.
+
+⚠️ **`SMTP_AUTH` and `SMTP_STARTTLS` in the repo-root `prod.env` are inert.**
+`application.yml` hardcodes
+
+```yaml
+properties.mail.smtp:
+  auth: true
+  starttls.enable: true
+```
+
+with no env placeholder, so neither name is read by anything. What actually
+prevents an authentication attempt is leaving **`SMTP_USER` empty** — JavaMail
+skips auth when the username is empty. `starttls.enable: true` is harmless
+against a relay that does not offer STARTTLS, because JavaMail upgrades only
+when the server advertises it. `INVITATION_VIA_EMAIL` is deliberately left
+`false` until a real send is confirmed: if the relay drops mail, new users
+never receive an invitation and cannot get in.
+
+### The storage container is `cmms`, not `atlas-files`
+
+`.azure/env/prod.env` carried `atlas-files`, which was a guess made when the
+account's `defaultAction: Deny` blocked listing its containers. The owner's
+`prod.env` shows the real name is **`cmms`**. Corrected. The parked OpenTofu
+module still says `atlas-files` — one more thing to reconcile when it is
+unparked.
+
+### `scripts/setup-keyvault.ps1`
+
+New. Does the whole Key Vault setup from the repo-root `prod.env`: creates the
+vault (RBAC, purge protection), grants *Key Vault Secrets Officer* to the
+operator and *Key Vault Secrets User* to `ua-id-9ca4`, loads the three secrets,
+fixes `keyVaultReferenceIdentity`, sets the referencing app settings, and
+reports each reference's resolution status. Idempotent, so re-running it is
+also how a rotation is done. Verified with `-WhatIf` against the live
+subscription.
+
+Three details it exists to get right:
+
+- **Splits each line on the first `=` only.** Base64 values are `=`-padded, so
+  a naive split truncates `jwt-secret-key` and the app dies at startup with
+  `Illegal base64 character`.
+- **Validates `JWT_SECRET_KEY` as strict base64 decoding to ≥ 32 bytes** before
+  writing anything.
+- **Retries the first secret write**, because a role assignment made seconds
+  earlier may not have reached the Key Vault data plane yet.
+
+A bug in the first version, reported by the owner: the `Invoke-Az` helper was an
+advanced function whose parameter was named `$Args` with
+`ValueFromRemainingArguments`. PowerShell then tried to bind `-o json` as one of
+*its* parameters and failed with "the parameter name 'o' is ambiguous" (it
+matches `-OutVariable` and `-OutBuffer`). Fixed by making the helpers simple
+functions with no `param()` block, so every token lands in the automatic
+`$args` and reaches `az` untouched. Logged as `bug-029`.
 

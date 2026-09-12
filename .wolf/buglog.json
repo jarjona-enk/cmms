@@ -495,6 +495,75 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-11"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-09-12T00:52:58.949Z",
+      "error_message": "Significant refactor of ",
+      "file": "scripts/setup-keyvault.ps1",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16→22 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ps1"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-12T00:52:58.949Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-09-11",
+      "error_message": "setup-keyvault.ps1: Parameter cannot be processed because the parameter name 'o' is ambiguous. Possible matches include: -OutVariable -OutBuffer.",
+      "file": "scripts/setup-keyvault.ps1",
+      "root_cause": "The Invoke-Az/Test-Az helpers were advanced functions declaring `param([Parameter(ValueFromRemainingArguments)][string[]] $Args)`. PowerShell binds leading-dash tokens as parameter names before ValueFromRemainingArguments applies, so `az ... -o json` tried to bind `-o` against the function's own common parameters and matched both -OutVariable and -OutBuffer. Naming the parameter $Args also shadows the automatic variable.",
+      "fix": "Rewrote both helpers as SIMPLE functions with no param() block, reading the automatic $args and splatting it to az. Every token, dashes included, now reaches az untouched. Verified by running the script with -WhatIf against the live subscription.",
+      "tags": [
+        "powershell",
+        "azure-cli",
+        "parameter-binding",
+        "advanced-function",
+        "script"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-09-11",
+      "error_message": "Pipeline would have failed on both the ACR login and the deploy: service connection ids did not exist in the project",
+      "file": "azure-pipelines.yml",
+      "root_cause": "Service connections in Azure DevOps are project-scoped. The two ids were copied from ../itsheets and ../budget, whose pipelines live in a different project, so neither resolved in 'New Services Implementations'. Nothing in the YAML or in a local check would reveal this - it only fails at run time.",
+      "fix": "Listed the project's real endpoints with `az devops service-endpoint list` and used them: 784814e7-... ('DEVOPS - ACR', registry `enerkem`) and ca8fb3b0-... ('Enterprise'). Avoided b50e431e-... ('Docker Registy connector'), which points at sjusiccontainerregistry.",
+      "tags": [
+        "azure-devops",
+        "service-connection",
+        "project-scoped",
+        "ci",
+        "wrong-id"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-09-11",
+      "error_message": "AZURE_STORAGE_CONTAINER was atlas-files; the real container is cmms",
+      "file": ".azure/env/prod.env",
+      "root_cause": "The storage account has publicNetworkAccess Disabled and defaultAction Deny, so `az storage container list` failed from outside the network and the container name was guessed from the parked OpenTofu module's own naming (atlas-files) instead of being verified.",
+      "fix": "The owner's repo-root prod.env showed the real name is `cmms`. Corrected in .azure/env/prod.env and the docs. Lesson: when a value cannot be verified, say so loudly rather than carrying a plausible guess into a config file.",
+      "tags": [
+        "azure",
+        "storage",
+        "guessed-value",
+        "configuration"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11"
     }
   ]
 }

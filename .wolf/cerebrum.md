@@ -140,6 +140,21 @@
 - **The AGPLv3 source bundle is built from the Docker build context**, so
   `.dockerignore` is what keeps secrets and junk out of a zip served publicly
   at `GET /source-code/download`. It is not just a build-speed file.
+- **PowerShell: never name a function parameter `$Args`, and avoid advanced
+  functions for `az` wrappers.** An advanced function tries to bind a
+  leading-dash token as its own parameter, so `-o json` dies with "the
+  parameter name 'o' is ambiguous" (it matches `-OutVariable`/`-OutBuffer`).
+  Use a simple function with no `param()` block so everything lands in the
+  automatic `$args`.
+- **Parsing a .env file: split on the FIRST `=` only.** Base64 values are
+  `=`-padded, so splitting on every `=` silently truncates keys like
+  `JWT_SECRET_KEY` and the app then fails at startup with `Illegal base64
+  character`.
+- **`SMTP_AUTH` / `SMTP_STARTTLS` are inert in this codebase.**
+  `application.yml` hardcodes `properties.mail.smtp.auth: true` and
+  `starttls.enable: true` with no env placeholder. What actually disables
+  authentication is leaving `SMTP_USER` empty — JavaMail skips auth when the
+  username is empty. The relay is `smtp.enerkem.com:25`, unauthenticated.
 - **Azure Key Vault will not store an empty secret value.** So "set it blank as
   a placeholder" is not an option; either store a real value or omit the
   reference and let the app's own default apply. `SMTP_PWD` is
@@ -157,6 +172,29 @@
   PostgreSQL, wrong region for canadaeast apps.
 
 ### Azure DevOps / OpenTofu gotchas
+
+- **Service connections are PROJECT-SCOPED.** Ids copied from another project's
+  pipeline silently do not resolve. In "New Services Implementations" the right
+  ones are `784814e7-...` (`DEVOPS - ACR` -> registry `enerkem`) and
+  `ca8fb3b0-...` (`Enterprise`). `Docker Registy connector` (`b50e431e-...`)
+  points at `sjusiccontainerregistry` and is the wrong registry.
+- **A service connection may be granted per-pipeline rather than to all
+  pipelines.** Check with
+  `az devops invoke --area pipelinePermissions --resource pipelinePermissions
+  --route-parameters project=<p> resourceType=endpoint resourceId=<id>
+  --api-version 7.1-preview`; PATCH the same route to authorise one. Note the
+  api-version must be `7.1-preview`, not `7.1-preview.1`, or the CLI throws
+  "could not convert string to float".
+- **Microsoft Graph is blocked by Conditional Access in this tenant.**
+  `az ad sp show`, `az ad signed-in-user show` and the name-resolution inside
+  `az role assignment list` all fail with AADSTS53003. Work around it: read
+  role assignments through `az rest` on the ARM authorization API, address
+  principals with `--assignee-object-id` + `--assignee-principal-type`, and get
+  your own object id from the `oid` claim of
+  `az account get-access-token`.
+- **Creating a pipeline twice is easy and dangerous.** Two definitions pointing
+  at the same repo and YAML both trigger on the same tag and race each other
+  onto the same web app. Check `az pipelines list` before a first run.
 
 - **An undefined `$(VAR)` is left as the literal string `$(VAR)`** — a missing variable does
   not fail the build, it writes garbage. Every referenced variable must exist, blank if unused.
