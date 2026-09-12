@@ -989,8 +989,8 @@ Owner's decision: the relay is **`smtp.enerkem.com:25`, no authentication, no
 password**. Added to `.azure/env/prod.env` as `MAIL_TYPE`, `SMTP_HOST`,
 `SMTP_PORT` and `SMTP_FROM`, and forwarded by the pipeline.
 
-⚠️ **`SMTP_AUTH` and `SMTP_STARTTLS` in the repo-root `prod.env` are inert.**
-`application.yml` hardcodes
+`SMTP_AUTH` and `SMTP_STARTTLS` were **inert** when first configured:
+`application.yml` hardcoded
 
 ```yaml
 properties.mail.smtp:
@@ -998,13 +998,26 @@ properties.mail.smtp:
   starttls.enable: true
 ```
 
-with no env placeholder, so neither name is read by anything. What actually
-prevents an authentication attempt is leaving **`SMTP_USER` empty** — JavaMail
-skips auth when the username is empty. `starttls.enable: true` is harmless
-against a relay that does not offer STARTTLS, because JavaMail upgrades only
-when the server advertises it. `INVITATION_VIA_EMAIL` is deliberately left
-`false` until a real send is confirmed: if the relay drops mail, new users
-never receive an invitation and cannot get in.
+with no env placeholder, so neither name was read by anything. On the owner's
+instruction they are now parameterised as `${SMTP_AUTH:true}` and
+`${SMTP_STARTTLS:true}` — defaults kept `true`, so a Gmail-style setup is
+unaffected — and both are pushed as `false`. That is a two-line edit to an
+upstream file; `application.yml` is not on the conflict hot-spot list, so the
+merge cost is small.
+
+Note there is a **second, stray `properties.mail.smtp` block indented under
+`spring.jpa`** (lines 53-56). It is upstream noise — those keys are handed to
+Hibernate and do nothing — and was deliberately left alone.
+
+`SMTP_USER`/`SMTP_PWD` stay unset, so no Key Vault secret is needed for mail.
+`ENABLE_EMAIL_NOTIFICATIONS` and `INVITATION_VIA_EMAIL` are both **true** per
+the owner's settings; a silently-dropping relay would mean new users never
+receive an invitation, so that is the first thing to check if someone cannot
+get in.
+
+Also corrected: `SMTP_FROM` **is** read — via `@Value("${spring.mail.from:...}")`
+in `EmailService2`, not through `MailProperties` binding. An earlier note in
+this session doubted that.
 
 ### The storage container is `cmms`, not `atlas-files`
 

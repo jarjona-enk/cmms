@@ -64,17 +64,17 @@ needs is committed in one file, and all of it is non-secret:
 | `OAUTH2_PROVIDER` | `microsoft` | Baked into the bundle |
 | `WEBSITES_PORT` | `8080` | The platform probes this port; without it every request 504s |
 | `SPRING_PROFILES_ACTIVE` | `prod` | |
-| `DB_URL` | `10.225.1.104:5432/atlas` | **host:port/db only** — `application.yml` prepends `jdbc:postgresql://`. An IP, not the FQDN; see §4 |
+| `DB_URL` | `10.225.1.104/atlas` | **host[:port]/db only** — `application.yml` prepends `jdbc:postgresql://`; pgJDBC defaults to 5432. An IP, not the FQDN; see §4 |
 | `DB_USER` | `atlas` | |
 | `STORAGE_TYPE` | `azure` | Selects `AzureBlobService` |
 | `AZURE_STORAGE_ACCOUNT` | `stgcaneastcmms` | The existing storage account |
 | `AZURE_STORAGE_CONTAINER` | `cmms` | The existing container |
 | `OAUTH2_CLIENT_ID` / `OAUTH2_TENANT_ID` | `635e54c9-…` / `cddc5ffd-…` | Public identifiers, not secrets |
-| `MAIL_TYPE` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | `SMTP` / `smtp.enerkem.com` / `25` / `noreply@enerkem.com` | Internal relay, no authentication. `SMTP_USER` and `SMTP_PWD` are deliberately unset — JavaMail skips auth when the username is empty |
+| `MAIL_TYPE` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | `SMTP` / `smtp.enerkem.com` / `25` / `noreply@enerkem.com` | Internal relay |
+| `SMTP_AUTH` / `SMTP_STARTTLS` | `false` / `false` | The relay wants neither. `application.yml` hardcoded both to `true` upstream; it now reads these, defaulting to `true`. `SMTP_USER`/`SMTP_PWD` stay unset |
 | `MAIL_RECIPIENTS` | `cmms-admins@enerkem.com` | Required even with mail off — no default in `application.yml` |
-| `ENABLE_EMAIL_NOTIFICATIONS` | `true` | |
-| `INVITATION_VIA_EMAIL` | `false` | ⚠️ Leave off until a real send is confirmed: if the relay drops mail, new users never get an invitation and cannot get in |
-| `ENABLE_CORS` | `false` | One jar, one origin |
+| `ENABLE_EMAIL_NOTIFICATIONS` / `INVITATION_VIA_EMAIL` | `true` / `true` | Invitations go out by email. If someone cannot get in, a silently-dropping relay is the first thing to check |
+| `ENABLE_CORS` | `true` | Matches the repo-root `prod.env` |
 | `LOG_FILE` | `/home/cmms/atlas.log` | Where `startup.sh` tees the console output, for reading over SSH |
 
 The first six are **validated by name** and the run fails if any is empty;

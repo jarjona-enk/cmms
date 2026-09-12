@@ -67,8 +67,11 @@ spring:
     tls: true
     from: ${SMTP_FROM:${SMTP_USER:}}
     properties.mail.smtp:
-      auth: true
-      starttls.enable: true
+      # Parameterised for internal relays that accept unauthenticated mail on
+      # port 25 and offer no STARTTLS. Defaults stay true, so nothing changes
+      # for a Gmail-style setup.
+      auth: ${SMTP_AUTH:true}
+      starttls.enable: ${SMTP_STARTTLS:true}
       ssl.trust: ${SMTP_HOST:smtp.gmail.com}
   cache:
     type: caffeine

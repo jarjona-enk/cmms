@@ -564,6 +564,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-11"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-09-12T01:00:30.649Z",
+      "error_message": "Significant refactor of ",
+      "file": "api/src/main/resources/application.yml",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→7 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-12T01:00:30.649Z"
     }
   ]
 }

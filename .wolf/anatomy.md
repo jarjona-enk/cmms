@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-12T00:56:32.586Z
-> Files: 568 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-12T01:01:04.770Z
+> Files: 570 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -34,6 +34,7 @@
 - `sec35.py` — -*- coding: utf-8 -*- (~1231 tok)
 - `secrets.py` — -*- coding: utf-8 -*- (~2124 tok)
 - `smtp_docs.py` — -*- coding: utf-8 -*- (~1314 tok)
+- `smtp_wire.py` — -*- coding: utf-8 -*- (~1228 tok)
 - `status.py` — -*- coding: utf-8 -*- (~2832 tok)
 - `status1211.py` — -*- coding: utf-8 -*- (~2456 tok)
 - `wolf_update.py` — -*- coding: utf-8 -*- (~3388 tok)
@@ -724,6 +725,10 @@
 - `LicenseService.java` — AGPLv3 build: `getLicensingState()` returns a valid plan with every entitlement and `hasEntitlement()` returns true unconditionally. Single chokepoint for all feature gates and usage caps. Zero upstream churn (~900 tok)
 - `MinioService.java` — S3-compatible backend. NB: builds its client on `PUBLIC_MINIO_ENDPOINT`, not `MINIO_ENDPOINT`; the latter is only an HTTP proxy target when the public endpoint is localhost. No-ops if any `MINIO_*` value is blank (~1600 tok)
 - `StorageService.java` — Interface all storage backends implement: upload (MultipartFile and byte[]), download, generateSignedUrl. `uploadAndSign` is the default combo used by exports (~330 tok)
+
+## api/src/main/resources/
+
+- `application.yml` (~1683 tok)
 
 ## infra/
 

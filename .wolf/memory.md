@@ -270,3 +270,25 @@ owner hit immediately (`-o` ambiguous, from naming a param $Args on an advanced
 function); fixed and then actually ran it with -WhatIf, which is what I should
 have done first. Also corrected AZURE_STORAGE_CONTAINER from a guessed
 atlas-files to the real `cmms`. See DEVELOPMENT-STATUS.md section 12.11.
+| 20:57 | Session end: 5 writes across 4 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py) | 0 reads | ~11565 tok |
+| 21:00 | Edited api/src/main/resources/application.yml | 4→7 lines | ~96 |
+| 21:01 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/smtp_wire.py | — | ~1228 |
+
+## Session note - 2026-09-11 (SMTP made configurable)
+
+Owner: "change application.yaml, add the variables or it won't work" then
+"Set INVITATION to true. Follow my settings."
+
+Parameterised properties.mail.smtp.auth and starttls.enable in application.yml
+as ${SMTP_AUTH:true} / ${SMTP_STARTTLS:true} - defaults kept true so upstream
+behaviour is unchanged - and wired both through .azure/env/prod.env and the
+pipeline. Set INVITATION_VIA_EMAIL=true and ENABLE_CORS=true, and aligned
+DB_URL, per the owner reaffirming after I flagged the invitation risk.
+
+Found a stray second properties.mail.smtp block misindented under spring.jpa
+(upstream noise, does nothing) - left alone. Also corrected my own earlier
+doubt: SMTP_FROM IS read, via @Value in EmailService2.
+
+Only three keys now differ between prod.env and .azure/env/prod.env:
+MAIL_RECIPIENTS (cannot be blank or the app will not boot) and MAIL_TYPE
+(uppercase to match the enum constant exactly).

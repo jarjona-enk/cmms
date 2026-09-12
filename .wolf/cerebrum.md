@@ -150,11 +150,17 @@
   `=`-padded, so splitting on every `=` silently truncates keys like
   `JWT_SECRET_KEY` and the app then fails at startup with `Illegal base64
   character`.
-- **`SMTP_AUTH` / `SMTP_STARTTLS` are inert in this codebase.**
-  `application.yml` hardcodes `properties.mail.smtp.auth: true` and
-  `starttls.enable: true` with no env placeholder. What actually disables
-  authentication is leaving `SMTP_USER` empty — JavaMail skips auth when the
-  username is empty. The relay is `smtp.enerkem.com:25`, unauthenticated.
+- **`SMTP_AUTH` / `SMTP_STARTTLS` were inert until 2026-09-11.**
+  `application.yml` hardcoded `properties.mail.smtp.auth: true` and
+  `starttls.enable: true`; they are now `${SMTP_AUTH:true}` /
+  `${SMTP_STARTTLS:true}`, defaults unchanged. The relay is
+  `smtp.enerkem.com:25`, unauthenticated, no TLS. Beware the **second, stray
+  `properties.mail.smtp` block indented under `spring.jpa`** in the same file:
+  upstream noise, handed to Hibernate, does nothing — do not "fix" it there and
+  think mail is configured.
+- **`spring.mail.from` is read by `@Value` in `EmailService2`,** not by
+  `MailProperties` binding — so `SMTP_FROM` does work, even though `from` is
+  not a MailProperties field.
 - **Azure Key Vault will not store an empty secret value.** So "set it blank as
   a placeholder" is not an option; either store a real value or omit the
   reference and let the app's own default apply. `SMTP_PWD` is

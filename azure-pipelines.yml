@@ -167,6 +167,8 @@ jobs:
           echo "##vso[task.setvariable variable=mailType]${MAIL_TYPE}"
           echo "##vso[task.setvariable variable=smtpHost]${SMTP_HOST}"
           echo "##vso[task.setvariable variable=smtpPort]${SMTP_PORT}"
+          echo "##vso[task.setvariable variable=smtpAuth]${SMTP_AUTH}"
+          echo "##vso[task.setvariable variable=smtpStartTls]${SMTP_STARTTLS}"
           echo "##vso[task.setvariable variable=smtpFrom]${SMTP_FROM}"
           echo "##vso[task.setvariable variable=mailRecipients]${MAIL_RECIPIENTS}"
           echo "##vso[task.setvariable variable=enableEmail]${ENABLE_EMAIL_NOTIFICATIONS}"
@@ -375,6 +377,8 @@ jobs:
             -MAIL_TYPE $(mailType)
             -SMTP_HOST $(smtpHost)
             -SMTP_PORT $(smtpPort)
+            -SMTP_AUTH $(smtpAuth)
+            -SMTP_STARTTLS $(smtpStartTls)
             -SMTP_FROM $(smtpFrom)
             -MAIL_RECIPIENTS $(mailRecipients)
             -ENABLE_EMAIL_NOTIFICATIONS $(enableEmail)
