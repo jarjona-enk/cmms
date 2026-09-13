@@ -33,14 +33,20 @@
 # See REQUIREMENTS.md §2.
 
 trigger:
-  # A release/* tag is the only thing that ships. Branches are excluded so a
-  # push to main never deploys.
+  # A release/* tag is the only thing that ships; pushing a branch does nothing.
+  #
+  # Written as a refs/tags/ pattern in `branches.include` rather than as a
+  # separate `tags:` block. The earlier form —
+  #     branches: {exclude: ['*']}
+  #     tags:     {include: ['release/*']}
+  # — silently fired nothing: release/1.6.0-enerkem.1 was pushed on 2026-09-13
+  # and no run was queued. A branch filter that excludes everything leaves the
+  # CI trigger with nothing to match on, and the tag block does not rescue it.
+  # Naming the tag ref here is the form Azure DevOps evaluates reliably, and it
+  # still excludes ordinary branches because they cannot match refs/tags/*.
   branches:
-    exclude:
-      - '*'
-  tags:
     include:
-      - 'release/*'
+      - refs/tags/release/*
 
 pr: none
 
@@ -100,7 +106,12 @@ jobs:
           REF="${BUILD_SOURCEBRANCH#refs/tags/}"
           case "$REF" in
             release/*) VERSION="${REF#release/}" ;;
-            *) fail "Expected refs/tags/release/<version>, got '${BUILD_SOURCEBRANCH}'. This pipeline is production-only; test/* tags are not built." ;;
+            refs/heads/*|"")
+              fail "This pipeline releases from a tag, and was started on a branch ('${BUILD_SOURCEBRANCH}'). Clicking 'Run pipeline' in the UI queues against the default branch and can never work. Push a tag instead:  git tag release/<upstream>-enerkem.<n> && git push origin release/<upstream>-enerkem.<n>" ;;
+            test/*)
+              fail "This pipeline is production-only. A test/* tag builds nothing; there is no test environment. Use release/<upstream>-enerkem.<n>." ;;
+            *)
+              fail "Expected refs/tags/release/<version>, got '${BUILD_SOURCEBRANCH}'." ;;
           esac
 
           echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-enerkem\.[0-9]+$' \

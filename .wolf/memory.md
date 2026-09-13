@@ -292,3 +292,21 @@ doubt: SMTP_FROM IS read, via @Value in EmailService2.
 Only three keys now differ between prod.env and .azure/env/prod.env:
 MAIL_RECIPIENTS (cannot be blank or the app will not boot) and MAIL_TYPE
 (uppercase to match the enum constant exactly).
+| 21:03 | Session end: 7 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~12889 tok |
+| 21:05 | Session end: 7 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~12889 tok |
+| 21:14 | Session end: 7 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~12889 tok |
+
+## Session note - 2026-09-13 (first release attempt)
+
+Pipeline "failure" was a manual run against refs/heads/main, correctly rejected
+by the tag guard. The real defect: the tag release/1.6.0-enerkem.1 was pushed
+and queued NO run - `branches: exclude '*'` plus a separate `tags:` block fires
+nothing in Azure DevOps. Rewritten as
+`branches: {include: ['refs/tags/release/*']}`. Tag must be deleted and
+re-pushed on the fix. Also split the guard's error message into three cases.
+
+Readiness checked live: vault + secrets + Secrets User role all done, all
+non-secret app settings present, but the three Key Vault reference settings are
+missing and keyVaultReferenceIdentity is still SystemAssigned - steps 4 and 5 of
+setup-keyvault.ps1. Container cannot boot until those are fixed. See
+DEVELOPMENT-STATUS.md 12.12.

@@ -1055,3 +1055,58 @@ matches `-OutVariable` and `-OutBuffer`). Fixed by making the helpers simple
 functions with no `param()` block, so every token lands in the automatic
 `$args` and reaches `az` untouched. Logged as `bug-029`.
 
+### 12.12 First release attempt: the tag trigger never fired (2026-09-13)
+
+`main` was pushed and `release/1.6.0-enerkem.1` tagged at `47845f58`. **No run
+was queued by the tag.** The only run on the pipeline, `5971`, was
+`reason: manual` against `refs/heads/main`, and it failed at the first step —
+correctly, because this pipeline only builds `release/*` tags. That failure was
+the guard doing its job, not a defect.
+
+The defect is the trigger. It was written as
+
+```yaml
+branches: {exclude: ['*']}
+tags:     {include: ['release/*']}
+```
+
+A branch filter that excludes everything leaves the CI trigger with nothing to
+match on, and the separate `tags` block does not rescue it, so the tag push
+queued nothing at all. Rewritten to the form Azure DevOps evaluates reliably:
+
+```yaml
+branches:
+  include:
+    - refs/tags/release/*
+```
+
+Ordinary branches still cannot trigger it, because they never match
+`refs/tags/*`.
+
+The tag-resolution step's error messages now also distinguish the three ways of
+getting this wrong — started on a branch (i.e. someone clicked *Run pipeline*),
+a `test/*` tag, or a malformed version — instead of one message that mentioned
+test tags when the actual problem was a manual run. Verified by running the
+case statement against all four ref shapes.
+
+**Re-tagging is required**, because the tag already exists and points at a
+commit whose YAML has the broken trigger. Delete and recreate it on the fix.
+
+### Deployment readiness at this point
+
+Checked live the same day:
+
+| | |
+|---|---|
+| `origin/main` | `47845f58` — pushed ✅ |
+| Vault `enkm-cmms-prod` | exists, with `db-password`, `jwt-secret-key`, `oauth2-client-secret` ✅ |
+| *Key Vault Secrets User* for `ua-id-9ca4` | granted ✅ |
+| Non-secret app settings on `cmms` | all present ✅ |
+| **`DB_PWD` / `JWT_SECRET_KEY` / `OAUTH2_CLIENT_SECRET` app settings** | **missing** ❌ |
+| **`keyVaultReferenceIdentity`** | still `SystemAssigned` ❌ |
+
+So the vault half is done but the web app was never wired to it — steps 4 and 5
+of `scripts/setup-keyvault.ps1`, which is what `-SkipWebApp` leaves out. Until
+those two are fixed the container cannot boot: `DB_PWD` and `JWT_SECRET_KEY`
+have no defaults in `application.yml`.
+

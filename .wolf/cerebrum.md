@@ -179,6 +179,16 @@
 
 ### Azure DevOps / OpenTofu gotchas
 
+- **A tag-only Azure DevOps trigger must name the tag ref in
+  `branches.include`.** `branches: {exclude: ['*']}` plus a separate
+  `tags: {include: [...]}` block fires **nothing** - the tag push queues no run
+  at all, with no error anywhere. Use
+  `branches: {include: ['refs/tags/release/*']}`; ordinary branches cannot match
+  it. Verified the hard way on 2026-09-13 (`bug-034`).
+- **`reason: manual` on a run means someone clicked *Run pipeline*,** which
+  queues against the default branch. For a tag-triggered pipeline that can never
+  succeed, so check `az pipelines runs show --id <n> --query reason` before
+  concluding the trigger is broken.
 - **Service connections are PROJECT-SCOPED.** Ids copied from another project's
   pipeline silently do not resolve. In "New Services Implementations" the right
   ones are `784814e7-...` (`DEVOPS - ACR` -> registry `enerkem`) and

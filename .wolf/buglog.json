@@ -580,6 +580,24 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-12T01:00:30.649Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-09-13",
+      "error_message": "Pushing tag release/1.6.0-enerkem.1 queued no pipeline run at all",
+      "file": "azure-pipelines.yml",
+      "root_cause": "The trigger combined `branches: {exclude: ['*']}` with a separate `tags: {include: ['release/*']}` block. A branch filter that excludes every branch leaves the CI trigger with nothing to match, and the tags block does not compensate, so tag pushes fired nothing. The only run on the pipeline was a manual one against refs/heads/main, which the first step correctly rejected - masking the real problem behind an expected-looking failure.",
+      "fix": "Express the tag filter as a refs/tags pattern inside branches.include: `branches: {include: ['refs/tags/release/*']}`. Ordinary branches still cannot match. Also split the tag-resolution error into three cases (branch/manual run, test tag, malformed version) so the message names the actual mistake. Requires deleting and re-pushing the tag, since the existing one points at a commit carrying the broken trigger.",
+      "tags": [
+        "azure-devops",
+        "yaml-trigger",
+        "tag-trigger",
+        "ci",
+        "silent-failure"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-13"
     }
   ]
 }
