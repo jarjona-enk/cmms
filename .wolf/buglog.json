@@ -669,6 +669,61 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-14"
+    },
+    {
+      "error_message": "Failed to acquire a new access token ... Managed Identity authentication is not available; bean 'azureBlobService' init method failed, container stops",
+      "file": ".azure/env/prod.env",
+      "root_cause": "The cmms web app has ONLY a user-assigned managed identity (ua-id-9ca4). DefaultAzureCredential's ManagedIdentityCredential cannot choose among user-assigned identities unless AZURE_CLIENT_ID names one, and AZURE_CLIENT_ID was never set. AzureBlobService.init() calls containerClient.exists(), so the auth failure killed the storageServiceFactory bean and the whole Spring context.",
+      "fix": "Set AZURE_CLIENT_ID=dbb349c1-53e9-44b6-bac8-eb975ad1f92e on the app, and added it to .azure/env/prod.env and the pipeline's appSettings so it is reproducible. NOT the same as OAUTH2_CLIENT_ID: that is the Entra app registration for user sign-in and holds no Azure RBAC role - verified against the storage account's role assignments.",
+      "tags": [
+        "azure",
+        "managed-identity",
+        "DefaultAzureCredential",
+        "blob-storage",
+        "startup-failure"
+      ],
+      "id": "bug-039",
+      "timestamp": "2026-09-14",
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
+    },
+    {
+      "error_message": "Diagnosed a stale crash loop as an unfixed bug: the pasted log predated the database grant fix",
+      "file": "(operational)",
+      "root_cause": "App Service stops a site after repeated cold-start failures ('Site is blocked due to multiple, consecutive cold start failures' then 'Site: cmms stopped'). Nothing retried after the grant was applied, so the newest available log still showed the old error and looked current.",
+      "fix": "Check the web app's state before concluding a fix failed. Here: the grant was verified still in place, the exact Liquibase DDL was replayed successfully as role atlas, then starting the site proved it - 802 changesets applied in ~23s.",
+      "tags": [
+        "azure",
+        "app-service",
+        "cold-start",
+        "stale-logs",
+        "diagnosis"
+      ],
+      "id": "bug-040",
+      "timestamp": "2026-09-14",
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
+    },
+    {
+      "error_message": "Every container failure reports 'Container exited with exit code 0 during startup', masking real crashes",
+      "file": "api/container/startup.sh",
+      "root_cause": "The script ends with `java ... 2>&1 | tee -a \"$LOG_FILE\"`. A shell pipeline returns the exit status of its LAST command, so the script exits 0 regardless of how java terminated. App Service then reports a clean exit for what was actually a fatal Spring failure.",
+      "fix": "NOT YET FIXED. Needs ${PIPESTATUS[0]} under bash (the entrypoint is `sh`, and dash has no pipefail), plus a rebuild to take effect. Recorded so the misleading exit code does not derail the next diagnosis.",
+      "tags": [
+        "docker",
+        "shell",
+        "exit-code",
+        "startup.sh",
+        "diagnostics",
+        "open"
+      ],
+      "id": "bug-041",
+      "timestamp": "2026-09-14",
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
     }
   ]
 }

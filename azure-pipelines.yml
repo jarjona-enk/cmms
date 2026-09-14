@@ -173,6 +173,7 @@ jobs:
           echo "##vso[task.setvariable variable=storageType]${STORAGE_TYPE}"
           echo "##vso[task.setvariable variable=storageAccount]${AZURE_STORAGE_ACCOUNT}"
           echo "##vso[task.setvariable variable=storageContainer]${AZURE_STORAGE_CONTAINER}"
+          echo "##vso[task.setvariable variable=azureClientId]${AZURE_CLIENT_ID}"
           echo "##vso[task.setvariable variable=oauth2ClientId]${OAUTH2_CLIENT_ID}"
           echo "##vso[task.setvariable variable=oauth2TenantId]${OAUTH2_TENANT_ID}"
           echo "##vso[task.setvariable variable=mailType]${MAIL_TYPE}"
@@ -381,6 +382,7 @@ jobs:
             -STORAGE_TYPE $(storageType)
             -AZURE_STORAGE_ACCOUNT $(storageAccount)
             -AZURE_STORAGE_CONTAINER $(storageContainer)
+            -AZURE_CLIENT_ID $(azureClientId)
             -ENABLE_SSO $(enableSso)
             -OAUTH2_PROVIDER $(oauth2Provider)
             -OAUTH2_CLIENT_ID $(oauth2ClientId)

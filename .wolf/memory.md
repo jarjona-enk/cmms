@@ -346,3 +346,37 @@ Fixed with ALTER SCHEMA public OWNER TO atlas + GRANT ALL ON SCHEMA public TO
 atlas. Schema had 0 objects so nothing to migrate. Verified by running
 CREATE/INSERT/INDEX/ALTER/DROP under SET LOCAL ROLE atlas and confirming no
 leftovers - not just by reading the ACL. See DEVELOPMENT-STATUS.md 12.13.
+| 16:38 | Session end: 9 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~14434 tok |
+| 16:58 | Session end: 9 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~14434 tok |
+| 17:04 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/save1214.py | — | ~4014 |
+
+## Session summary - 2026-09-14 (first real deploy)
+
+The pipeline ran and deployed cmms:1.6.0-enerkem.2. Two blockers cleared, one
+open.
+
+CLEARED: the "permission denied for schema public" crash loop was the 12.13
+grant working - the pasted log predated it, and App Service had STOPPED the site
+after repeated cold-start failures so nothing retried. Verified the grant was
+still in place, replayed the exact Liquibase DDL as role atlas, then started the
+site: 802 changesets, 138 tables, 85 sequences, lock released cleanly. Database
+side is done.
+
+CLEARED: AzureBlobService failed with "Managed Identity authentication is not
+available" because the app has only a user-assigned identity and AZURE_CLIENT_ID
+was unset. Set it (dbb349c1 = ua-id-9ca4) and committed it to
+.azure/env/prod.env + the pipeline. Owner asked whether that was OAUTH2_CLIENT_ID
+- it is not: different principal, holds no Azure RBAC role, verified against the
+storage account's assignments.
+
+OPEN: no privatelink.blob.core.windows.net DNS zone, so the storage FQDN
+resolves to the blocked public address even though routing is fine (same VNet).
+Same trap as the database FQDN. Decide: link a blob private DNS zone (also fixes
+browser downloads) or enable public network access on the account.
+
+Also logged: startup.sh masks java's exit code via `| tee`, which is why every
+failure reads "exit code 0"; and the app's real output lives in
+LogFiles/StartupLogs/<date>_<host>_failure.log, not docker.log.
+
+App is currently STOPPED. See DEVELOPMENT-STATUS.md 12.14.
+| 17:04 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~842 |

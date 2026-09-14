@@ -132,6 +132,29 @@
   image lives on the main site container instead, read with
   `az webapp sitecontainers list --query "[?isMain].image"`. Anything parsing
   `linuxFxVersion` to find the running image must handle both shapes.
+- **`AZURE_CLIENT_ID` and `OAUTH2_CLIENT_ID` are different principals.**
+  `AZURE_CLIENT_ID` = the user-assigned managed identity `ua-id-9ca4`
+  (`dbb349c1-…`), used by the Azure SDK for the app to authenticate *itself*;
+  it holds every Azure RBAC role we granted. `OAUTH2_CLIENT_ID`
+  (`635e54c9-…`) is the Entra app registration for *users* signing in and holds
+  no Azure roles. With ONLY a user-assigned identity attached,
+  `DefaultAzureCredential` fails with "Managed Identity authentication is not
+  available" unless `AZURE_CLIENT_ID` names it.
+- **`AzureBlobService.init()` calls `containerClient.exists()` at startup**, so
+  any storage auth or network failure kills the `storageServiceFactory` bean and
+  the whole Spring context. Storage problems present as a boot failure, not as a
+  broken file feature.
+- **App Service "Container exited with exit code 0" can be a lie.**
+  `api/container/startup.sh` ends in `java ... | tee`, and a pipeline returns
+  its LAST command's status, so the script always exits 0 however java died.
+  Read the app's real output from
+  `LogFiles/StartupLogs/<date>_<host>_failure.log` (the `ContainerStream:`
+  lines) — it is NOT in docker.log for the most recent attempt.
+- **App Service stops a site after repeated cold-start failures** ("Site is
+  blocked due to multiple, consecutive cold start failures", then "Site
+  stopped"). A log that looks current can therefore predate a fix by hours,
+  because nothing retried. Check the web app's `state` before concluding a fix
+  did not work.
 - **PostgreSQL 15+ does not grant CREATE on `public` to PUBLIC.** Owning the
   *database* is not enough: the `public` schema inside it can still be owned by
   `azure_pg_admin`, leaving the app role with USAGE only. This app runs

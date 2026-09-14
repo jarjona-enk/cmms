@@ -10,12 +10,17 @@
 
 Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
 
-**Where we are.** Production infrastructure was built **by hand** and is ready.
-The pipeline is production-only and creates nothing. **OpenTofu is parked** for
-a later release — see `infra/README.md`; do not apply it.
+**Where we are.** The pipeline **has run and released** — `cmms:1.6.0-enerkem.2`
+is deployed. The database schema is **fully built**. The app does **not** start
+yet: it now fails on Azure Blob, not on the database.
 
-Nothing has been released yet: the ACR repository does not exist and the
-pipeline has never run.
+Production infrastructure was built **by hand**. The pipeline is
+production-only and creates nothing. **OpenTofu is parked** — see
+`infra/README.md`; do not apply it.
+
+⚠️ **Pick up here (2026-09-15): `cmms` is STOPPED.** App Service stopped it
+after repeated cold-start failures. See §12.14 for exactly where it fails and
+the two things left.
 
 | Area | State |
 |---|---|
@@ -25,12 +30,14 @@ pipeline has never run.
 | Entra SSO, AGPLv3 §13 | Done |
 | Azure Blob storage backend | Code done. Account `stgcaneastcmms` + container `cmms` exist, and the app identity already has Blob Data Contributor **and** Blob Delegator |
 | Container SSH + log file | **Verified.** sshd on `0.0.0.0:2222`, app on `:::8080`, log teed to `/home/cmms/atlas.log` |
-| CI/CD pipeline | **Production-only, single job.** Build → smoke-test → push → attach to `cmms` + app settings → verify. Creates no infrastructure. Never run |
+| CI/CD pipeline | **Production-only, single job.** Build → smoke-test → push → attach to `cmms` + app settings → verify. **Has run successfully**; `1.6.0-enerkem.2` deployed |
 | Deployment settings | `.azure/env/prod.env`, committed, non-secret. No Azure DevOps variable group |
 | Secrets | Key Vault references, never touched by the pipeline. `scripts/setup-keyvault.ps1` does the whole setup from `prod.env`. **Vault not created yet** |
 | OpenTofu infra | ⏸ **PARKED.** Never applied, and must not be applied — it would build a parallel set of resources |
 | Production web app `cmms` | Exists, hand-built, Running. Needs secrets + the identity fix before a container can boot |
-| ACR repository `cmms` | **Does not exist.** Nothing has ever been pushed |
+| ACR repository `cmms` | Exists. `1.6.0-enerkem.1` and `1.6.0-enerkem.2` pushed |
+| Database schema | **Built.** 802 Liquibase changesets, 138 tables, 85 sequences, lock released cleanly |
+| Application startup | ❌ Fails at `azureBlobService` — see §12.14 |
 | `cmms.enerkem.com` | **Does not exist.** NXDOMAIN, no hostname binding on the app |
 
 ### The hand-built production environment
@@ -1154,4 +1161,103 @@ and was left alone.
 **Tooling note:** the `intellij` MCP server fails to connect in this
 environment ("SSE error: Unable to connect"), but the `idea` MCP server works
 and is what the database tools live on.
+
+### 12.14 First real deploy: DB fixed, now blocked on Blob (2026-09-14)
+
+`release/1.6.0-enerkem.1` and `.2` both built, pushed and deployed. Progress is
+real but the container still does not stay up. **Resume here.**
+
+#### Resolved: the Liquibase permission failure
+
+The `permission denied for schema public` crash loop was the §12.13 grant, and
+the log that showed it **predated the fix** — App Service had stopped the site
+after repeated cold-start failures, so it never retried. Starting the site
+proved it: Liquibase ran to completion in ~23 s, applying **802 changesets**
+(138 tables, 85 sequences) and releasing its lock cleanly. The database side is
+done.
+
+#### Now failing: `azureBlobService`
+
+```
+ERROR AccessTokenCache : Failed to acquire a new access token.
+      ... Managed Identity authentication is not available.
+WARN  ... Error creating bean with name 'storageServiceFactory' ...
+      Error creating bean with name 'azureBlobService': Invocation of init method failed
+```
+
+`AzureBlobService.init()` calls `containerClient.exists()` at startup, so a
+failure there kills the bean and the whole context.
+
+**Cause 1 — fixed.** The app has **only a user-assigned identity**
+(`ua-id-9ca4`), and `AZURE_CLIENT_ID` was not set, so
+`DefaultAzureCredential` could not tell which identity to use. Set on the app,
+and now also in `.azure/env/prod.env` + the pipeline so it survives and is
+reproducible.
+
+⚠️ **`AZURE_CLIENT_ID` is NOT `OAUTH2_CLIENT_ID`.** Two different Entra
+principals, and the owner asked about exactly this:
+
+| | `OAUTH2_CLIENT_ID` = `635e54c9-…` | `AZURE_CLIENT_ID` = `dbb349c1-…` |
+|---|---|---|
+| What | Entra **app registration** | Client id of the **user-assigned managed identity** `ua-id-9ca4` |
+| For | **users signing in** (SSO) | the app authenticating **itself** to Azure |
+| Secret | yes | none |
+| Azure RBAC | **none** | Storage Blob Data Contributor + Blob Delegator on `stgcaneastcmms`, AcrPull on `enerkem`, Key Vault Secrets User on `enkm-cmms-prod` — all on principal `11b7cf2e-…` |
+
+Verified against the storage account's role assignments: the OAuth2 app
+registration holds **no** role there. Using it would have failed twice — no
+token, and no permission even with one.
+
+**Cause 2 — NOT fixed, almost certainly the next failure.** `stgcaneastcmms`
+has public network access disabled with a private endpoint
+`PE-CanEast-Storage-CMMS` in `VNET-CanEast-Tier1/Prod-Tier1-BackEnd`. The app is
+VNet-integrated into `Dev-Tier1-QA-Pmdms` — same VNet, so **routing is fine**.
+But there is **no `privatelink.blob.core.windows.net` private DNS zone**, so
+`stgcaneastcmms.blob.core.windows.net` resolves to the *public* address, which
+is blocked. Exactly the same trap as the database FQDN in §12.4.
+
+Two options:
+
+1. **Link a private DNS zone for blob to `VNET-CanEast-Tier1`.** Correct, and
+   it also fixes the separate browser-download problem — `FileMapper` hands
+   users SAS URLs on that same hostname, so internal users would resolve it too.
+2. Enable public network access on the account. SAS still gates every object and
+   `allowBlobPublicAccess` stays false, which is what the parked Tofu config
+   assumed. Simpler, but leaves the account internet-reachable.
+
+**Not yet verified either way** — the app has not been restarted since
+`AZURE_CLIENT_ID` was set, deliberately, so the next run isolates one variable.
+
+#### Also noticed, not yet fixed
+
+**`api/container/startup.sh` masks the app's exit code.** It ends with
+
+```sh
+java ... 2>&1 | tee -a "${LOG_FILE}"
+```
+
+A shell pipeline reports the status of its **last** command, so the script
+always exits 0 no matter how java died. That is why every failure in the portal
+reads *"Container exited with exit code 0 during startup"*, which looks like a
+clean shutdown and sent the first diagnosis down the wrong path. Worth fixing
+with `${PIPESTATUS[0]}` under bash (the entrypoint is currently `sh`, and dash
+has no `pipefail`). Needs a rebuild to take effect, so it is not urgent.
+
+#### Where to find the real error
+
+The App Service *docker.log* did not contain the app's own output for the last
+attempt. It is in the bundle under
+`LogFiles/StartupLogs/<date>_<host>_failure.log`, as `ContainerStream:` lines.
+That is the file to read first next time.
+
+#### State to resume from
+
+| | |
+|---|---|
+| `cmms` web app | **Stopped** by App Service after repeated cold-start failures |
+| Deployed image | `enerkem.azurecr.io/cmms:1.6.0-enerkem.2` |
+| Database `atlas` | schema fully built, 802 changesets, role and grants correct |
+| `AZURE_CLIENT_ID` | set on the app, and committed |
+| Blob DNS | **unresolved — the next thing to decide** |
+| Tag for the fix | re-tag as `release/1.6.0-enerkem.3` |
 
