@@ -331,3 +331,4 @@ Error reporting rebuilt: a trap prints the failing section, the az exit code,
 az's output and a likely-cause hint for recognisable messages, instead of a
 PowerShell code frame. Verified with -WhatIf; keyVaultReferenceIdentity now
 reads as already fixed, so only the app settings remain.
+| 09:04 | Session end: 9 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~14434 tok |
