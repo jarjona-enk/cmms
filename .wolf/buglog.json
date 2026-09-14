@@ -650,6 +650,25 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-14"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-09-14",
+      "error_message": "atlas role had no CREATE privilege on schema public; Liquibase would have failed the first container start with 'permission denied for schema public'",
+      "file": "(database: atlas on db-caneast-pmdms)",
+      "root_cause": "PostgreSQL 15+ no longer grants CREATE on the public schema to PUBLIC. The atlas database was correctly owned by atlas, but the public schema inside it was still owned by azure_pg_admin with ACL {azure_pg_admin=UC/azure_pg_admin,=U/azure_pg_admin} - so atlas inherited only USAGE. The app runs Liquibase on every boot and JPA with ddl-auto=validate, so it needs DDL rights.",
+      "fix": "ALTER SCHEMA public OWNER TO atlas; GRANT ALL ON SCHEMA public TO atlas; executed as enk_pg_admin, which is a member of both atlas and azure_pg_admin. The schema held 0 objects so no object ownership had to be migrated. Verified functionally with CREATE/INSERT/INDEX/ALTER/DROP under SET LOCAL ROLE atlas, not just by reading the ACL.",
+      "tags": [
+        "postgresql",
+        "permissions",
+        "public-schema",
+        "postgres-15",
+        "liquibase",
+        "deployment-blocker"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
     }
   ]
 }

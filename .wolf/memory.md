@@ -332,3 +332,17 @@ az's output and a likely-cause hint for recognisable messages, instead of a
 PowerShell code frame. Verified with -WhatIf; keyVaultReferenceIdentity now
 reads as already fixed, so only the app settings remain.
 | 09:04 | Session end: 9 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~14434 tok |
+
+## Session note - 2026-09-14 (database grants)
+
+Checked the atlas database via the idea MCP (the intellij MCP server does not
+connect). Database owner was already atlas, but the public SCHEMA was owned by
+azure_pg_admin and atlas had USAGE without CREATE - the PostgreSQL 15+ default.
+Liquibase would have failed the first container start with "permission denied
+for schema public", which would have read as a bad release rather than a
+missing grant.
+
+Fixed with ALTER SCHEMA public OWNER TO atlas + GRANT ALL ON SCHEMA public TO
+atlas. Schema had 0 objects so nothing to migrate. Verified by running
+CREATE/INSERT/INDEX/ALTER/DROP under SET LOCAL ROLE atlas and confirming no
+leftovers - not just by reading the ACL. See DEVELOPMENT-STATUS.md 12.13.

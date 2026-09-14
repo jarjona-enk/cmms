@@ -1110,3 +1110,48 @@ of `scripts/setup-keyvault.ps1`, which is what `-SkipWebApp` leaves out. Until
 those two are fixed the container cannot boot: `DB_PWD` and `JWT_SECRET_KEY`
 have no defaults in `application.yml`.
 
+### 12.13 Database grants: `atlas` could not create anything (2026-09-14)
+
+Checked through the IntelliJ datasource *Production CA-CENTRAL*
+(`10.225.1.104:5432`, PostgreSQL 16.15, ping 12 ms, SSL on) as `enk_pg_admin`.
+
+**The database was fine, the schema was not.**
+
+| | before | after |
+|---|---|---|
+| `atlas` database owner | `atlas` ✅ | unchanged |
+| `public` schema owner | **`azure_pg_admin`** ❌ | `atlas` |
+| `public` ACL | `{azure_pg_admin=UC/azure_pg_admin,=U/azure_pg_admin}` | `{atlas=UC/atlas,=U/atlas}` |
+| `atlas` USAGE on public | true (inherited from PUBLIC) | true |
+| **`atlas` CREATE on public** | **false** ❌ | **true** |
+
+This is the PostgreSQL 15+ change: `public` no longer grants CREATE to
+`PUBLIC`, so an application role that does not own the schema cannot create
+anything in it. The app runs Liquibase on every boot with
+`ddl-auto: validate`, so the first container start would have failed on
+`permission denied for schema public` — a failure that would have looked like
+a bad release rather than a missing grant.
+
+Fixed with two statements, on the owner's instruction:
+
+```sql
+ALTER SCHEMA public OWNER TO atlas;
+GRANT ALL ON SCHEMA public TO atlas;
+```
+
+Safe to do in place: the schema held **0 objects**, so there was no existing
+object ownership to migrate. `enk_pg_admin` is a member of both `atlas` and
+`azure_pg_admin`, which is what made the ownership change possible.
+
+Verified functionally rather than just by reading the ACL — ran
+CREATE TABLE / INSERT / CREATE INDEX / ALTER TABLE / DROP TABLE inside
+`SET LOCAL ROLE atlas`, all of which succeeded, and confirmed 0 leftover
+objects afterwards. The `atlas` role has LOGIN and an unexpired password.
+
+`PUBLIC` keeps its default USAGE on the schema; that is the PostgreSQL default
+and was left alone.
+
+**Tooling note:** the `intellij` MCP server fails to connect in this
+environment ("SSE error: Unable to connect"), but the `idea` MCP server works
+and is what the database tools live on.
+

@@ -132,6 +132,19 @@
   image lives on the main site container instead, read with
   `az webapp sitecontainers list --query "[?isMain].image"`. Anything parsing
   `linuxFxVersion` to find the running image must handle both shapes.
+- **PostgreSQL 15+ does not grant CREATE on `public` to PUBLIC.** Owning the
+  *database* is not enough: the `public` schema inside it can still be owned by
+  `azure_pg_admin`, leaving the app role with USAGE only. This app runs
+  Liquibase on every boot with `ddl-auto: validate`, so it fails at startup with
+  `permission denied for schema public`. Fix:
+  `ALTER SCHEMA public OWNER TO <role>; GRANT ALL ON SCHEMA public TO <role>;`
+  Check with `has_schema_privilege('<role>', 'public', 'CREATE')`, and verify by
+  actually creating a table under `SET LOCAL ROLE`, not by reading the ACL.
+- **The `intellij` MCP server does not connect here; the `idea` one does.**
+  Database tools are `mcp__idea__*`. There is a working datasource
+  *Production CA-CENTRAL* pointed at `10.225.1.104:5432` (the prod server),
+  connecting as `enk_pg_admin`, who is a member of both `atlas` and
+  `azure_pg_admin`.
 - **`JWT_SECRET_KEY` must be strict base64 decoding to ≥32 bytes.**
   `JwtTokenProvider.init()` does `Base64.getDecoder().decode(secretKey)` then
   `Keys.hmacShaKeyFor()`. A readable string with a `-` throws
