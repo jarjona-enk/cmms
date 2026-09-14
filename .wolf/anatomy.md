@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-12T01:01:04.770Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-14T13:00:38.899Z
 > Files: 570 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
@@ -760,4 +760,4 @@
 
 ## scripts/
 
-- `setup-keyvault.ps1` — Declares Write (~4647 tok)
+- `setup-keyvault.ps1` — Declares Hide (~6019 tok)

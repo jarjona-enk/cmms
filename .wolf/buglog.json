@@ -598,6 +598,58 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-13"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-09-14T13:00:38.916Z",
+      "error_message": "Significant refactor of ",
+      "file": "scripts/setup-keyvault.ps1",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→50 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ps1"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T13:00:38.916Z"
+    },
+    {
+      "error_message": "JWT_SECRET_KEY was unexpected at this time - az webapp config appsettings set failed when passing Key Vault references",
+      "file": "scripts/setup-keyvault.ps1",
+      "root_cause": "On Windows `az` is az.cmd, so every argument PowerShell passes is re-parsed by cmd.exe. A Key Vault reference, @Microsoft.KeyVault(VaultName=v;SecretName=s), contains '(', ')' and ';'. cmd split on the ';' and reported the next token as unexpected. No PowerShell quoting fixes it, because PowerShell is not the layer doing the damage. Other az calls in the script worked only because their arguments happened to contain no cmd metacharacters.",
+      "fix": "Added Set-AppSettingsFromFile, which writes the settings as a JSON array of {name,value,slotSetting} to a temp file and passes `--settings @file`, keeping the metacharacters off the command line. Payload shape verified against the output of `az webapp config appsettings list`. Temp file removed in a finally block; it holds no secrets, only vault and secret names.",
+      "tags": [
+        "powershell",
+        "azure-cli",
+        "windows",
+        "cmd-quoting",
+        "key-vault-reference"
+      ],
+      "id": "bug-036",
+      "timestamp": "2026-09-14",
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
+    },
+    {
+      "error_message": "A failure inside `az keyvault secret set` would have printed the full command line, including --value <the real secret>",
+      "file": "scripts/setup-keyvault.ps1",
+      "root_cause": "Invoke-Az threw a message built from `$azArgs -join ' '`, with no redaction. Any az failure while writing a secret would render that secret to the console and into any active PowerShell transcript. Found while reviewing the error output from the appsettings failure, which printed the whole command.",
+      "fix": "Secret values are registered in a $script:Redact list as they are read from prod.env, and every error string passes through Hide-Secrets before display. Invoke-Az now reports the az exit code, the redacted command and az's own output separately.",
+      "tags": [
+        "security",
+        "secret-disclosure",
+        "error-handling",
+        "powershell",
+        "logging"
+      ],
+      "id": "bug-037",
+      "timestamp": "2026-09-14",
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14"
     }
   ]
 }

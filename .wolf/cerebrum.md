@@ -140,6 +140,16 @@
 - **The AGPLv3 source bundle is built from the Docker build context**, so
   `.dockerignore` is what keeps secrets and junk out of a zip served publicly
   at `GET /source-code/download`. It is not just a build-speed file.
+- **On Windows `az` is az.cmd, so cmd.exe re-parses every argument.** A value
+  containing `;` `(` `)` or `&` - a Key Vault reference
+  `@Microsoft.KeyVault(VaultName=v;SecretName=s)` has three of them - gets torn
+  apart, with an error like "JWT_SECRET_KEY was unexpected at this time". No
+  PowerShell quoting helps. Pass such values through a file: for app settings,
+  `--settings @file.json` with `[{name,value,slotSetting}]`.
+- **Redact secrets in error paths, not just in success output.** An error
+  handler that echoes the failed command line will print `--value <secret>`
+  into the console and any transcript. Keep a redaction list and filter every
+  message through it.
 - **PowerShell: never name a function parameter `$Args`, and avoid advanced
   functions for `az` wrappers.** An advanced function tries to bind a
   leading-dash token as its own parameter, so `-o json` dies with "the

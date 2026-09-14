@@ -310,3 +310,24 @@ non-secret app settings present, but the three Key Vault reference settings are
 missing and keyVaultReferenceIdentity is still SystemAssigned - steps 4 and 5 of
 setup-keyvault.ps1. Container cannot boot until those are fixed. See
 DEVELOPMENT-STATUS.md 12.12.
+| 12:55 | Session end: 7 writes across 6 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~12889 tok |
+| 09:00 | Edited scripts/setup-keyvault.ps1 | added 3 condition(s) | ~906 |
+| 09:00 | Edited scripts/setup-keyvault.ps1 | modified Invoke() | ~536 |
+
+## Session note - 2026-09-14 (setup-keyvault.ps1 review)
+
+Owner hit "JWT_SECRET_KEY was unexpected at this time" on the app-settings
+step. Cause: on Windows az is az.cmd, so cmd.exe re-parses arguments and the
+';' '(' ')' in a Key Vault reference break it. Fixed by writing the settings to
+a temp JSON file and using --settings @file; payload shape verified against
+`az webapp config appsettings list`.
+
+The error output also revealed a worse bug of mine: Invoke-Az threw the raw
+command line, so a failure during `az keyvault secret set` would have printed
+the real secret. Added a redaction list plus Hide-Secrets over every error
+string.
+
+Error reporting rebuilt: a trap prints the failing section, the az exit code,
+az's output and a likely-cause hint for recognisable messages, instead of a
+PowerShell code frame. Verified with -WhatIf; keyVaultReferenceIdentity now
+reads as already fixed, so only the app settings remain.

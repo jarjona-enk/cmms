@@ -20,10 +20,22 @@
       5. Set DB_PWD / JWT_SECRET_KEY / OAUTH2_CLIENT_SECRET to unversioned
          @Microsoft.KeyVault(...) references.
 
-    Secret VALUES are never written to the console, the transcript or a file.
-    They are passed to `az` as arguments, which is briefly visible in the local
-    process list - acceptable for an interactive admin run on your own machine,
-    but do not run this on a shared or logged host.
+    Secret VALUES are never printed. They are passed to `az keyvault secret
+    set` as arguments, which is briefly visible in the local process list -
+    acceptable for an interactive admin run on your own machine, but do not run
+    this on a shared or logged host. Error output is redacted, so a failure
+    cannot spill a secret into the console or a PowerShell transcript.
+
+    The Key Vault *references* are written to a short-lived temp JSON file and
+    passed as `--settings @file`. Those contain no secrets, only vault and
+    secret names. The file exists because on Windows `az` is a batch file: a
+    reference like @Microsoft.KeyVault(VaultName=v;SecretName=s) contains `(`,
+    `)` and `;`, which cmd.exe treats as syntax and tears apart on the command
+    line, whatever PowerShell does with quoting.
+
+    A failure prints which section it happened in, the az exit code, az's own
+    output, and a likely cause where the message is recognisable. Every step
+    checks current state first, so re-running after a fix is always safe.
 
 .PARAMETER EnvFile
     The runtime env file holding the real secrets. Defaults to prod.env in the
@@ -68,6 +80,73 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+# Which section we are in, so a failure can say where it happened.
+$script:Step = '(startup)'
+
+# Every secret value the script handles, so error output can redact them.
+# Without this, a failure inside `az keyvault secret set` would print the
+# command line - including --value <the actual secret> - to the console and
+# into any PowerShell transcript.
+$script:Redact = [System.Collections.Generic.List[string]]::new()
+
+function Hide-Secrets {
+    param([string] $Text)
+    if (-not $Text) { return $Text }
+    foreach ($v in $script:Redact) {
+        if ($v) { $Text = $Text.Replace($v, '<redacted>') }
+    }
+    return $Text
+}
+
+# Turns a raw az failure into something that names the problem and what to do
+# about it, instead of a PowerShell exception with a code frame.
+function Get-Hint {
+    param([string] $Message)
+    switch -Regex ($Message) {
+        'was unexpected at this time|is not recognized as an internal' {
+            'An argument reached cmd.exe unquoted. On Windows `az` is a batch file, so `;`, `(`, `)` and `&` in a value break argument parsing. Pass that value through a file instead of the command line.' }
+        'Forbidden|does not have secrets (get|set) permission|ForbiddenByRbac' {
+            'The caller lacks a Key Vault data-plane role, or the assignment has not propagated yet. Wait a minute and re-run; the script is idempotent.' }
+        'AuthorizationFailed' {
+            'The signed-in principal lacks an Azure RBAC role for this operation. Check with: az role assignment list --assignee <you> --scope <scope>' }
+        'ResourceNotFound|ResourceGroupNotFound|was not found' {
+            'A name or resource group is wrong, or the resource is in another subscription. Verify -VaultName / -ResourceGroup / -WebAppName.' }
+        'VaultNameNotValid' {
+            'Key Vault names are 3-24 characters, alphanumeric and single hyphens, starting with a letter. Check -VaultName.' }
+        'VaultAlreadyExists|already exists in deleted state' {
+            'The name is held by a soft-deleted vault. Recover it: az keyvault recover --name <name>' }
+        'is ambiguous' {
+            'A PowerShell parameter-binding collision. Helper functions here must stay simple functions with no param() block.' }
+        'ExpiredAuthenticationToken|AADSTS|InteractionRequired' {
+            'The Azure CLI session has expired or needs re-consent. Run: az login' }
+        default { $null }
+    }
+}
+
+# Clean failure report. Without this the user sees the `throw` statement's own
+# source line, which says nothing about what went wrong.
+trap {
+    $msg = Hide-Secrets ($_.Exception.Message)
+    Write-Host ""
+    Write-Host "──────────────────────────────────────────────────────────────" -ForegroundColor Red
+    Write-Host " FAILED during: $script:Step" -ForegroundColor Red
+    Write-Host "──────────────────────────────────────────────────────────────" -ForegroundColor Red
+    Write-Host ""
+    Write-Host $msg
+    $hint = Get-Hint $msg
+    if ($hint) {
+        Write-Host ""
+        Write-Host "Likely cause:" -ForegroundColor Yellow
+        Write-Host "  $hint" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "Nothing is left half-applied that re-running cannot fix: every step" -ForegroundColor DarkGray
+    Write-Host "checks current state first, so just run the script again once the" -ForegroundColor DarkGray
+    Write-Host "cause above is addressed. Use -WhatIf to preview." -ForegroundColor DarkGray
+    Write-Host ""
+    exit 1
+}
+
 # Secret name in the vault  ->  key in prod.env  ->  app setting on the web app.
 # smtp-password is deliberately absent: Key Vault rejects an empty value, and
 # application.yml declares ${SMTP_PWD:} so the app defaults it to empty.
@@ -79,7 +158,7 @@ $SecretMap = @(
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
-function Write-Step { param([string] $Text) Write-Host "`n=== $Text" -ForegroundColor Cyan }
+function Write-Step { param([string] $Text) $script:Step = $Text; Write-Host "`n=== $Text" -ForegroundColor Cyan }
 function Write-Ok   { param([string] $Text) Write-Host "    $Text" -ForegroundColor Green }
 function Write-Skip { param([string] $Text) Write-Host "    $Text" -ForegroundColor DarkGray }
 function Write-Warn { param([string] $Text) Write-Host "    $Text" -ForegroundColor Yellow }
@@ -94,10 +173,52 @@ function Write-Warn { param([string] $Text) Write-Host "    $Text" -ForegroundCo
 function Invoke-Az {
     $azArgs = $args
     $out = & az @azArgs 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "az $($azArgs -join ' ')`n$($out -join "`n")"
+    $code = $LASTEXITCODE
+    if ($code -ne 0) {
+        # Redact before anything is rendered: these arguments can include
+        # --value <secret>.
+        $shown = Hide-Secrets ("az " + ($azArgs -join ' '))
+        $stderr = Hide-Secrets (($out | Where-Object { $_ }) -join "`n")
+        throw "az exited $code`n`ncommand:`n  $shown`n`noutput:`n$stderr"
     }
     return ($out -join "`n")
+}
+
+<#
+Runs an az command whose argument values contain characters cmd.exe treats as
+syntax, by writing them to a JSON file and passing `@file` instead.
+
+On Windows `az` is az.cmd, so every argument is re-parsed by cmd.exe after
+PowerShell has already parsed it. A Key Vault reference,
+`@Microsoft.KeyVault(VaultName=v;SecretName=s)`, contains `(`, `)` and `;` -
+cmd splits on the `;` and reports "JWT_SECRET_KEY was unexpected at this time".
+No amount of PowerShell quoting fixes it, because PowerShell is not the layer
+doing the damage. Keeping the values off the command line is the fix.
+#>
+function Set-AppSettingsFromFile {
+    param(
+        [Parameter(Mandatory)] [string] $App,
+        [Parameter(Mandatory)] [string] $Rg,
+        [Parameter(Mandatory)] [hashtable] $Settings
+    )
+
+    $payload = @(
+        foreach ($k in $Settings.Keys) {
+            [pscustomobject]@{ name = $k; value = $Settings[$k]; slotSetting = $false }
+        }
+    )
+
+    # Plain ASCII path, no spaces, so the `@file` argument itself cannot trip
+    # over cmd.exe either.
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("appsettings-" + [guid]::NewGuid().ToString('N') + ".json")
+    try {
+        $payload | ConvertTo-Json -Depth 4 -AsArray |
+            Set-Content -LiteralPath $tmp -Encoding utf8NoBOM
+        Invoke-Az webapp config appsettings set --name $App --resource-group $Rg `
+            --settings "@$tmp" --only-show-errors -o none | Out-Null
+    } finally {
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Same, but a non-zero exit is an expected answer rather than an error.
@@ -227,6 +348,7 @@ foreach ($row in $SecretMap) {
         if ($why) { $problems += "JWT_SECRET_KEY is $why"; continue }
     }
     $secrets[$row.Secret] = $value
+    $script:Redact.Add($value)
     Write-Ok ("{0,-22} <- {1,-22} ({2} chars)" -f $row.Secret, $row.EnvKey, $value.Length)
 }
 
@@ -351,12 +473,14 @@ if ($currentIdentity -eq $AppIdentityResourceId) {
 Write-Step "Web app: application settings"
 # Unversioned on purpose - rotation then takes effect on the next restart with
 # no redeploy. The release pipeline never names these keys, so they survive it.
-$settingArgs = foreach ($row in $SecretMap) {
-    "$($row.AppSetting)=@Microsoft.KeyVault(VaultName=$VaultName;SecretName=$($row.Secret))"
+$refSettings = @{}
+foreach ($row in $SecretMap) {
+    $refSettings[$row.AppSetting] = "@Microsoft.KeyVault(VaultName=$VaultName;SecretName=$($row.Secret))"
 }
 if ($PSCmdlet.ShouldProcess($WebAppName, "set $($SecretMap.Count) Key Vault reference settings")) {
-    Invoke-Az webapp config appsettings set --name $WebAppName --resource-group $ResourceGroup `
-        --settings @settingArgs --only-show-errors -o none | Out-Null
+    # Via a JSON file: these values contain ';' '(' ')', which cmd.exe would
+    # tear apart on the command line. See Set-AppSettingsFromFile.
+    Set-AppSettingsFromFile -App $WebAppName -Rg $ResourceGroup -Settings $refSettings
     foreach ($row in $SecretMap) { Write-Ok "$($row.AppSetting) -> $VaultName/$($row.Secret)" }
 }
 
