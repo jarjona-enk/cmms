@@ -520,3 +520,4 @@ Pipeline run 5985 succeeded; app Running, health 200, SPA baked with the public 
 ## 2026-09-15 13:00 - post-deploy diagnosis (DNS x2), context saved
 
 cmms.enerkem.com: corporate A record -> 10.225.2.20 (wrong App Service PE, 503); public path works with the new DigiCert cert; owner fixing DNS. Blob download 403: VPN NRPT lacks blob.core.windows.net so browsers hit the public IP of a private-only storage account; three options given, decision pending. Roles: own_user.role_id -> role. DEVELOPMENT-STATUS 12.21. Nothing running locally; enerkem has unpushed docs commits.
+| 16:41 | Session end: 6 writes across 6 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md, docs-dns.py) | 0 reads | ~11817 tok |

@@ -1,10 +1,12 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T13:37:53.841Z
-> Files: 2 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T20:41:04.854Z
+> Files: 6 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
+- `atlas-cmms-azure-infrastructure.md` — Declares metric (~1964 tok)
+- `atlas-cmms-fork-and-release-process.md` (~1056 tok)
 - `atlas-cmms-internal-build-state.md` (~786 tok)
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-935e-57654313f459/scratchpad/
@@ -12,7 +14,9 @@
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/
 
+- `docs-branch-model.py` — Document the new branch model: main mirrors upstream/main, enerkem is ours. (~2915 tok)
 - `docs-close.py` — -*- coding: utf-8 -*- (~869 tok)
+- `docs-dns.py` — Record the post-deploy DNS diagnosis, the roles reference, and refresh memory. (~3682 tok)
 
 ## ./
 
