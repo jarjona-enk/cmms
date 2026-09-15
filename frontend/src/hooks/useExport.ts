@@ -5,17 +5,18 @@ import { apiUrl } from 'src/config';
 import api from 'src/utils/api';
 
 interface UseExportReturn {
-  exportEntity: (entity: EntityType) => Promise<void>;
-  loadingExport: Record<EntityType, boolean>;
+  exportEntity: (entity: ExportEntityType) => Promise<void>;
+  loadingExport: Record<ExportEntityType, boolean>;
 }
 
-type EntityType =
+export type ExportEntityType =
   | 'work-orders'
   | 'assets'
   | 'locations'
   | 'parts'
   | 'meters'
-  | 'preventive-maintenances';
+  | 'preventive-maintenances'
+  | 'costs-times';
 
 /**
  * Custom hook for exporting entities with WebSocket support
@@ -23,14 +24,15 @@ type EntityType =
  */
 export const useExport = (): UseExportReturn => {
   const [loadingExport, setLoadingExport] = useState<
-    Record<EntityType, boolean>
+    Record<ExportEntityType, boolean>
   >({
     'work-orders': false,
     assets: false,
     locations: false,
     parts: false,
     meters: false,
-    'preventive-maintenances': false
+    'preventive-maintenances': false,
+    'costs-times': false
   });
   const [stompClient, setStompClient] = useState(null);
 
@@ -50,7 +52,7 @@ export const useExport = (): UseExportReturn => {
   }, []);
 
   const exportEntity = useCallback(
-    async (entity: EntityType): Promise<void> => {
+    async (entity: ExportEntityType): Promise<void> => {
       return new Promise((resolve, reject) => {
         // Check if stompClient is initialized
         if (!stompClient) {

@@ -1926,7 +1926,25 @@ const plJSON = {
   all_users: 'Wszyscy użytkownicy',
   team_member: 'Członek zespołu',
   no_data: 'Brak danych',
-  hours_left: 'pozostało'
+  hours_left: 'pozostało',
+  export_cost_and_time: 'Eksportuj koszt i czas',
+   export_work_orders: 'Eksportuj zlecenia',
+   copy_wo: 'Kopiuj zlecenie',
+   copy_pm: 'Kopiuj konserwację zapobiegawczą',
+   copy_pm_description:
+     'Wypełnij pola poniżej, aby skopiować konserwację zapobiegawczą',
+   copy_asset: 'Kopiuj zasób',
+   copy_asset_description:
+     'Wypełnij pola poniżej, aby skopiować ten zasób',
+   copy_location: 'Kopiuj lokalizację',
+   copy_location_description:
+     'Wypełnij pola poniżej, aby skopiować tę lokalizację',
+   copy_meter: 'Kopiuj licznik',
+   copy_meter_description:
+     'Wypełnij pola poniżej, aby skopiować ten licznik',
+   copy_part: 'Kopiuj część',
+   copy_part_description:
+     'Wypełnij pola poniżej, aby skopiować tę część'
 };
 
 export default plJSON;

@@ -71,6 +71,7 @@ import SearchInput from '../components/SearchInput';
 import { createColumnHelper } from '@tanstack/react-table';
 import useTableState from '../../../hooks/useTableState';
 import { getErrorMessage } from '../../../utils/api';
+import { getMeterUrl } from '../../../utils/urlPaths';
 import SplitButton from '../components/SplitButton';
 
 const LabelWrapper = styled(Box)(
@@ -99,6 +100,7 @@ function Meters() {
   const { t }: { t: any } = useTranslation();
   const { setTitle } = useContext(TitleContext);
   const [openAddModal, setOpenAddModal] = useState<boolean>(false);
+  const [copyMeterData, setCopyMeterData] = useState<Meter | null>(null);
   const [openUpdateModal, setOpenUpdateModal] = useState<boolean>(false);
   const [openDrawer, setOpenDrawer] = useState<boolean>(false);
   const [currentMeter, setCurrentMeter] = useState<Meter>();
@@ -213,6 +215,23 @@ function Meters() {
     };
   }, [singleMeter, meters]);
 
+  const getMeterFormValues = (entity: Meter | null | undefined) => ({
+    ...entity,
+    users:
+      entity?.users?.map((worker) => ({
+        label: `${worker?.firstName} ${worker.lastName}`,
+        value: worker.id
+      })) ?? [],
+    location: entity?.location
+      ? { label: entity.location.name, value: entity.location.id }
+      : null,
+    asset: entity?.asset
+      ? { label: entity.asset.name, value: entity.asset.id }
+      : null,
+    category: entity?.meterCategory
+      ? { label: entity.meterCategory.name, value: entity.meterCategory.id }
+      : null
+  });
   const formatValues = (values) => {
     const newValues = { ...values };
     newValues.users = formatSelectMultiple(newValues.users);
@@ -250,9 +269,17 @@ function Meters() {
     window.history.replaceState(null, 'Meter', `/app/meters`);
     setOpenDrawer(false);
   };
-  const onCreationSuccess = () => {
+  const handleCopyMeter = (meter: Meter) => {
+    setCopyMeterData(meter);
+    setOpenAddModal(true);
+  };
+  const onCreationSuccess = (createdMeter?: Meter) => {
     setOpenAddModal(false);
     showSnackBar(t('meter_create_success'), 'success');
+    if (copyMeterData && createdMeter) {
+      navigate(getMeterUrl(createdMeter.id));
+    }
+    setCopyMeterData(null);
   };
   const onCreationFailure = (err) =>
     showSnackBar(getErrorMessage(err, t('meter_create_failure')), 'error');
@@ -412,7 +439,10 @@ function Meters() {
       fullWidth
       maxWidth="md"
       open={openAddModal}
-      onClose={() => setOpenAddModal(false)}
+      onClose={() => {
+        setOpenAddModal(false);
+        setCopyMeterData(null);
+      }}
     >
       <DialogTitle
         sx={{
@@ -420,10 +450,12 @@ function Meters() {
         }}
       >
         <Typography variant="h4" gutterBottom>
-          {t('add_meter')}
+          {copyMeterData ? t('copy_meter') : t('add_meter')}
         </Typography>
         <Typography variant="subtitle2">
-          {t('add_meter_description')}
+          {copyMeterData
+            ? t('copy_meter_description')
+            : t('add_meter_description')}
         </Typography>
       </DialogTitle>
       <DialogContent
@@ -437,7 +469,11 @@ function Meters() {
             fields={getFilteredFields(fields)}
             validation={Yup.object().shape(shape)}
             submitText={t('add')}
-            values={{}}
+            values={
+              copyMeterData
+                ? { ...getMeterFormValues(copyMeterData), id: null }
+                : {}
+            }
             onChange={({ field, e }) => {}}
             onSubmit={async (values) => {
               let formattedValues = formatValues(values);
@@ -449,8 +485,10 @@ function Meters() {
                     ? { id: uploadedFiles[0].id }
                     : null
                 };
-                await dispatch(addMeter(formattedValues));
-                onCreationSuccess();
+                const createdMeter: Meter = await dispatch(
+                  addMeter(formattedValues)
+                );
+                onCreationSuccess(createdMeter);
               } catch (err) {
                 onCreationFailure(err);
                 throw err;
@@ -491,31 +529,7 @@ function Meters() {
             fields={fields}
             validation={Yup.object().shape(shape)}
             submitText={t('save')}
-            values={{
-              ...currentMeter,
-              users: currentMeter?.users.map((worker) => {
-                return {
-                  label: `${worker?.firstName} ${worker.lastName}`,
-                  value: worker.id
-                };
-              }),
-              location: currentMeter?.location
-                ? {
-                    label: currentMeter?.location.name,
-                    value: currentMeter?.location.id
-                  }
-                : null,
-              asset: {
-                label: currentMeter?.asset.name,
-                value: currentMeter?.asset.id
-              },
-              category: currentMeter?.meterCategory
-                ? {
-                    label: currentMeter?.meterCategory.name,
-                    value: currentMeter?.meterCategory.id
-                  }
-                : null
-            }}
+            values={getMeterFormValues(currentMeter)}
             onChange={({ field, e }) => {}}
             onSubmit={async (values) => {
               let formattedValues = formatValues(values);
@@ -669,6 +683,7 @@ function Meters() {
               meter={currentMeter}
               handleOpenUpdate={handleOpenUpdate}
               handleOpenDelete={() => setOpenDelete(true)}
+              onCopy={handleCopyMeter}
               onNewReading={onNewReading}
             />
           </Drawer>

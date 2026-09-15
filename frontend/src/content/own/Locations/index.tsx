@@ -132,6 +132,8 @@ function Locations() {
     setCurrentTab(value);
   };
   const [openAddModal, setOpenAddModal] = useState<boolean>(false);
+  const [copyLocationData, setCopyLocationData] =
+    useState<Location | null>(null);
   const [openUpdateModal, setOpenUpdateModal] = useState<boolean>(false);
   const [openDrawer, setOpenDrawer] = useState<boolean>(false);
   const { setTitle } = useContext(TitleContext);
@@ -223,18 +225,26 @@ function Locations() {
     dispatch(deleteLocation(id)).then(onDeleteSuccess).catch(onDeleteFailure);
     setOpenDelete(false);
   };
+  const handleCopyLocation = (location: Location) => {
+    setCopyLocationData(location);
+    setOpenAddModal(true);
+  };
   const onCreationSuccess = (createdLocation?: Location) => {
     setOpenAddModal(false);
     setInitialLocationName('');
     showSnackBar(t('location_create_success'), 'success');
 
-    if (returnField && createdLocation) {
-      // Navigate back to the return path with query params
-      navigate({
-        pathname: returnPath || '/',
-        search: `?${returnField}=${createdLocation.id}`
-      });
+    if (createdLocation) {
+      if (returnField) {
+        navigate({
+          pathname: returnPath || '/',
+          search: `?${returnField}=${createdLocation.id}`
+        });
+      } else if (copyLocationData) {
+        navigate(getLocationUrl(createdLocation.id));
+      }
     }
+    setCopyLocationData(null);
   };
   const onCreationFailure = (err) =>
     showSnackBar(getErrorMessage(err, t('location_create_failure')), 'error');
@@ -651,6 +661,37 @@ function Locations() {
     const fieldsClone = [...fields];
     return fieldsClone;
   };
+  const getLocationFormValues = (entity: Location | null | undefined) => ({
+    ...entity,
+    title: entity?.name,
+    workers:
+      entity?.workers?.map((worker) => ({
+        label: `${worker.firstName} ${worker.lastName}`,
+        value: worker.id
+      })) ?? [],
+    teams:
+      entity?.teams?.map((team) => ({
+        label: team.name,
+        value: team.id
+      })) ?? [],
+    vendors:
+      entity?.vendors?.map((vendor) => ({
+        label: vendor.companyName,
+        value: vendor.id
+      })) ?? [],
+    customers:
+      entity?.customers?.map((customer) => ({
+        label: customer.name,
+        value: customer.id
+      })) ?? [],
+    coordinates: entity?.longitude
+      ? { lng: entity.longitude, lat: entity.latitude }
+      : null,
+    parentLocation: entity?.parentLocation
+      ? { label: entity.parentLocation.name, value: entity.parentLocation.id }
+      : null,
+    ...getCustomFieldsValues(entity)
+  });
   const handleReset = (callApi: boolean) => {
     dispatch(resetLocationsHierarchy(pageable, callApi));
   };
@@ -670,6 +711,7 @@ function Locations() {
       open={openAddModal}
       onClose={() => {
         setOpenAddModal(false);
+        setCopyLocationData(null);
         setInitialLocationName('');
       }}
     >
@@ -679,10 +721,12 @@ function Locations() {
         }}
       >
         <Typography variant="h4" gutterBottom>
-          {t('add_location')}
+          {copyLocationData ? t('copy_location') : t('add_location')}
         </Typography>
         <Typography variant="subtitle2">
-          {t('add_location_description')}
+          {copyLocationData
+            ? t('copy_location_description')
+            : t('add_location_description')}
         </Typography>
       </DialogTitle>
       <DialogContent
@@ -696,7 +740,13 @@ function Locations() {
             fields={fields}
             validation={Yup.object().shape(shape)}
             submitText={t('add')}
-            values={initialLocationName ? { name: initialLocationName } : {}}
+            values={
+              copyLocationData
+                ? { ...getLocationFormValues(copyLocationData), id: null }
+                : initialLocationName
+                  ? { name: initialLocationName }
+                  : {}
+            }
             onChange={({ field, e }) => {}}
             onSubmit={async (values) => {
               let formattedValues = formatValues(values);
@@ -796,47 +846,7 @@ function Locations() {
             fields={getEditFields()}
             validation={Yup.object().shape(shape)}
             submitText={t('save')}
-            values={{
-              ...currentLocation,
-              title: currentLocation?.name,
-              workers: currentLocation?.workers.map((worker) => {
-                return {
-                  label: `${worker.firstName} ${worker.lastName}`,
-                  value: worker.id
-                };
-              }),
-              teams: currentLocation?.teams.map((team) => {
-                return {
-                  label: team.name,
-                  value: team.id
-                };
-              }),
-              vendors: currentLocation?.vendors.map((vendor) => {
-                return {
-                  label: vendor.companyName,
-                  value: vendor.id
-                };
-              }),
-              customers: currentLocation?.customers.map((customer) => {
-                return {
-                  label: customer.name,
-                  value: customer.id
-                };
-              }),
-              coordinates: currentLocation?.longitude
-                ? {
-                    lng: currentLocation.longitude,
-                    lat: currentLocation.latitude
-                  }
-                : null,
-              parentLocation: currentLocation?.parentLocation
-                ? {
-                    label: currentLocation.parentLocation.name,
-                    value: currentLocation.parentLocation.id
-                  }
-                : null,
-              ...getCustomFieldsValues(currentLocation)
-            }}
+            values={getLocationFormValues(currentLocation)}
             onChange={({ field, e }) => {}}
             onSubmit={async (values) => {
               let formattedValues = formatValues(values);
@@ -1129,6 +1139,7 @@ function Locations() {
             location={currentLocation}
             handleOpenUpdate={handleOpenUpdate}
             handleOpenDelete={onOpenDeleteDialog}
+            onCopy={handleCopyLocation}
           />
         </Drawer>
         <ConfirmDialog

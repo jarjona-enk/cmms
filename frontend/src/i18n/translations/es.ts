@@ -2002,7 +2002,25 @@ const esJSON = {
   all_users: 'Todos los usuarios',
   team_member: 'Miembro del equipo',
   no_data: 'Sin datos',
-  hours_left: 'restante'
+  hours_left: 'restante',
+  export_cost_and_time: 'Exportar costo y tiempo',
+   export_work_orders: 'Exportar órdenes de trabajo',
+   copy_wo: 'Copiar orden de trabajo',
+   copy_pm: 'Copiar mantenimiento preventivo',
+   copy_pm_description:
+     'Complete los campos para copiar un mantenimiento preventivo',
+   copy_asset: 'Copiar activo',
+   copy_asset_description:
+     'Complete los campos para copiar este activo',
+   copy_location: 'Copiar ubicación',
+   copy_location_description:
+     'Complete los campos para copiar esta ubicación',
+   copy_meter: 'Copiar medidor',
+   copy_meter_description:
+     'Complete los campos para copiar este medidor',
+   copy_part: 'Copiar repuesto',
+   copy_part_description:
+     'Complete los campos para copiar este repuesto'
 };
 
 export default esJSON;
