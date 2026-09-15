@@ -15,11 +15,15 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Optional;
 
-@Mapper(componentModel = "spring", uses = {LocationMapper.class, AssetMapper.class, UserMapper.class, FileMapper.class, CustomFieldValueMapper.class})
+@Mapper(componentModel = "spring", uses = {LocationMapper.class, AssetMapper.class, UserMapper.class,
+        FileMapper.class, CustomFieldValueMapper.class})
 public interface MeterMapper {
     Meter updateMeter(@MappingTarget Meter entity, MeterPatchDTO dto);
 
@@ -31,12 +35,16 @@ public interface MeterMapper {
     @AfterMapping
     default MeterShowDTO toShowDto(Meter model, @MappingTarget MeterShowDTO target,
                                    @Context ReadingService readingService) {
-        Collection<Reading> readings = readingService.findByMeter(target.getId());
-        if (!readings.isEmpty()) {
-            Reading lastReading = Collections.max(readings, new AuditComparator());
+        Optional<Reading> optionalLastReading = readingService.findLastByMeter(target.getId());
+        if (optionalLastReading.isPresent()) {
+            Reading lastReading = optionalLastReading.get();
             target.setLastReading(lastReading.getCreatedAt());
-            Date nextReading = Helper.incrementDays(lastReading.getCreatedAt(),
-                    target.getUpdateFrequency());
+            Date nextReading = Date.from(
+                    Helper.dateToLocalDate(lastReading.getCreatedAt())
+                            .plusDays(target.getUpdateFrequency())
+                            .atStartOfDay(ZoneId.of(model.getCompany().getCompanySettings().getGeneralPreferences().getTimeZone()))
+                            .toInstant()
+            );
             target.setNextReading(nextReading);
         }
         return target;

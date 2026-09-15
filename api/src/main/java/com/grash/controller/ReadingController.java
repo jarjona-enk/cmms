@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -67,11 +69,16 @@ public class ReadingController {
         Optional<Meter> optionalMeter = meterService.findById(readingReq.getMeter().getId());
         if (optionalMeter.isPresent()) {
             Meter meter = optionalMeter.get();
-            Collection<Reading> readings = readingService.findByMeter(readingReq.getMeter().getId());
-            if (!readings.isEmpty()) {
-                Reading lastReading = Collections.max(readings, new AuditComparator());
-                Date nextReading = Helper.incrementDays(lastReading.getCreatedAt(), meter.getUpdateFrequency());
-                if (new Date().before(nextReading)) {
+            Optional<Reading> optionalLastReading = readingService.findLastByMeter(readingReq.getMeter().getId());
+            if (optionalLastReading.isPresent()) {
+                Reading lastReading = optionalLastReading.get();
+                String timeZone = meter.getCompany()
+                        .getCompanySettings()
+                        .getGeneralPreferences()
+                        .getTimeZone();
+                LocalDate nextReading =
+                        Helper.dateToLocalDate(lastReading.getCreatedAt()).plusDays(meter.getUpdateFrequency());
+                if (LocalDate.now(ZoneId.of(timeZone)).isBefore(nextReading)) {
                     throw new CustomException("The update frequency has not been respected", HttpStatus.NOT_ACCEPTABLE);
                 }
             }

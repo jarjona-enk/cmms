@@ -96,7 +96,8 @@ public class WorkOrderService {
             }
         }
         workOrder.setCustomId(getWorkOrderNumber(company));
-
+        workOrder.setId(null);
+        
         WorkOrder savedWorkOrder = workOrderRepository.saveAndFlush(workOrder);
         em.refresh(savedWorkOrder);
         notify(savedWorkOrder, Helper.getLocale(company));
@@ -718,5 +719,13 @@ public class WorkOrderService {
         return a.stream().allMatch(aItem ->
                 b.stream().anyMatch(bItem ->
                         idExtractor.apply(bItem).equals(idExtractor.apply(aItem))));
+    }
+
+    public Page<WorkOrder> findByCompany(Long id, Pageable pageable) {
+        return workOrderRepository.findByCompany_Id(id, pageable);
+    }
+
+    public Page<WorkOrder> findByCompanyWithTimeAndCost(Long id, Pageable pageable) {
+        return workOrderRepository.findByCompany_IdWithTimeAndCost(id, pageable);
     }
 }
