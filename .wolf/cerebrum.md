@@ -21,6 +21,17 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Owner tags and pushes releases personally.** After a merge/test cycle the
+  hand-off is: stop local processes, save memory + docs, commit on `main`, then
+  report the exact tag to use (`release/<upstream>-enerkem.<n>`) and stop. Do
+  not push, do not tag.
+- **Never `taskkill //IM java.exe` (kill by image name).** Another Claude
+  session on this machine (cybermap) does exactly that to free port 8080, and
+  on 2026-09-14/15 it killed the running CMMS instance three times AND two
+  Maven builds mid-javac/CRA (Maven is a java process) - each looked like a
+  "silent crash" with no log line and no hs_err. Kill by PID found via
+  `netstat -ano | grep :PORT`, never by name. If a local java process or a build
+  dies with no trace, check the other sessions' transcripts for taskkill first.
 - **Upstream merges (2026-09-15): merged up to v1.8.0 via v1.7.0.** An
   in-progress merge of `upstream/main` was found on `main` and aborted — always
   check `.git/MERGE_HEAD` against the tag you were asked for before resolving

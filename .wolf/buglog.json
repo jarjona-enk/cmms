@@ -832,6 +832,24 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-14T23:55:13"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-09-15T09:28:33",
+      "error_message": "Local CMMS java process vanished with no log line (23:36, 09:14); background Maven builds died mid-javac / mid-CRA with exit 1 and no error",
+      "file": "(environment) - other Claude session C--data-src-cybermap",
+      "root_cause": "The cybermap session runs `taskkill //F //IM java.exe` to free port 8080, killing every java.exe on the box: the CMMS app and the Maven wrapper (whose CRA/javac children die with it).",
+      "fix": "Not fixable from this repo. Kill by PID (netstat -ano | grep :PORT) never by image name; coordinate ports (CMMS 8080 for SSO, cybermap elsewhere). Liveness Monitor armed on the CMMS instance to catch recurrences.",
+      "tags": [
+        "environment",
+        "taskkill",
+        "port-8080",
+        "silent-death",
+        "other-session"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-09-15T09:28:33"
     }
   ]
 }

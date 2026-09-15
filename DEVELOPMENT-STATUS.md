@@ -10,9 +10,11 @@
 
 Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
 
-**Where we are.** The pipeline **has run and released** — `cmms:1.6.0-enerkem.2`
-is deployed. The database schema is **fully built**. The app does **not** start
-yet: it now fails on Azure Blob, not on the database.
+**Where we are (2026-09-15).** `main` is merged up to upstream **v1.8.0**
+(§12.18), built, tested locally and **SSO round-trip verified by the owner**.
+Production `atlas.public` is empty and the `cmms` web app is stopped; the next
+step is the owner tagging `release/1.8.0-enerkem.1` and pushing. The first
+start will run all 806 changesets.
 
 Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
@@ -1514,4 +1516,19 @@ The database is empty and the app is stopped, so first start runs all 806
 changesets — `unaccent` is allow-listed, so that will work. `cmms.enerkem.com`
 DNS/binding/certificate and the Entra redirect URI for the public URL are still
 outstanding (§12.16).
+
+**Closing the loop (2026-09-15 09:40).** The owner ran the SSO round-trip
+against the local 1.8.0 build on `localhost:8080` (SPA rebuilt for 8080 so the
+registered `http://localhost:8080/oauth2/callback/microsoft` matched) and
+confirmed **SSO works**. Local instance and the MinIO test container are
+stopped. Nothing pushed; the owner tags and pushes.
+
+**Environment finding, recorded because it cost hours:** every "silent death"
+during this work — two Maven builds and three local CMMS instances, all with no
+log line and no crash dump — was another Claude session on the same machine
+(`cybermap`) running `taskkill //F //IM java.exe` to free port 8080, which kills
+every java process on the box, Maven included. Correlated to the minute against
+that session's transcript. Rule, now in the cerebrum: kill by PID (from
+`netstat -ano | grep :PORT`), never by image name; and coordinate ports across
+sessions.
 

@@ -468,3 +468,28 @@ gitignored SPA copy in api/src/main/resources/static; Git Bash curl UTF-8
 mangling; MAIL_RECIPIENTS/MinIO for local runs. See DEVELOPMENT-STATUS 12.18.
 | 23:56 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-fork-and-release-process.md | — | ~1087 |
 | 23:56 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~865 |
+| 00:05 | Session end: 7 writes across 7 files (run-local.sh, resolve-v180.py, api-smoke.sh, api-smoke2.sh, docs-v180.py) | 0 reads | ~12703 tok |
+
+## Session: 2026-09-15 08:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-09-15 08:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-09-15 08:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:37 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-close.py | — | ~869 |
+| 09:37 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~839 |
+
+## Session end - 2026-09-15 09:40
+
+Owner verified SSO on the local 1.8.0 build (port 8080). App + MinIO stopped.
+Root cause of all silent process deaths: cybermap session's `taskkill //IM
+java.exe` (correlated by timestamp). Docs, cerebrum, buglog, memory updated;
+committed on main. Owner tags release/1.8.0-enerkem.1 and pushes.
