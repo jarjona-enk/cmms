@@ -502,3 +502,11 @@ Owner: our code moves to branch `enerkem`; `main` mirrors upstream/main.
 Created enerkem from main (3bdcc06c), reset main to upstream/main (50db0808),
 tracking set (enerkem->origin/enerkem, main->upstream/main). Docs: CLAUDE.md
 sections 1-2, REQUIREMENTS 5, DEVELOPMENT-STATUS 12.19, cerebrum. Owner pushes.
+| 10:29 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-fork-and-release-process.md | — | ~1127 |
+| 10:29 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 10:44 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 10:44 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+
+## 2026-09-15 11:15 - release/1.8.0-enerkem.1 deployed
+
+Pipeline run 5985 succeeded; app Running, health 200, SPA baked with the public URL. Findings: container logging Off on the app (stdout never captured); deploy task put the app in DOCKER| mode. DEVELOPMENT-STATUS 12.20.

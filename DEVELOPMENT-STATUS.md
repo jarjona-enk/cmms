@@ -10,11 +10,11 @@
 
 Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
 
-**Where we are (2026-09-15).** `main` is merged up to upstream **v1.8.0**
-(§12.18), built, tested locally and **SSO round-trip verified by the owner**.
-Production `atlas.public` is empty and the `cmms` web app is stopped; the next
-step is the owner tagging `release/1.8.0-enerkem.1` and pushing. The first
-start will run all 806 changesets.
+**Where we are (2026-09-15 11:15).** **`release/1.8.0-enerkem.1` is deployed
+and running in production** (pipeline run 5985, §12.20). Our line is the
+`enerkem` branch; `main` mirrors `upstream/main` (§12.19). Still outstanding:
+`cmms.enerkem.com` DNS/binding/certificate, the public Entra redirect URI, and
+turning on container logging so the app's stdout is captured (§12.20).
 
 Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
@@ -1566,4 +1566,46 @@ reads everything from the tagged commit, so tags simply move to `enerkem`.
 rewrite — `enerkem` preserves it); in Azure DevOps set the repository default
 branch and pipeline 41's default branch to `enerkem`, and move any branch
 policy from `main` to `enerkem`.
+
+### 12.20 First release from the `enerkem` branch: 1.8.0-enerkem.1 deployed (2026-09-15)
+
+Owner pushed `enerkem`, force-pushed `main` as the upstream mirror, and tagged
+`release/1.8.0-enerkem.1` at `9f52f5d3`. **Pipeline run 5985 succeeded** in
+~16 min (build 7 min 23 s, push 11 s, deploy 28 s). A stale local tag
+`release/1.6.0-enerkem.3` went up too and its run was canceled.
+
+| check | result |
+|---|---|
+| ACR | `cmms:1.8.0-enerkem.1` and `cmms:latest` → same digest `b16cf303…` |
+| App Service | pulled `cmms:1.8.0-enerkem.1` at 14:58:32 UTC, container `96882e813f4d` started 14:58:45; app `Running` |
+| `/health-check`, `/`, `/license/state` on the azurewebsites host | 200 |
+| SPA bundle served | `main.f80b24d7.js` with `REACT_APP_API_URL="https://cmms.enerkem.com"`, `ENABLE_SSO=true`, provider `microsoft` — the build-args took |
+| `/oauth2/authorize/microsoft` | 302 to `login.microsoftonline.com/cddc5ffd-…` |
+| Post-deploy site check | warned, as expected: it polls `cmms.enerkem.com`, which does not resolve |
+
+**Liquibase on the empty production database:** not quotable from a log (see
+below), but Spring only serves requests after the context has started, and
+Liquibase runs inside that startup and fails it on any error — so the 200s
+mean the 806 changesets ran. A `SELECT count(*) FROM databasechangelog` on
+`atlas` (expected 806) or `/home/cmms/atlas.log` over SSH would make it
+explicit.
+
+**Two findings from the deploy:**
+
+1. **Container logging is `Off`** (`az webapp log show` →
+   `applicationLogs.fileSystem.level: Off`). App Service therefore does not
+   capture the container's stdout: there is no `*_default_docker.log`,
+   `az webapp log tail` prints nothing, and the pipeline's "Container startup
+   log" step only shows platform lines (pull, start, stop). The SSH route to
+   `/home/cmms/atlas.log` still works, but every diagnosis so far leaned on
+   logs that were not being collected. Fix (reversible, no restart):
+   `az webapp log config -g New-Implementations -n cmms --docker-container-logging filesystem`.
+2. **The deploy task switched the app from site-containers mode to
+   `DOCKER|enerkem.azurecr.io/cmms:1.8.0-enerkem.1`.** `AzureWebAppContainer@1`
+   writes `linuxFxVersion`; the site-container record (`cmms`, image `:latest`,
+   last modified 2026-09-10) is now inert. Harmless today — both tags are the
+   same digest and the app runs — but §12.10's note that "the image goes on the
+   main site container" is no longer what happens. If site-containers mode is
+   wanted back, the deploy step must use `az webapp sitecontainers update`
+   instead.
 
