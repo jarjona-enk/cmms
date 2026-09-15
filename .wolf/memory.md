@@ -493,3 +493,4 @@ Owner verified SSO on the local 1.8.0 build (port 8080). App + MinIO stopped.
 Root cause of all silent process deaths: cybermap session's `taskkill //IM
 java.exe` (correlated by timestamp). Docs, cerebrum, buglog, memory updated;
 committed on main. Owner tags release/1.8.0-enerkem.1 and pushes.
+| 09:38 | Session end: 2 writes across 2 files (docs-close.py, atlas-cmms-internal-build-state.md) | 0 reads | ~1768 tok |
