@@ -510,3 +510,13 @@ sections 1-2, REQUIREMENTS 5, DEVELOPMENT-STATUS 12.19, cerebrum. Owner pushes.
 ## 2026-09-15 11:15 - release/1.8.0-enerkem.1 deployed
 
 Pipeline run 5985 succeeded; app Running, health 200, SPA baked with the public URL. Findings: container logging Off on the app (stdout never captured); deploy task put the app in DOCKER| mode. DEVELOPMENT-STATUS 12.20.
+| 11:10 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 11:49 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 12:52 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 14:51 | Session end: 4 writes across 4 files (docs-close.py, atlas-cmms-internal-build-state.md, docs-branch-model.py, atlas-cmms-fork-and-release-process.md) | 0 reads | ~5890 tok |
+| 16:40 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-dns.py | — | ~3682 |
+| 16:41 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-azure-infrastructure.md | — | ~2095 |
+
+## 2026-09-15 13:00 - post-deploy diagnosis (DNS x2), context saved
+
+cmms.enerkem.com: corporate A record -> 10.225.2.20 (wrong App Service PE, 503); public path works with the new DigiCert cert; owner fixing DNS. Blob download 403: VPN NRPT lacks blob.core.windows.net so browsers hit the public IP of a private-only storage account; three options given, decision pending. Roles: own_user.role_id -> role. DEVELOPMENT-STATUS 12.21. Nothing running locally; enerkem has unpushed docs commits.

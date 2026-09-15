@@ -12,9 +12,10 @@ Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are stri
 
 **Where we are (2026-09-15 11:15).** **`release/1.8.0-enerkem.1` is deployed
 and running in production** (pipeline run 5985, §12.20). Our line is the
-`enerkem` branch; `main` mirrors `upstream/main` (§12.19). Still outstanding:
-`cmms.enerkem.com` DNS/binding/certificate, the public Entra redirect URI, and
-turning on container logging so the app's stdout is captured (§12.20).
+`enerkem` branch; `main` mirrors `upstream/main` (§12.19). `cmms.enerkem.com` is
+bound with a valid certificate, but **internal DNS points it at the wrong
+private endpoint** and **blob downloads 403 from browsers** — both DNS, both
+with the owner/network team (§12.21). Container logging is still off (§12.20).
 
 Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
@@ -39,7 +40,7 @@ production-only and creates nothing. **OpenTofu is parked** — see
 | ACR repository `cmms` | Exists. `1.6.0-enerkem.1` and `1.6.0-enerkem.2` pushed |
 | Database schema | Production `atlas.public` is **empty** (dropped 2026-09-15, app stopped). The 1.8.0 changelog is **806** changesets; verified locally from zero and from a 1.6.0 schema |
 | Application startup | ✅ **Working.** Started 2026-09-15 01:22 in 86 s; Tomcat on 8080; managed-identity token for storage acquired |
-| `cmms.enerkem.com` | **Does not exist.** NXDOMAIN, no hostname binding on the app |
+| `cmms.enerkem.com` | Bound to the app, DigiCert cert `SniEnabled` (exp. 2027-03-11). **Internal DNS → wrong PE (10.225.2.20)**; public DNS → app, works. §12.21 |
 
 ### The hand-built production environment
 
@@ -1608,4 +1609,65 @@ explicit.
    main site container" is no longer what happens. If site-containers mode is
    wanted back, the deploy step must use `az webapp sitecontainers update`
    instead.
+
+### 12.21 Post-deploy: two DNS problems, no app problem (2026-09-15)
+
+**"Deployed but unreachable."** Ports were the suspect; they are consistent
+end to end (`WEBSITES_PORT=8080`, `EXPOSE 8080`, Spring 8080, sshd 2222) and
+the app answers 200 on the azurewebsites host. The owner had meanwhile bound
+`cmms.enerkem.com` (CNAME → the app) with a **DigiCert certificate**
+(`CN=cmms.enerkem.com`, valid to 2027-03-11, `SniEnabled`); forced to the
+public IP `40.89.19.0` the custom hostname returns 200 with a valid cert.
+
+The failure is name resolution on the corporate side:
+
+| resolver | `cmms.enerkem.com` | result |
+|---|---|---|
+| public (1.1.1.1) | CNAME chain → `40.89.19.0` | **200** |
+| corporate (10.250.0.11/.12) | **A `10.225.2.20`** (`Prod-Tier1-FrontEnd`) | TCP timeout from the VPN; from inside the VNet an App Service front end answers **503 "The service is unavailable"** for that Host — i.e. that private endpoint is not this app's |
+
+The app's own private endpoint is `PE-CanEast-App-CMMS` in `RG-CanEast-Tier1`
+(unreadable with our RBAC — `Microsoft.Network/privateEndpoints/read` denied).
+Neither subnet has an NSG; both route via the FortiGate
+(`FGT-CanEast-RouteTable-FGT-ProtectedSubnet`). **Owner: "Problem is DNS. We
+will fix it."** — the internal A record must point at this app's PE (or the
+public CNAME).
+
+**Blob download → `403 AuthorizationFailure`** after a successful upload.
+`stgcaneastcmms` has `publicNetworkAccess: Disabled`, firewall `Deny`, one
+private endpoint `10.225.1.11`. Corporate DNS correctly maps
+`stgcaneastcmms.blob.core.windows.net → 10.225.1.11`, and through that IP the
+account answers. But the **VPN's split-DNS (NRPT) only forces `.enerkem.local`,
+`_ldap`, `isatap`, `wpad`** to the corporate resolvers; `blob.core.windows.net`
+and `enerkem.com` are not in the list, so with LAN adapters and the VPN at equal
+interface metric a Windows client often resolves through `1.1.1.1/8.8.8.8`,
+gets the public `20.150.1.4`, and the storage firewall returns 403. Upload
+works because the app writes server-side through the PE; download fails because
+`AzureBlobService.generateSignedUrl` hands the **browser** a SAS URL on the
+blob host and the browser resolves it itself. (This also explains why
+`cmms.enerkem.com` resolved differently between two tools minutes apart.)
+
+Options given to the owner, decision pending:
+
+1. **Split-DNS fix (recommended, root cause):** add `blob.core.windows.net`
+   (or the account host) and `enerkem.com` to the VPN NRPT namespaces.
+   Storage stays private; same ticket as the `cmms.enerkem.com` record.
+2. **Storage firewall:** `publicNetworkAccess: Enabled`, selected networks,
+   allow-list Enerkem's egress IPs. Works off-VPN too; posture change.
+3. **App-side download proxy:** `GET /files/{id}/download` streaming
+   `AzureBlobService.download()` and `FileMapper` emitting that URL for
+   `STORAGE_TYPE=azure`. No network dependency; touches two upstream files.
+
+**Reference — where roles live in the database** (asked 2026-09-15):
+`own_user.role_id` → `role.id`, one role per user, no join table.
+`role.role_type` is an enum ordinal (`0` ROLE_SUPER_ADMIN, `1` ROLE_CLIENT);
+`role.code` likewise (`0` ADMIN, `1` LIMITED_ADMIN, `2` TECHNICIAN,
+`3` LIMITED_TECHNICIAN, `4` VIEW_ONLY, `5` REQUESTER, `6` USER_CREATED);
+`role.company_settings_id` NULL = global default role (what SSO auto-registration
+assigns via `findDefaultRoleWithCode(RoleCode.ADMIN)`), non-null = a company's
+custom role. Permissions are in `role_view_permissions`,
+`role_create_permissions`, `role_view_other_permissions`,
+`role_edit_other_permissions`, `role_delete_other_permissions`; pending
+invitations carry `user_invitation.role_id`. A role change needs a fresh login
+(the JWT carries the authority).
 

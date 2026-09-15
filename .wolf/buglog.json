@@ -850,6 +850,46 @@
       "related_bugs": [],
       "occurrences": 5,
       "last_seen": "2026-09-15T09:28:33"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-09-15T16:41:18",
+      "error_message": "https://cmms.enerkem.com unreachable from the corporate network after the 1.8.0 deploy (timeout); azurewebsites host and public IP work",
+      "file": "(environment) corporate DNS / private endpoint",
+      "root_cause": "Corporate DNS A record cmms.enerkem.com -> 10.225.2.20, an App Service private endpoint that answers 503 for that Host (not this app's PE-CanEast-App-CMMS); public DNS -> 40.89.19.0 works with the bound DigiCert cert.",
+      "fix": "Owner/network team correcting the internal record. App and ports unchanged (WEBSITES_PORT=8080, EXPOSE 8080).",
+      "tags": [
+        "dns",
+        "private-endpoint",
+        "custom-domain",
+        "azure",
+        "environment",
+        "open"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-15T16:41:18"
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-09-15T16:41:18",
+      "error_message": "Blob download from the browser: <Code>AuthorizationFailure</Code> This request is not authorized to perform this operation (403) after a successful upload",
+      "file": "AzureBlobService.generateSignedUrl / storage account stgcaneastcmms network rules",
+      "root_cause": "Storage has publicNetworkAccess Disabled + PE 10.225.1.11; the browser follows the SAS URL to stgcaneastcmms.blob.core.windows.net, which VPN clients resolve via public DNS (NRPT lacks blob.core.windows.net) to 20.150.1.4 -> firewall 403. Upload works because the app writes via the PE.",
+      "fix": "NOT FIXED - decision pending: NRPT split-DNS for blob.core.windows.net (recommended), storage firewall allow-list, or an app-side download proxy. DEVELOPMENT-STATUS 12.21.",
+      "tags": [
+        "blob",
+        "sas",
+        "dns",
+        "nrpt",
+        "storage-firewall",
+        "open"
+      ],
+      "related_bugs": [
+        "bug-049"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-15T16:41:18"
     }
   ]
 }

@@ -21,6 +21,18 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **"Unreachable" in this environment is DNS until proven otherwise.** Corporate
+  DNS (10.250.0.11/.12) carries private A records for Azure PaaS hosts; the VPN
+  NRPT only forces `.enerkem.local/_ldap/isatap/wpad`, so clients flip between
+  corporate and public answers. Always compare `nslookup <host> 10.250.0.11`
+  with `nslookup <host> 1.1.1.1`, then `curl --resolve host:443:IP` per path.
+  A 503 "service is unavailable" from an App Service private IP means the
+  hostname is not bound to the app behind THAT endpoint. `RG-CanEast-Tier1`
+  (PEs, VNet) is read-denied for us - ask the network team for PE IPs.
+- **Blob downloads are browser-direct SAS URLs** (`generateSignedUrl`), so the
+  storage account must be reachable from the user's browser, not just the app.
+- **Heredoc-fed Python broke again (4th time, 2026-09-15).** Write scripts to
+  the scratchpad with the Write tool and run them by path. No exceptions.
 - **Branch model since 2026-09-15: work on `enerkem`, never on `main`.** `main`
   mirrors `upstream/main` (tracks it; `git pull` there = upstream refresh) and
   is pushed to origin as a mirror only. Upstream release tags are merged into
