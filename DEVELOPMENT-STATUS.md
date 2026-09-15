@@ -25,7 +25,7 @@ production-only and creates nothing. **OpenTofu is parked** — see
 
 | Area | State |
 |---|---|
-| Fork boundary | Done. `origin` = Azure DevOps, `upstream` = GitHub, push `DISABLED` |
+| Fork boundary | Done. `origin` = Azure DevOps, `upstream` = GitHub, push `DISABLED`. **Our line is the `enerkem` branch; `main` mirrors `upstream/main`** (§12.19) |
 | Merge policy | Done. Release tags only. **Merged up to upstream `v1.8.0`** (2026-09-15), `UPSTREAM_VERSION=1.8.0` — §12.18 |
 | Build → single fat jar | **Verified 2026-09-10**: full container build, boots to `/health-check` in 7s, serves the SPA, deep links and the AGPLv3 source bundle |
 | Entra SSO, AGPLv3 §13 | Done |
@@ -1531,4 +1531,39 @@ every java process on the box, Maven included. Correlated to the minute against
 that session's transcript. Rule, now in the cerebrum: kill by PID (from
 `netstat -ano | grep :PORT`), never by image name; and coordinate ports across
 sessions.
+
+### 12.19 Branch model: `enerkem` is ours, `main` mirrors upstream (2026-09-15)
+
+**Owner's decision:** *"Move our release code (internal) to a branch called
+enerkem, which is never pushed to upstream, but to origin. We will always work
+on that branch. We pull from the upstream code, we merge only the releases into
+the enerkem branch, we modify it there, and then we tag in our branch. So main
+stays as it comes from the upstream and our changes stay in the enerkem
+branch."* Asked which upstream point `main` should mirror, the owner chose
+**`upstream/main`** (their working line) over the last release tag.
+
+**What was done, locally only (the owner pushes):**
+
+| branch | before | after | tracks |
+|---|---|---|---|
+| `enerkem` | did not exist | `3bdcc06c` — the former `main`, full Enerkem history incl. the v1.8.0 merge | `origin/enerkem` |
+| `main` | `3bdcc06c` (ours) | `50db0808` = `upstream/main` on 2026-09-15 | `upstream/main` |
+
+`enerkem` is a rename in effect, not a copy: same commits, same history, and
+every earlier section of this file that says "main" means today's `enerkem`.
+Because `main` now tracks `upstream/main`, a plain `git push` from `main` goes
+to `upstream` and fails on the `DISABLED` push URL — that is the intended safety
+net; push the mirror explicitly with `git push origin main`.
+
+**Consequences stated once:** pushing `main` to origin publishes upstream's
+unreleased history (371 commits past v1.8.0 today) in our repo, and `main` no
+longer says which release we run — `UPSTREAM_VERSION` on `enerkem` is the only
+source of that. The pipeline is unaffected: it triggers on `release/*` tags and
+reads everything from the tagged commit, so tags simply move to `enerkem`.
+
+**Remote steps for the owner** (not done here): `git push origin enerkem`;
+`git push --force origin main` (origin/main holds our old history, so this is a
+rewrite — `enerkem` preserves it); in Azure DevOps set the repository default
+branch and pipeline 41's default branch to `enerkem`, and move any branch
+policy from `main` to `enerkem`.
 

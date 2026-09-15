@@ -386,8 +386,12 @@ migrating bootstrap's own state into it afterwards.
 **Production only.** One tag form ships anything:
 
 ```bash
-git tag release/1.6.0-enerkem.1 && git push origin release/1.6.0-enerkem.1
+git switch enerkem                       # releases are tagged on our branch, never on main
+git tag release/1.8.0-enerkem.1 && git push origin enerkem release/1.8.0-enerkem.1
 ```
+
+`main` is a pristine mirror of upstream (CLAUDE.md §1); a `release/*` tag on it
+would build upstream's code without any Enerkem change, so tag on `enerkem`.
 
 Tags must carry the upstream release number they are built on. The first
 pipeline step validates this against `UPSTREAM_VERSION` and fails otherwise:

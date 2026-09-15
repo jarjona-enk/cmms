@@ -494,3 +494,11 @@ Root cause of all silent process deaths: cybermap session's `taskkill //IM
 java.exe` (correlated by timestamp). Docs, cerebrum, buglog, memory updated;
 committed on main. Owner tags release/1.8.0-enerkem.1 and pushes.
 | 09:38 | Session end: 2 writes across 2 files (docs-close.py, atlas-cmms-internal-build-state.md) | 0 reads | ~1768 tok |
+| 10:27 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-branch-model.py | — | ~2915 |
+
+## 2026-09-15 09:55 - branch model change
+
+Owner: our code moves to branch `enerkem`; `main` mirrors upstream/main.
+Created enerkem from main (3bdcc06c), reset main to upstream/main (50db0808),
+tracking set (enerkem->origin/enerkem, main->upstream/main). Docs: CLAUDE.md
+sections 1-2, REQUIREMENTS 5, DEVELOPMENT-STATUS 12.19, cerebrum. Owner pushes.

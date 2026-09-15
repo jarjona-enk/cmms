@@ -21,6 +21,11 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Branch model since 2026-09-15: work on `enerkem`, never on `main`.** `main`
+  mirrors `upstream/main` (tracks it; `git pull` there = upstream refresh) and
+  is pushed to origin as a mirror only. Upstream release tags are merged into
+  `enerkem` via `merge/upstream-vX` branches; releases are tagged on `enerkem`.
+  First thing every session: `git branch --show-current` must say `enerkem`.
 - **Owner tags and pushes releases personally.** After a merge/test cycle the
   hand-off is: stop local processes, save memory + docs, commit on `main`, then
   report the exact tag to use (`release/<upstream>-enerkem.<n>`) and stop. Do

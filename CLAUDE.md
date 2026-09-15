@@ -25,23 +25,37 @@ upstream.**
 | `origin` | Azure DevOps `EnerkemIT/New Services Implementations/cmms` | ours; push here |
 | `upstream` | `https://github.com/Grashjs/cmms.git` | fetch only; push URL is `DISABLED` |
 
+**Branch model (decided by the owner, 2026-09-15):**
+
+| branch | what it is | tracks | pushed to |
+|---|---|---|---|
+| **`enerkem`** | **our line.** Every Enerkem change lives here and every release is tagged here. Work on this branch, always. | `origin/enerkem` | `origin` only |
+| `main` | **pristine upstream.** A mirror of `upstream/main`, never edited, never merged into. It is here so `git pull` on it shows what upstream is doing. | `upstream/main` | `origin` (mirror) |
+
 **Rules, in order of importance:**
 
 1. **Never push to `upstream`.** Its push URL is deliberately set to the
    literal string `DISABLED` so any attempt fails loudly. Do not repair it.
 2. **Never open a PR, issue, or patch against `Grashjs/cmms`.**
-3. `main` is the Enerkem line and the Azure DevOps default branch. It carries
-   our commits and is what CI builds and deploys.
-4. Upstream is **not** mirrored to a local branch. It lives only as the
-   `upstream/main` remote-tracking ref and upstream tags. Refresh with
-   `git fetch upstream --tags`.
+3. **Never commit on `main`.** It must stay byte-identical to `upstream/main`.
+   If `git status` says you are on `main`, `git switch enerkem` first. Refresh
+   it with `git switch main && git pull` (it tracks `upstream/main`), then push
+   the mirror with `git push origin main`.
+4. `enerkem` is what CI builds and deploys (via `release/*` tags on it) and is
+   the Azure DevOps default branch. Its tracking branch is `origin/enerkem`.
 5. Never commit `dev.env`, a `LICENSE_KEY`, an Entra client secret, or
    anything from `dist/`. `dev.env` and `dist/` are gitignored — keep them so.
+
+History: until 2026-09-15 our line *was* `main`. It was renamed to `enerkem`
+(same commits, same history) and `main` was reset to `upstream/main`. Anything
+that says "main" in older sections of DEVELOPMENT-STATUS.md means today's
+`enerkem`.
 
 ## 2. Merge policy: release tags only
 
 **Only merge upstream when they publish a new release tag (`vX.Y.Z`). Never
-merge `upstream/main`.**
+merge `upstream/main` — and never merge anything into `main`; merges land on
+`enerkem`.**
 
 `upstream/main` is their unreleased working line; at the time of writing it
 sits 279 commits past their last tag. Merging it means absorbing untested
@@ -52,14 +66,26 @@ only stable, reviewable integration points.
 one — the intermediate tag is what keeps each conflict set small enough to
 reason about.
 
-Procedure per tag:
+Procedure per tag — the whole loop, from pull to release:
 
 ```bash
+# 1. refresh the pristine mirror and the tags
+git switch main && git pull                 # main tracks upstream/main
 git fetch upstream --tags
-git switch -c merge/upstream-v1.7.0 main
-git merge v1.7.0            # resolve, then build and smoke-test before merging on
-echo 1.7.0 > UPSTREAM_VERSION   # REQUIRED, in the same merge - see below
-git switch main && git merge --no-ff merge/upstream-v1.7.0
+git push origin main                        # keep origin's mirror current
+
+# 2. merge ONE release tag into our line, on a throwaway branch
+git switch enerkem
+git switch -c merge/upstream-v1.9.0 enerkem
+git merge v1.9.0            # resolve, then build and smoke-test before merging on
+echo 1.9.0 > UPSTREAM_VERSION   # REQUIRED, in the same merge - see below
+git commit                  # completes the merge commit
+git switch enerkem && git merge --no-ff merge/upstream-v1.9.0
+git branch -d merge/upstream-v1.9.0
+
+# 3. our changes, if any, then release - all on enerkem
+git tag release/1.9.0-enerkem.1
+git push origin enerkem release/1.9.0-enerkem.1
 ```
 
 Always `merge`, never `rebase`. Rebasing replays our commits over theirs and
@@ -103,11 +129,14 @@ mirrored into this repo (see above), so CI cannot see them.
 
 ### Current position
 
-Merged up to upstream **`v1.8.0`** (`1f0c04ea`, 2026-07-31) on 2026-09-15, via
-`v1.7.0` first as the policy requires. Merge commits: `ed27a766` (v1.7.0, one
-conflict) and `963b2c0b` (v1.8.0, three conflicts). Both built, started against
-an empty database and against a 1.6.0 database, and passed an API + browser
-smoke locally. Details in DEVELOPMENT-STATUS.md §12.18.
+`enerkem` is merged up to upstream **`v1.8.0`** (`1f0c04ea`, 2026-07-31) as of
+2026-09-15, via `v1.7.0` first as the policy requires. Merge commits: `ed27a766`
+(v1.7.0, one conflict) and `963b2c0b` (v1.8.0, three conflicts). Both built,
+started against an empty database and against a 1.6.0 database, and passed an
+API + browser smoke locally; the owner verified SSO. Details in
+DEVELOPMENT-STATUS.md §12.18. `main` mirrors `upstream/main` (`50db0808` on
+2026-09-15) and says nothing about which release we run — `UPSTREAM_VERSION`
+on `enerkem` does.
 
 | tag | commits from our base | status |
 |---|---|---|
