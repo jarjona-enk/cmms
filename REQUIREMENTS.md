@@ -69,7 +69,7 @@ needs is committed in one file, and all of it is non-secret:
 | `STORAGE_TYPE` | `azure` | Selects `AzureBlobService` |
 | `AZURE_STORAGE_ACCOUNT` | `stgcaneastcmms` | The existing storage account |
 | `AZURE_STORAGE_CONTAINER` | `cmms` | The existing container |
-| `OAUTH2_CLIENT_ID` / `OAUTH2_TENANT_ID` | `635e54c9-…` / `cddc5ffd-…` | Public identifiers, not secrets |
+| `OAUTH2_CLIENT_ID` / `OAUTH2_TENANT_ID` | `f08d1fe7-…` / `cddc5ffd-…` | Public identifiers, not secrets. The client id changed on 2026-09-15; the secret in Key Vault must belong to the SAME registration |
 | `MAIL_TYPE` / `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | `SMTP` / `smtp.enerkem.com` / `25` / `noreply@enerkem.com` | Internal relay |
 | `SMTP_AUTH` / `SMTP_STARTTLS` | `false` / `false` | The relay wants neither. `application.yml` hardcoded both to `true` upstream; it now reads these, defaulting to `true`. `SMTP_USER`/`SMTP_PWD` stay unset |
 | `MAIL_RECIPIENTS` | `cmms-admins@enerkem.com` | Required even with mail off — no default in `application.yml` |

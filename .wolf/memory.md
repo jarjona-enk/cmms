@@ -380,3 +380,28 @@ LogFiles/StartupLogs/<date>_<host>_failure.log, not docker.log.
 
 App is currently STOPPED. See DEVELOPMENT-STATUS.md 12.14.
 | 17:04 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~842 |
+| 17:06 | Session end: 11 writes across 8 files (setup-keyvault.ps1, smtp_docs.py, status1211.py, wolf1211.py, application.yml) | 0 reads | ~19350 tok |
+
+## Session: 2026-09-15 20:36
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-09-15 21:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session note - 2026-09-15 (Entra registration swapped)
+
+OAUTH2_CLIENT_ID changed to f08d1fe7-... with a new secret; both were already in
+the repo-root prod.env and on the live app. Caught that the COMMITTED
+.azure/env/prod.env still had the old id - the deploy task pushes that key every
+release, so the next tag would have reverted sign-in. Fixed there plus the docs
+quoting it.
+
+Pushed the new secret with setup-keyvault.ps1 (new KV version 2026-09-15
+01:21). Verified by hash that the vault matches prod.env, and App Service now
+reports all three Key Vault references Resolved - which also confirms the
+keyVaultReferenceIdentity fix and vault RBAC work. App picks it up on next
+restart; still stopped and still blocked on blob DNS (12.14).

@@ -1197,7 +1197,7 @@ reproducible.
 ⚠️ **`AZURE_CLIENT_ID` is NOT `OAUTH2_CLIENT_ID`.** Two different Entra
 principals, and the owner asked about exactly this:
 
-| | `OAUTH2_CLIENT_ID` = `635e54c9-…` | `AZURE_CLIENT_ID` = `dbb349c1-…` |
+| | `OAUTH2_CLIENT_ID` = `f08d1fe7-…` (was `635e54c9-…` until 2026-09-15) | `AZURE_CLIENT_ID` = `dbb349c1-…` |
 |---|---|---|
 | What | Entra **app registration** | Client id of the **user-assigned managed identity** `ua-id-9ca4` |
 | For | **users signing in** (SSO) | the app authenticating **itself** to Azure |
@@ -1260,4 +1260,35 @@ That is the file to read first next time.
 | `AZURE_CLIENT_ID` | set on the app, and committed |
 | Blob DNS | **unresolved — the next thing to decide** |
 | Tag for the fix | re-tag as `release/1.6.0-enerkem.3` |
+
+### 12.15 Entra app registration replaced (2026-09-15)
+
+The SSO app registration changed: `OAUTH2_CLIENT_ID` is now
+**`f08d1fe7-a567-4d64-a0ac-8bc1be7414d0`** (was `635e54c9-…`), with a matching
+new client secret. The owner had already updated the live app setting and the
+repo-root `prod.env`.
+
+**The committed `.azure/env/prod.env` still carried the old id**, which the
+deploy task pushes onto the app on every release — so the next tag would have
+silently reverted the live change and broken sign-in. Updated, along with the
+places that quote the id in `REQUIREMENTS.md`, this file and `.wolf/cerebrum.md`.
+
+The secret reaches the app as a Key Vault reference, so editing `prod.env`
+changes nothing by itself. Pushed with `scripts/setup-keyvault.ps1`, which
+re-reads `prod.env` and writes a new secret version — that is the rotation
+path. Verified: the vault's newest version now hashes identically to the value
+in `prod.env`, and App Service reports all three references **Resolved**
+(`DB_PWD`, `JWT_SECRET_KEY`, `OAUTH2_CLIENT_SECRET`), which also confirms the
+`keyVaultReferenceIdentity` fix and the vault RBAC are working end to end.
+
+Because the references are unversioned, the app picks the new secret up on its
+**next restart** — no redeploy. It is still stopped and still blocked on the
+blob DNS question (§12.14), so there is nothing to restart onto yet.
+
+Two related things left over:
+
+- `dev.env` still has the old client id. Local-only, the owner's call.
+- The new registration needs the redirect URI
+  `<public_url>/oauth2/callback/microsoft` registered on it, and `cmms.enerkem.com`
+  still does not resolve.
 

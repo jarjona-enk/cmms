@@ -132,11 +132,21 @@
   image lives on the main site container instead, read with
   `az webapp sitecontainers list --query "[?isMain].image"`. Anything parsing
   `linuxFxVersion` to find the running image must handle both shapes.
+- **Changing a setting on the web app by hand is temporary.** The deploy task
+  pushes every key listed in `.azure/env/prod.env` on each release, so a portal
+  or CLI edit to one of those keys is reverted by the next tag. Change the
+  committed file too. (Keys NOT in that list — the three Key Vault references —
+  do survive.)
+- **Rotating a secret is: edit the repo-root `prod.env`, run
+  `scripts/setup-keyvault.ps1`, restart.** The script writes a new Key Vault
+  version; the references are unversioned so the app picks it up on restart with
+  no redeploy. Editing `prod.env` alone changes nothing in production.
 - **`AZURE_CLIENT_ID` and `OAUTH2_CLIENT_ID` are different principals.**
   `AZURE_CLIENT_ID` = the user-assigned managed identity `ua-id-9ca4`
   (`dbb349c1-…`), used by the Azure SDK for the app to authenticate *itself*;
   it holds every Azure RBAC role we granted. `OAUTH2_CLIENT_ID`
-  (`635e54c9-…`) is the Entra app registration for *users* signing in and holds
+  (`f08d1fe7-…`, changed 2026-09-15) is the Entra app registration for *users*
+  signing in and holds
   no Azure roles. With ONLY a user-assigned identity attached,
   `DefaultAzureCredential` fails with "Managed Identity authentication is not
   available" unless `AZURE_CLIENT_ID` names it.
