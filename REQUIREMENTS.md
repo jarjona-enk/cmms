@@ -397,23 +397,19 @@ lands on `eclipse-temurin:17-jre-noble`, which carries sshd on 2222 and
 `api/container/startup.sh`. **Java 17 throughout** — newer JDKs break Lombok
 here, so the version is pinned in the Dockerfile, not a variable.
 
-**Verify** — starts Postgres and the image on the agent with throwaway
-credentials, waits for `/health-check`, then asserts the container really serves
-the frontend: the SPA shell at `/`, `asset-manifest.json`, the main JS bundle it
-names, a deep link forwarding through `SpaForwardController`, and a non-empty
-`/source-code/download`. A jar that boots with an empty `classpath:/static`
-passes a health check and fails every one of these.
+⚠️ **There is no verification step.** Removed on 2026-09-15 by the owner's
+decision: *"remove all the tests you do during the build. Just limit to build a
+working container and deploy it. If it doesn't work we will fix it."* Nothing
+starts the image or checks that it serves the SPA before it is pushed and
+deployed — a broken image reaches production and is fixed forward.
 
-**Publish** — pushes two tags to `enerkem.azurecr.io/cmms`, only after the
-smoke test passes:
+**Publish** — the image is built carrying both of its final tags and pushed
+as-is:
 
 | Tag | Meaning |
 |---|---|
 | `:<version>` | immutable, e.g. `:1.6.0-enerkem.1`. **This is what the web app is pointed at**, so a rollback is one command rather than a rebuild |
 | `:latest` | moves to the newest release, for `docker pull` and the registry UI. Nothing deploys from it |
-
-Pushing a tag that already exists repoints it at the new digest and leaves the
-old one behind, unreferenced.
 
 **Deploy** — `AzureWebAppContainer@1` attaches
 `enerkem.azurecr.io/cmms:<version>` to the existing `cmms` app and pushes the
@@ -421,10 +417,12 @@ non-secret application settings from §1, then restarts it. Same task and same
 approach as `../budget`. Settings not named in that list are left untouched,
 which is what keeps the Key Vault references from §2 intact across deploys.
 
-Then a poll of the public URL for the SPA shell for up to 10 minutes, and the
-container log either way. The poll matters because the deploy task returns as
-soon as the platform accepts the request, and a container that fails to start
-leaves the previous one serving — which looks exactly like success.
+Then an **informational** poll of the public URL for up to 3 minutes, and the
+container log either way. The poll never fails the release — it only reports —
+but it is worth keeping, because the deploy task returns as soon as the platform
+accepts the request and a container that fails to start leaves the previous one
+serving, which looks exactly like success. Three minutes because the app needs
+roughly 90 s to reach "Started ApiApplication".
 
 ⚠️ **First run changes the app's shape.** `cmms` was created as a *site
 containers* app (`linuxFxVersion` is the literal string `sitecontainers`).

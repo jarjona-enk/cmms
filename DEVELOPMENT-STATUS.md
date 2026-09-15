@@ -29,7 +29,7 @@ production-only and creates nothing. **OpenTofu is parked** — see
 | Entra SSO, AGPLv3 §13 | Done |
 | Azure Blob storage backend | Code done. Account `stgcaneastcmms` + container `cmms` exist, and the app identity already has Blob Data Contributor **and** Blob Delegator |
 | Container SSH + log file | **Verified.** sshd on `0.0.0.0:2222`, app on `:::8080`, log teed to `/home/cmms/atlas.log` |
-| CI/CD pipeline | **Production-only, single job.** Build → smoke-test → push → attach to `cmms` + app settings → verify. **Has run successfully**; `1.6.0-enerkem.2` deployed |
+| CI/CD pipeline | **Production-only, single job, no tests.** Build → push → attach to `cmms` + app settings → informational check. Has run successfully; `1.6.0-enerkem.2` deployed |
 | Deployment settings | `.azure/env/prod.env`, committed, non-secret. No Azure DevOps variable group |
 | Secrets | Key Vault references, never touched by the pipeline. `scripts/setup-keyvault.ps1` does the whole setup from `prod.env`. **Vault not created yet** |
 | OpenTofu infra | ⏸ **PARKED.** Never applied, and must not be applied — it would build a parallel set of resources |
@@ -1359,4 +1359,42 @@ stream idling, not an error).
 SSO. Nobody has signed in yet, and the registration changed in §12.15 — the new
 one needs `<public_url>/oauth2/callback/microsoft` registered, and the URL the
 SPA was built with must match where users actually arrive.
+
+### 12.17 Smoke test removed from the pipeline (2026-09-15)
+
+**Owner's decision:** *"remove all the tests you do during the build. Just limit
+to build a working container and deploy it. If it doesn't work we will fix it."*
+
+Five steps deleted — start Postgres, start the application container, verify the
+SPA, dump the smoke-test log, tear down. The pipeline went from 13 steps to 8,
+and 457 lines to 367.
+
+The build now tags the image with its final names directly
+(`:<version>` and `:latest`) instead of building a `candidate-$(Build.BuildId)`
+tag and retagging after the test. With nothing happening between build and push,
+the indirection bought nothing; the `candidateTag` variable is gone.
+
+**What this gives up.** That smoke test was what caught the `JWT_SECRET_KEY`
+base64 bug (§12.2) before the pipeline had ever run. Nothing now starts the
+image before it reaches production, so an image that boots and serves nothing —
+the characteristic failure of this packaging, since an empty
+`classpath:/static` still passes a health check — will be found in production
+rather than on the agent. That is the accepted trade: fix forward.
+
+**What was kept, because neither is a test of the container:**
+
+- **Tag and `UPSTREAM_VERSION` validation.** The fork's release policy
+  (`CLAUDE.md` §2a), not a test.
+- **`.azure/env/prod.env` key validation.** The build cannot run without
+  `PUBLIC_URL` — it is compiled into the SPA bundle. A missing key would bake
+  the wrong URL in rather than fail.
+- **The post-deploy site check**, downgraded to **informational**: capped at
+  3 minutes, `continueOnError`, and it emits a warning instead of failing the
+  release. Worth keeping because the deploy task returns as soon as the platform
+  accepts the request, and a container that fails to start leaves the previous
+  one serving — so without it a dead release looks identical to a good one.
+- **The container log dump**, which is how a failure actually gets diagnosed.
+
+Verified: YAML parses, 8 steps, every `$(macro)` still resolves, no orphaned
+references to `candidateTag` or the smoke-test containers.
 

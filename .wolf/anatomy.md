@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-14T21:04:44.345Z
-> Files: 571 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T02:31:25.136Z
+> Files: 573 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -23,6 +23,7 @@
 - `devstatus.py` — -*- coding: utf-8 -*- (~3624 tok)
 - `docs_update.py` — -*- coding: utf-8 -*- (~1732 tok)
 - `envfile.py` — -*- coding: utf-8 -*- (~2022 tok)
+- `notests_docs.py` — -*- coding: utf-8 -*- (~2363 tok)
 - `park.py` — -*- coding: utf-8 -*- (~1694 tok)
 - `prodonly.py` — -*- coding: utf-8 -*- (~2152 tok)
 - `record.py` — -*- coding: utf-8 -*- (~1250 tok)
@@ -38,6 +39,7 @@
 - `smtp_wire.py` — -*- coding: utf-8 -*- (~1228 tok)
 - `status.py` — -*- coding: utf-8 -*- (~2832 tok)
 - `status1211.py` — -*- coding: utf-8 -*- (~2456 tok)
+- `striptests.py` — -*- coding: utf-8 -*- (~1940 tok)
 - `wolf_update.py` — -*- coding: utf-8 -*- (~3388 tok)
 - `wolf1211.py` — -*- coding: utf-8 -*- (~2664 tok)
 - `wolf2.py` — -*- coding: utf-8 -*- (~4398 tok)
@@ -48,7 +50,7 @@
 - `.easignore` (~70 tok)
 - `.gitattributes` — Line endings for the files Linux consumes at runtime. (~357 tok)
 - `.gitignore` — Git ignore rules (~102 tok)
-- `azure-pipelines.yml` — Atlas CMMS — Enerkem production release pipeline (~5938 tok)
+- `azure-pipelines.yml` — **Production-only, single job, NO TESTS** (owner's decision 2026-09-15). A release/* tag: validate against UPSTREAM_VERSION, read .azure/env/prod.env, one docker build from the repo root tagged :<version>+:latest (plain docker, not Docker@2 buildAndPush, which ignores --build-arg), push, AzureWebAppContainer@1 onto `cmms` with the non-secret appSettings, then an INFORMATIONAL site check that never fails the run, and the container log. **Creates no infrastructure; OpenTofu is parked** (~4200 tok)
 - `CLAUDE.md` — OpenWolf (~2372 tok)
 - `cmms.service` (~553 tok)
 - `COMMERCIAL_LICENSE.MD` — Atlas CMMS Commercial License Agreement (~2818 tok)

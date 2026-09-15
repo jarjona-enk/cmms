@@ -21,6 +21,11 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **The pipeline runs NO tests.** Decided 2026-09-15: "remove all the tests you
+  do during the build... If it doesn't work we will fix it." Build, push,
+  deploy. Do not reintroduce a smoke test, and do not make the post-deploy
+  check fail the release. Tag/UPSTREAM_VERSION and env-key validation stay -
+  they are release policy and build inputs, not tests.
 - **OpenTofu is PARKED and the pipeline is PRODUCTION-ONLY.** Decided
   2026-09-11, superseding the 2026-09-10 version of this: infrastructure was
   built by hand and is ready, `infra/` must not be applied (it would build a

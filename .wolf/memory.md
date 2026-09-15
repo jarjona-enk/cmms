@@ -423,3 +423,23 @@ probes rejected by Tomcat's parser - but they prove the site is public with
 'Allow all' as its only access restriction), and a runtime-env.js 404 per page
 load from frontend/public/index.html line 35 requesting a file this build never
 generates. Everything else is cosmetic. See DEVELOPMENT-STATUS.md 12.16.
+| 22:30 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/striptests.py | — | ~1940 |
+| 22:31 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/notests_docs.py | — | ~2363 |
+
+## Session note - 2026-09-15 (tests removed from the pipeline)
+
+Owner: "remove all the tests you do during the build. Just limit to build a
+working container and deploy it. If it doesn't work we will fix it."
+
+Deleted the five smoke-test steps (postgres, start container, verify SPA, logs,
+teardown). 13 steps -> 8, 457 lines -> 367. Build now tags :<version> and
+:latest directly; the candidateTag indirection is gone.
+
+Kept, and said why: tag/UPSTREAM_VERSION validation (release policy), env-key
+validation (PUBLIC_URL is compiled into the SPA), the container log dump, and
+the post-deploy site check downgraded to informational (continueOnError,
+3-minute cap, warning not failure) so a dead release is still visible without
+blocking.
+
+Noted the cost rather than arguing it again: the smoke test is what caught the
+JWT_SECRET_KEY base64 bug. See DEVELOPMENT-STATUS.md 12.17.

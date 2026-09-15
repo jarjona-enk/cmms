@@ -10,6 +10,22 @@
 # One environment. There is no test stage and no test web app; a test/* tag
 # does nothing. Production is the hand-built web app `cmms`.
 #
+# ── NO TESTS. Build, push, deploy. ────────────────────────────────────────
+# Owner's decision, 2026-09-15: "remove all the tests you do during the build.
+# Just limit to build a working container and deploy it. If it doesn't work we
+# will fix it."
+#
+# So there is no smoke test: nothing starts the image, and nothing checks that
+# it serves the SPA, before it is pushed and deployed. A broken image reaches
+# production and is fixed forward. The post-deploy check at the end reports
+# whether the site came back but never fails the run.
+#
+# What still guards the run, because neither is a test of the container:
+#   - the tag must be release/<upstream>-enerkem.<n> and its upstream half must
+#     match UPSTREAM_VERSION (the fork's release policy, see CLAUDE.md)
+#   - .azure/env/prod.env must supply every key, or the SPA gets built with the
+#     wrong URL baked in
+#
 # ── This pipeline CREATES NO INFRASTRUCTURE ───────────────────────────────
 # The web app, its plan, the storage account and container, the VNet
 # integration, the database and the Key Vault were all built by hand and are
@@ -76,13 +92,10 @@ variables:
     value: 'api/Dockerfile'
   - name: buildContext
     value: '.'
-  # Local-only tag, used between build and smoke test. Never pushed.
-  - name: candidateTag
-    value: 'candidate-$(Build.BuildId)'
 
 jobs:
   - job: Release
-    displayName: 'Build, verify and deploy to production'
+    displayName: 'Build and deploy to production'
     pool:
       vmImage: 'ubuntu-latest'
     # The frontend build (npm ci + CRA) plus the Maven reactor runs well over
@@ -204,11 +217,16 @@ jobs:
       # Plain `docker build` rather than Docker@2 buildAndPush, deliberately:
       # buildAndPush ignores the `arguments` input, which would silently drop
       # the three --build-arg values below and bake localhost:8080 into the SPA.
+      #
+      # Tagged with its final names up front. There is no longer anything
+      # between build and push, so the old candidate-tag-then-retag step would
+      # buy nothing.
       - bash: |
           set -euo pipefail
           docker build \
             --file "$(dockerfilePath)" \
-            --tag "$(imageRepository):$(candidateTag)" \
+            --tag "$(acrLoginServer)/$(imageRepository):$(releaseVersion)" \
+            --tag "$(acrLoginServer)/$(imageRepository):latest" \
             --build-arg FRONTEND_API_URL="$(publicUrl)" \
             --build-arg FRONTEND_ENABLE_SSO="$(enableSso)" \
             --build-arg FRONTEND_OAUTH2_PROVIDER="$(oauth2Provider)" \
@@ -217,119 +235,7 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
 
-      # ── Verify before publishing ──────────────────────────────────────────
-      # Not in the itsheets/budget pattern, kept on purpose: this packaging's
-      # characteristic failure is a jar that boots fine and serves no SPA,
-      # which a health check cannot see. Costs a few minutes and has already
-      # caught one startup bug.
-      #
-      # The app needs a real Postgres to boot — Liquibase runs the changelog
-      # and JPA is on ddl-auto=validate. A blank database is enough.
-      - bash: |
-          set -euo pipefail
-          docker network create atlas-ci
-          docker run -d --name atlas-ci-db --network atlas-ci \
-            -e POSTGRES_DB=atlas \
-            -e POSTGRES_USER=atlas \
-            -e POSTGRES_PASSWORD=ci-only-password \
-            postgres:16-alpine
-
-          echo "Waiting for Postgres..."
-          for i in $(seq 1 60); do
-            if docker exec atlas-ci-db pg_isready -U atlas -d atlas >/dev/null 2>&1; then
-              echo "Postgres ready after ${i}s"
-              break
-            fi
-            if [ "$i" -eq 60 ]; then echo "Postgres never became ready"; exit 1; fi
-            sleep 1
-          done
-        displayName: 'Start Postgres for the smoke test'
-
-      # Throwaway credentials against a scratch database. None of the real
-      # configuration is involved.
-      - bash: |
-          set -euo pipefail
-          # JwtTokenProvider.init() runs the key through
-          # Base64.getDecoder().decode() then Keys.hmacShaKeyFor(), so it must
-          # be STRICT base64 (a '-' throws "Illegal base64 character 2d")
-          # decoding to at least 32 bytes. Generated, not hardcoded — a
-          # readable string here used to fail the container at startup.
-          CI_JWT_KEY="$(openssl rand -base64 48)"
-
-          docker run -d --name atlas-ci-app --network atlas-ci -p 8080:8080 \
-            -e DB_URL='atlas-ci-db:5432/atlas' \
-            -e DB_USER='atlas' \
-            -e DB_PWD='ci-only-password' \
-            -e JWT_SECRET_KEY="$CI_JWT_KEY" \
-            -e PUBLIC_API_URL='http://localhost:8080' \
-            -e PUBLIC_FRONT_URL='http://localhost:8080' \
-            -e MAIL_RECIPIENTS='ci@example.invalid' \
-            -e STORAGE_TYPE='azure' \
-            -e ENABLE_MAIL_HEALTH_CHECK='false' \
-            -e ENABLE_EMAIL_NOTIFICATIONS='false' \
-            -e ENABLE_SSO='false' \
-            "$(imageRepository):$(candidateTag)"
-
-          echo "Waiting for the application to become healthy..."
-          for i in $(seq 1 180); do
-            if curl -fsS http://localhost:8080/health-check >/dev/null 2>&1; then
-              echo "Application healthy after ${i}s"
-              break
-            fi
-            if ! docker ps --filter name=atlas-ci-app --filter status=running -q | grep -q .; then
-              echo "Container exited during startup. Logs:"; docker logs atlas-ci-app; exit 1
-            fi
-            if [ "$i" -eq 180 ]; then
-              echo "Application never became healthy. Logs:"; docker logs --tail 200 atlas-ci-app; exit 1
-            fi
-            sleep 1
-          done
-        displayName: 'Start the application container'
-
-      - bash: |
-          set -euo pipefail
-          fail() { echo "##vso[task.logissue type=error]$1"; docker logs --tail 200 atlas-ci-app; exit 1; }
-
-          echo "1/5 SPA shell at /"
-          BODY=$(curl -fsS http://localhost:8080/) || fail "GET / did not return 200"
-          echo "$BODY" | grep -q 'id="root"' || fail "GET / returned a page with no SPA root element"
-
-          echo "2/5 CRA asset manifest"
-          MANIFEST=$(curl -fsS http://localhost:8080/asset-manifest.json) \
-            || fail "asset-manifest.json missing - the frontend build was not copied into the jar"
-
-          echo "3/5 main bundle is actually served"
-          MAIN_JS=$(echo "$MANIFEST" | python3 -c 'import json,sys; print(json.load(sys.stdin)["files"]["main.js"])')
-          [ -n "$MAIN_JS" ] || fail "Could not resolve main.js from the asset manifest"
-          curl -fsS -o /dev/null "http://localhost:8080${MAIN_JS}" \
-            || fail "Main JS bundle ${MAIN_JS} is not served"
-
-          echo "4/5 client-side deep link survives a hard refresh"
-          DEEP=$(curl -fsS http://localhost:8080/app/work-orders) \
-            || fail "Deep link /app/work-orders did not return 200 - SpaForwardController is not forwarding"
-          echo "$DEEP" | grep -q 'id="root"' || fail "Deep link did not return the SPA shell"
-
-          echo "5/5 AGPLv3 source bundle is publicly downloadable"
-          SIZE=$(curl -fsS -o /dev/null -w '%{size_download}' http://localhost:8080/source-code/download) \
-            || fail "GET /source-code/download failed - this image does not meet the AGPLv3 §13 obligation"
-          [ "$SIZE" -gt 1000000 ] || fail "Source bundle is only ${SIZE} bytes - it looks empty or truncated"
-
-          echo "Container serves the frontend correctly."
-        displayName: 'Verify the container serves the SPA'
-
-      - bash: docker logs --tail 400 atlas-ci-app || true
-        displayName: 'Smoke-test application logs'
-        condition: always()
-
-      - bash: |
-          docker rm -f atlas-ci-app atlas-ci-db >/dev/null 2>&1 || true
-          docker network rm atlas-ci >/dev/null 2>&1 || true
-        displayName: 'Tear down smoke-test containers'
-        condition: always()
-
       # ── Publish ───────────────────────────────────────────────────────────
-      # Only reached when the smoke test passed, so an image that fails to
-      # serve the SPA can never reach the registry.
       - task: Docker@2
         displayName: 'Log in to ACR'
         inputs:
@@ -340,13 +246,14 @@ jobs:
       # below, so a rollback is a one-line change rather than a rebuild.
       # :latest moves to the newest release, for `docker pull` and the registry
       # UI; nothing deploys from it.
+      #
+      # NOTE: nothing verifies the image before this point. The image is pushed
+      # and deployed as built - a deliberate choice (see the header). A broken
+      # build reaches production and is fixed forward.
       - bash: |
           set -euo pipefail
-          SRC="$(imageRepository):$(candidateTag)"
-          for TAG in "$(releaseVersion)" latest; do
-            docker tag "$SRC" "$(acrLoginServer)/$(imageRepository):${TAG}"
-            docker push "$(acrLoginServer)/$(imageRepository):${TAG}"
-          done
+          docker push "$(acrLoginServer)/$(imageRepository):$(releaseVersion)"
+          docker push "$(acrLoginServer)/$(imageRepository):latest"
           echo "Published $(acrLoginServer)/$(imageRepository):$(releaseVersion) (also tagged latest)"
         displayName: 'Push to ACR'
 
@@ -419,25 +326,28 @@ jobs:
       #         --image '$(acrLoginServer)/$(imageRepository):$(releaseVersion)'
       #       az webapp restart --name '$(webAppName)' --resource-group '$(webAppResourceGroup)'
 
-      # ── Confirm ───────────────────────────────────────────────────────────
-      # AzureWebAppContainer@1 returns as soon as the platform accepts the
-      # request, and a container that fails to start leaves the previous one
-      # serving — which looks exactly like success. So poll for real content.
+      # ── Confirm (informational only) ───────────────────────────────────────
+      # This reports whether the site came back; it does NOT fail the release.
+      # The deploy task returns as soon as the platform accepts the request, and
+      # a container that fails to start leaves the previous one serving, so
+      # without this there is no signal at all. It is capped at ~3 minutes
+      # because the app needs roughly 90 s to reach "Started ApiApplication".
       - bash: |
-          set -euo pipefail
+          set -uo pipefail
           URL='$(publicUrl)'
-          echo "Waiting for ${URL} to serve the SPA..."
-          for i in $(seq 1 60); do
-            BODY=$(curl -fsS --max-time 20 "${URL}/" 2>/dev/null) || BODY=""
+          echo "Polling ${URL} for up to 3 minutes (informational)..."
+          for i in $(seq 1 18); do
+            BODY=$(curl -fsS --max-time 10 "${URL}/" 2>/dev/null) || BODY=""
             if echo "$BODY" | grep -q 'id="root"'; then
-              echo "${URL} is serving the SPA after $((i * 10))s"
+              echo "OK: ${URL} is serving the SPA after $((i * 10))s"
               exit 0
             fi
             sleep 10
           done
-          echo "##vso[task.logissue type=error]${URL} did not serve the SPA within 10 minutes"
-          exit 1
-        displayName: 'Verify $(webAppName) serves the SPA'
+          echo "##vso[task.logissue type=warning]${URL} was not serving the SPA within 3 minutes. The release is still marked successful; check the container log below."
+          exit 0
+        displayName: 'Check the site (does not fail the release)'
+        continueOnError: true
 
       # What tells you WHY a failed release failed. Always runs. The same output
       # is teed to $LOG_FILE inside the container, readable over SSH with
