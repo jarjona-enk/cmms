@@ -724,6 +724,114 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-14"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-09-14T23:19:58",
+      "error_message": "Could not resolve placeholder 'MAIL_RECIPIENTS' in value \"${MAIL_RECIPIENTS}\" (emailService2) when running app.jar from a shell with dev.env",
+      "file": "dev.env / application.yml",
+      "root_cause": "mail.recipients has no default in application.yml and dev.env does not define MAIL_RECIPIENTS; the IntelliJ run config supplies it.",
+      "fix": "Pass MAIL_RECIPIENTS=<addr> (and ENABLE_EMAIL_NOTIFICATIONS=false) when launching outside IntelliJ; run-local.sh takes KEY=VAL overrides.",
+      "tags": [
+        "startup",
+        "env",
+        "mail",
+        "local-run"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:19:58"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-09-14T23:19:58",
+      "error_message": "Error configuring MinIO: Failed to connect to /127.0.0.1:9000 (minioService init) on local start",
+      "file": "MinioService.java / dev.env",
+      "root_cause": "dev.env uses STORAGE_TYPE=minio; no MinIO was running. There is no local-filesystem StorageType (only GCP/MINIO/AZURE).",
+      "fix": "docker run -d --name cmms-minio -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=$MINIO_ACCESS_KEY -e MINIO_ROOT_PASSWORD=$MINIO_SECRET_KEY quay.io/minio/minio server /data --console-address :9001. Do not pipe docker run into head (SIGPIPE killed the pull).",
+      "tags": [
+        "startup",
+        "minio",
+        "storage",
+        "local-run",
+        "docker"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:19:58"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-09-14T23:19:58",
+      "error_message": "v1.8.0 Liquibase changeset 2026_07_16_00000000001_create_unaccent would fail on Azure Flexible Server: extension not allow-listed",
+      "file": "api/src/main/resources/db/changelog/2026_07_16_00000000001_create_unaccent.xml",
+      "root_cause": "azure.extensions on db-caneast-pmdms was PG_TRGM,PG_STAT_STATEMENTS; CREATE EXTENSION unaccent is refused unless allow-listed.",
+      "fix": "Owner added UNACCENT to azure.extensions (verified PG_STAT_STATEMENTS,PG_TRGM,UNACCENT). Prerequisite recorded in REQUIREMENTS.md.",
+      "tags": [
+        "liquibase",
+        "postgres",
+        "azure",
+        "unaccent",
+        "upstream-merge",
+        "v1.8.0"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:19:58"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-09-14T23:55:13",
+      "error_message": "Browser SPA called http://localhost:8080/license/state although the jar was built with frontend.api.url=localhost:8085 (CORS error). Served bundle main.e007f40e.js != frontend/build main.34e707df.js",
+      "file": "api/src/main/resources/static/ (gitignored stale copy) / api/pom.xml skipFrontend",
+      "root_cause": "A stale gitignored SPA copy (2026-06-18) in api/src/main/resources/static was copied by maven-resources into the jar; -DskipFrontend=true also skips the prepare-package copy of frontend/build that would overwrite it.",
+      "fix": "Deleted the ignored files (kept source/), staged frontend/build into target/classes/static and repackaged; .dockerignore now excludes those paths. Verify the main.<hash>.js in the served index.html.",
+      "tags": [
+        "frontend",
+        "packaging",
+        "stale-build",
+        "local-run",
+        "skipFrontend"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:55:13"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-09-14T23:55:13",
+      "error_message": "JSON parse error: Invalid UTF-8 middle byte 0x74 on POST /locations with accented names from a bash curl -d '...'",
+      "file": "scratchpad/api-smoke.sh (test harness)",
+      "root_cause": "Git Bash passes UTF-8 command-line arguments to native curl.exe through the Windows ANSI codepage, so multi-byte characters arrive as single cp1252 bytes.",
+      "fix": "Write payloads to files with printf \\xNN escapes and send them with --data-binary @file (api-smoke2.sh).",
+      "tags": [
+        "utf-8",
+        "git-bash",
+        "curl",
+        "windows",
+        "test-harness"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:55:13"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-09-14T23:55:13",
+      "error_message": "GET /source-code/download with a Range header -> 500 java.util.zip.ZipException: ZipFile closed (ResourceRegionHttpMessageConverter); GET /runtime-env.js -> 500 NoResourceFoundException",
+      "file": "api/src/main/java/com/grash/controller/SourceCodeController.java; frontend/public/index.html (runtime-env.js)",
+      "root_cause": "Range requests on a nested-jar ClassPathResource fail in Spring Boot 3.2's region converter; runtime-env.js is generated only by `npm start` and upstream's exception handler maps missing static resources to 500.",
+      "fix": "NOT FIXED (pre-existing, documented in DEVELOPMENT-STATUS 12.18). Options: StreamingResponseBody for the bundle; commit a static runtime-env.js or serve it from a controller.",
+      "tags": [
+        "source-code",
+        "range",
+        "runtime-env",
+        "pre-existing",
+        "open"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-14T23:55:13"
     }
   ]
 }

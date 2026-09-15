@@ -36,3 +36,6 @@ override.tf.json
 # upstream v1.8.0
 *.lic
 docker-compose-minio.yml
+
+# Playwright MCP session artefacts (screenshots, snapshots)
+.playwright-mcp/

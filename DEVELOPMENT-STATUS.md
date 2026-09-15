@@ -24,7 +24,7 @@ production-only and creates nothing. **OpenTofu is parked** — see
 | Area | State |
 |---|---|
 | Fork boundary | Done. `origin` = Azure DevOps, `upstream` = GitHub, push `DISABLED` |
-| Merge policy | Done. Release tags only. Pinned to base `51341f8e` (post-v1.6.0) |
+| Merge policy | Done. Release tags only. **Merged up to upstream `v1.8.0`** (2026-09-15), `UPSTREAM_VERSION=1.8.0` — §12.18 |
 | Build → single fat jar | **Verified 2026-09-10**: full container build, boots to `/health-check` in 7s, serves the SPA, deep links and the AGPLv3 source bundle |
 | Entra SSO, AGPLv3 §13 | Done |
 | Azure Blob storage backend | Code done. Account `stgcaneastcmms` + container `cmms` exist, and the app identity already has Blob Data Contributor **and** Blob Delegator |
@@ -35,7 +35,7 @@ production-only and creates nothing. **OpenTofu is parked** — see
 | OpenTofu infra | ⏸ **PARKED.** Never applied, and must not be applied — it would build a parallel set of resources |
 | Production web app `cmms` | Exists, hand-built, Running. Needs secrets + the identity fix before a container can boot |
 | ACR repository `cmms` | Exists. `1.6.0-enerkem.1` and `1.6.0-enerkem.2` pushed |
-| Database schema | **Built.** 802 Liquibase changesets, 138 tables, 85 sequences, lock released cleanly |
+| Database schema | Production `atlas.public` is **empty** (dropped 2026-09-15, app stopped). The 1.8.0 changelog is **806** changesets; verified locally from zero and from a 1.6.0 schema |
 | Application startup | ✅ **Working.** Started 2026-09-15 01:22 in 86 s; Tomcat on 8080; managed-identity token for storage acquired |
 | `cmms.enerkem.com` | **Does not exist.** NXDOMAIN, no hostname binding on the app |
 
@@ -98,7 +98,7 @@ removed, ✅ service connection ids corrected (§12.11).
   test stands in for it.
 - SSO auto-provisioning still creates a **new org per first-of-domain user**,
   probably wrong for an internal rollout. Unchanged.
-- Upstream `v1.7.0` (+16 commits) pending review — **never merge unprompted.**
+- Upstream `v1.7.0` and `v1.8.0` are merged (§12.18). No newer release tag exists; **never merge the next one unprompted.**
 - **No live runtime test in Azure has happened.** Everything verified so far was
   verified locally in Docker.
 
@@ -1397,4 +1397,121 @@ rather than on the agent. That is the accepted trade: fix forward.
 
 Verified: YAML parses, 8 steps, every `$(macro)` still resolves, no orphaned
 references to `candidateTag` or the smoke-test containers.
+
+### 12.18 Upstream v1.7.0 and v1.8.0 merged (2026-09-15)
+
+**Owner's request:** merge upstream, keep our SSO changes, end at release
+1.8.0; then test autonomously until it works, SSO off locally if needed, SSO
+back on for the owner to test.
+
+**What was on disk first, and why it was aborted.** The working tree already
+held an in-progress merge — of **`upstream/main`** (`6241a4fb`, +599 commits,
+371 past the v1.8.0 tag), directly on `main`, with 8 unresolved conflicts.
+That is the one thing CLAUDE.md §2 forbids. Aborted with the owner's consent;
+nothing human-authored was lost (only merge product).
+
+**Path taken, per policy:** one tag at a time on throwaway branches.
+
+| step | branch | merge commit | conflicts |
+|---|---|---|---|
+| `v1.7.0` (+16) | `merge/upstream-v1.7.0` | `ed27a766` | 1 — `frontend/src/i18n/translations/en.ts`: both sides appended keys to the same object; union |
+| `v1.8.0` (+205 on v1.7.0) | `merge/upstream-v1.8.0` | `963b2c0b` | 3 — see below |
+
+`UPSTREAM_VERSION` was bumped inside each merge commit (1.7.0, then 1.8.0).
+
+**The three v1.8.0 conflicts.**
+
+- `.gitignore` — union; upstream's `*.lic` and `docker-compose-minio.yml` appended.
+- `api/pom.xml` — union of `<properties>`; upstream's `testcontainers.version`
+  next to our frontend-build properties.
+- `OAuth2AuthenticationSuccessHandler` — both sides had fixed the same bug
+  (Administrator role lookup during SSO auto-registration read the new
+  company's empty role list). Owner chose **upstream's typed API with our
+  safety net**: `roleService.findDefaultRoleWithCode(RoleCode.ADMIN)
+  .orElseThrow(CustomException)` rather than upstream's bare `.get()`.
+  Upstream's duplicated `RoleCode` import deduplicated.
+
+**Our SSO changes, verified byte-for-byte against `main`:** the
+`if (enableSso)` gate with the commercial-licence check removed, the SPA and
+`/source-code/**` permits, and the `OAUTH2_TENANT_ID` authority pinning are all
+intact. Upstream only added `.requestMatchers("/api-docs.html").permitAll()`.
+Also unchanged: `api/Dockerfile`, `startup.sh`, `azure-pipelines.yml`,
+`.azure/env/prod.env`, `SourceCodeController`, `LicenseService`, and our SMTP
+parameters in `application.yml` (upstream added file-upload rate limits and
+`ssl.trust: ${SMTP_HOST}` in its own stray block).
+
+**What v1.8.0 brings that matters operationally.**
+
+- **`unaccent` PostgreSQL extension**, created by changeset
+  `2026_07_16_00000000001_create_unaccent` and used by `WrapperSpecification`
+  for accent-insensitive `contains/begins/ends` search. On Azure Flexible
+  Server this **must be allow-listed** in `azure.extensions` or Liquibase halts
+  on first start. `db-caneast-pmdms` was `PG_TRGM,PG_STAT_STATEMENTS`; the
+  owner added `UNACCENT` (verified). REQUIREMENTS.md §4 records it.
+- `PartConsumption` → `PartTransaction` (entity rename + changeset), company
+  colour, GitHub OAuth provider removed, Sentry release tagging, `/api-docs.html`.
+- Frontend `package.json`: upstream renamed the package to `atlas-cmms` 1.7.0
+  and added `type-fest`; our within-major dependency refresh survived, the
+  lockfile auto-merged (56/8 lines) and `npm ci` accepted it.
+
+**Testing.** Local, on `localhost:8085` (8080 was held by an unrelated app),
+JDK 17, Postgres 18, a throwaway MinIO container for `STORAGE_TYPE=minio`.
+
+| run | database | SSO | result |
+|---|---|---|---|
+| v1.7.0 | existing 1.6.0 schema | on | up in 32 s, 802/0 changesets, health 200, SPA served |
+| v1.8.0 fresh install | `public` dropped and recreated | off | up in 48 s, **806 changesets from zero**, `unaccent` installed |
+| v1.8.0 upgrade | `pg_restore` of the 1.6.0 dump | **on** | up in 28 s, **802 previously run, 4 new** |
+
+Functional API suite (`api-smoke2.sh`, 8 checks) passed on both v1.8.0
+databases: signup → JWT, `/auth/me` = Administrator, create location / asset /
+work order with accented names, **accent-insensitive search both ways**
+(`generatrice` finds `Génératrice`; `GÉNÉ` finds it too), work-order search,
+`/parts/search`, `/api-docs.html` 200, `/source-code/download` 200 (92.9 MB),
+SPA shell and deep link 200. Browser (Playwright): logged in through the UI,
+Work Orders and Assets grids render the accented rows; console clean except
+the pre-existing `runtime-env.js` request. SSO on:
+`GET /oauth2/authorize/microsoft` → 302 to
+`login.microsoftonline.com/<OAUTH2_TENANT_ID>/oauth2/v2.0/authorize` with the
+right client id and `redirect_uri=http://localhost:8085/oauth2/callback/microsoft`.
+The full round-trip login was not attempted locally (the local callback URI is
+not registered in Entra); that is the owner's test.
+
+**Traps hit on the way, all local, none in the merge.**
+
+1. `MAIL_RECIPIENTS` has no default and `dev.env` lacks it — the IntelliJ run
+   config supplies it. `run-local.sh` passes it explicitly.
+2. No MinIO running for `STORAGE_TYPE=minio`; there is no local-disk storage
+   type. Started `quay.io/minio/minio` with the `dev.env` credentials.
+3. **A stale gitignored SPA copy in `api/src/main/resources/static/`** (June
+   18, built for `localhost:8080`). Maven's resources step copied it into the
+   jar; a `-DskipFrontend=true` package skipped the step that would overwrite
+   it, so the first browser test ran the *old* bundle and called port 8080.
+   Deleted; `.dockerignore` now excludes those paths so a developer's docker
+   build cannot pick them up either. CI clones fresh and was never affected.
+4. Git Bash converts UTF-8 command-line arguments through the ANSI codepage
+   before native `curl.exe` sees them → "Invalid UTF-8 middle byte" from
+   Jackson. Payloads must go through files (`--data-binary @file`).
+5. A background `javac` died silently once with C: at 99 % (13 GB free). The
+   same compile passed in the foreground; no crash dump. Watch the disk.
+
+**Known, not fixed, pre-existing (not merge regressions):**
+
+- `GET /runtime-env.js` returns **500** (upstream's exception handler maps
+  `NoResourceFoundException` to 500; it was a 404 before). One stack trace per
+  page load. Fix options: commit a static `frontend/public/runtime-env.js`
+  containing `window.__RUNTIME_CONFIG__ = window.__RUNTIME_CONFIG__ || {};`
+  (it is gitignored upstream — needs an un-ignore), or serve it from a tiny
+  controller.
+- `GET /source-code/download` with a `Range` header returns 500
+  (`ZipException: ZipFile closed` in `ResourceRegionHttpMessageConverter` on a
+  nested-jar resource). Plain downloads work. Fix: stream the resource
+  ourselves (`StreamingResponseBody`) instead of returning a `Resource`.
+- `startup.sh` still masks the exit code (§12.16).
+
+**Production release checklist for 1.8.0:** tag `release/1.8.0-enerkem.1`.
+The database is empty and the app is stopped, so first start runs all 806
+changesets — `unaccent` is allow-listed, so that will work. `cmms.enerkem.com`
+DNS/binding/certificate and the Entra redirect URI for the public URL are still
+outstanding (§12.16).
 
