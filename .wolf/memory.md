@@ -405,3 +405,21 @@ Pushed the new secret with setup-keyvault.ps1 (new KV version 2026-09-15
 reports all three Key Vault references Resolved - which also confirms the
 keyVaultReferenceIdentity fix and vault RBAC work. App picks it up on next
 restart; still stopped and still blocked on blob DNS (12.14).
+
+## Session note - 2026-09-15 (the app is UP)
+
+Reviewed the application log: Atlas CMMS is running. Started 01:22 in 86s,
+/health-check and / both 200 with the SPA shell. Managed identity token for
+storage: SUCCESS - the AZURE_CLIENT_ID fix works. Liquibase reports the DB up to
+date, 802 previously run.
+
+I was WRONG about the blob DNS being the next blocker: containerClient.exists()
+succeeded, so the app reaches stgcaneastcmms. The remaining question is only
+whether end-user BROWSERS can resolve that hostname for SAS download URLs -
+untested.
+
+The log's errors are mostly noise: internet exploit scanners (PHP/WordPress/SQLi
+probes rejected by Tomcat's parser - but they prove the site is public with
+'Allow all' as its only access restriction), and a runtime-env.js 404 per page
+load from frontend/public/index.html line 35 requesting a file this build never
+generates. Everything else is cosmetic. See DEVELOPMENT-STATUS.md 12.16.

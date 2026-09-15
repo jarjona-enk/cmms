@@ -18,9 +18,8 @@ Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
 `infra/README.md`; do not apply it.
 
-⚠️ **Pick up here (2026-09-15): `cmms` is STOPPED.** App Service stopped it
-after repeated cold-start failures. See §12.14 for exactly where it fails and
-the two things left.
+✅ **The application is UP** as of 2026-09-15 01:22. Starts in ~86 s,
+`/health-check` and `/` both return 200 and the SPA shell renders. See §12.16.
 
 | Area | State |
 |---|---|
@@ -37,7 +36,7 @@ the two things left.
 | Production web app `cmms` | Exists, hand-built, Running. Needs secrets + the identity fix before a container can boot |
 | ACR repository `cmms` | Exists. `1.6.0-enerkem.1` and `1.6.0-enerkem.2` pushed |
 | Database schema | **Built.** 802 Liquibase changesets, 138 tables, 85 sequences, lock released cleanly |
-| Application startup | ❌ Fails at `azureBlobService` — see §12.14 |
+| Application startup | ✅ **Working.** Started 2026-09-15 01:22 in 86 s; Tomcat on 8080; managed-identity token for storage acquired |
 | `cmms.enerkem.com` | **Does not exist.** NXDOMAIN, no hostname binding on the app |
 
 ### The hand-built production environment
@@ -1291,4 +1290,73 @@ Two related things left over:
 - The new registration needs the redirect URI
   `<public_url>/oauth2/callback/microsoft` registered on it, and `cmms.enerkem.com`
   still does not resolve.
+
+### 12.16 The application is running (2026-09-15)
+
+Both fixes confirmed from the app's own log:
+
+```
+Azure Identity => Managed Identity environment: AZURE APP SERVICE MSI/IDENTITY ENDPOINT
+Azure Identity => getToken() for [https://storage.azure.com/.default]: SUCCESS
+liquibase : Database is up to date, no changesets to execute   (Previously run: 802)
+Started ApiApplication in 85.962 seconds
+Tomcat started on port 8080
+```
+
+Verified independently: `/health-check` → 200, `/` → 200 with the SPA shell.
+
+**My §12.14 prediction was wrong.** I expected `AzureBlobService.init()` to fail
+next on the missing `privatelink.blob.core.windows.net` zone. It did not — the
+token succeeded *and* `containerClient.exists()` succeeded, or the bean would
+have killed the context as before. **The app can reach `stgcaneastcmms`.** The
+open question is now narrower and untested: whether an end user's *browser* can
+resolve that hostname for the SAS download URLs `FileMapper` hands out. That is
+the user's machine, not the app's subnet.
+
+The two restarts at 01:18 and 01:21 were not crashes — the first reached
+"Started ApiApplication" at 01:19:55 and was replaced when
+`scripts/setup-keyvault.ps1` wrote the app settings at 01:21. That restart is
+also how the container picked up the new Entra secret (§12.15).
+
+#### The log's "errors", triaged
+
+**1. Internet exploit scanners — the only item worth acting on.** Tomcat rejects
+these at the HTTP parser, before any application code:
+
+```
+/view/IPV6/naborTable/static_convert.php?blocks[0]=%7C%7C%20echo%20...
+/wp-admin/admin-ajax.php?+config-create+/&/<?=base64_decode($_GET[0])?>...
+/index.php?ids[0,updatexml(0,concat(0xa,user()),0)]=1
+cookie header [username='& id &']
+```
+
+PHP/WordPress RCE and SQL-injection probes against a Java app — harmless in
+themselves. What they demonstrate is that the site is **reachable from the open
+internet**, and its only access restriction is `Allow all`. For an internal,
+Entra-gated CMMS that is a posture decision to make deliberately, ideally before
+`cmms.enerkem.com` goes live.
+
+**2. `NoResourceFoundException: No static resource runtime-env.js`** — one full
+stack trace per page load. Cause found: `frontend/public/index.html` line 35
+carries `<script src="%PUBLIC_URL%/runtime-env.js" defer>`, and the file is never
+generated, because this build bakes configuration in at image build time.
+`config.ts` treats it as optional (`envValue || runtimeValue || defaultValue`),
+so nothing is broken — it is pure log noise.
+
+Fix, when convenient: add **`frontend/public/runtime-env.js`** containing
+`window.__RUNTIME_CONFIG__ = window.__RUNTIME_CONFIG__ || {};`. A *new* file, so
+no upstream edit and no added merge surface. Needs a release to take effect.
+
+**3. Cosmetic, no action.** `HHH90000025` (upstream sets `hibernate.dialect`
+redundantly); `spring.jpa.open-in-view` nag; `CglibAopProxy … QuartzJobBean.execute
+is final`; `WebSecurity: You are asking Spring Security to ignore …` (upstream's
+own permit list); `Property 'userDn' not set` (LDAP unused); `Received invalid
+Accept header` (the same bots); `No new trace in the past N min(s)` (the log
+stream idling, not an error).
+
+#### Still untested
+
+SSO. Nobody has signed in yet, and the registration changed in §12.15 — the new
+one needs `<public_url>/oauth2/callback/microsoft` registered, and the URL the
+SPA was built with must match where users actually arrive.
 
