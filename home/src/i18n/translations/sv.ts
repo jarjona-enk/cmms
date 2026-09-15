@@ -226,7 +226,7 @@ const locale = {
   feedback_description: "Ge din feedback",
   required_feedback: "Feedback krävs",
   signature: "Signatur",
-  required_signature: "Bild krävs",
+  required_signature: "Signatur krävs",
   close_wo: "Stäng arbetsorder",
   close: "Nära",
   task_update_success: "Uppgiften har uppdaterats",
@@ -1651,6 +1651,7 @@ const locale = {
     keywords:
       "CMMS, datoriserat underhållssystem, EAM, enterprise asset management, open source cmms, gratis underhållsprogramvara, arbetsorderhantering, förebyggande underhåll, tillgångsspårning, fastighetsförvaltning, programvara för underhållsspårning, utrustningsunderhåll, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Föredrar du ett engångsköp? Eviga licenser finns tillgängliga för 36× den månatliga avgiften.",
 };
 
 export default locale;

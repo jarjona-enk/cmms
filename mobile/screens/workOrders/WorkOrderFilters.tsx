@@ -14,13 +14,15 @@ import { IField } from '../../models/form';
 import { UserMiniDTO } from '../../models/user';
 import Form from '../../components/form';
 import * as Yup from 'yup';
+import { Button } from 'react-native-paper';
+import { useEffect } from 'react';
 
 export default function WorkOrderFilters({
   navigation,
   route
 }: RootStackScreenProps<'WorkOrderFilters'>) {
   const { t }: { t: any } = useTranslation();
-  const { filterFields, onFilterChange } = route.params;
+  const { filterFields, onFilterChange, onReset } = route.params;
   const { customersMini } = useSelector((state) => state.customers);
   const { locationsMini } = useSelector((state) => state.locations);
   const { categories } = useSelector((state) => state.categories);
@@ -175,6 +177,21 @@ export default function WorkOrderFilters({
     }
   ];
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Button
+          onPress={() => {
+            onReset();
+            navigation.goBack();
+          }}
+        >
+          {t('reset')}
+        </Button>
+      )
+    });
+  }, [navigation, onReset]);
+
   const getTypeLabelAndValue = (
     operation: SearchOperator
   ): { label: string; value: string } => {
@@ -254,7 +271,9 @@ export default function WorkOrderFilters({
       createdAt: getDateValue(filterFields, 'createdAt'),
       updatedAt: getDateValue(filterFields, 'updatedAt'),
       completedOn: getDateValue(filterFields, 'completedOn'),
-      dueDate: getDateValue(filterFields, 'dueDate')
+      dueDate: filterFields.find(
+        (filterField) => filterField.field === 'dueDate'
+      )?.value
     };
   };
   const shape = {};
@@ -280,12 +299,11 @@ export default function WorkOrderFilters({
             );
           });
           // type filter
-          const type = values?.type ?? { value: 'ALL' };
-
+          const type: string = values?.type ?? 'ALL';
           newFilters = newFilters.filter(
             ({ field }) => field !== 'parentPreventiveMaintenance'
           );
-          switch (type.value) {
+          switch (type) {
             case 'REACTIVE':
               newFilters.push({
                 field: 'parentPreventiveMaintenance',

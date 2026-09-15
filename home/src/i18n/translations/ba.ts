@@ -225,7 +225,7 @@ const locale = {
   feedback_description: "Dajte svoju povratnu informaciju",
   required_feedback: "Povratna informacija je obavezna",
   signature: "Potpis",
-  required_signature: "Slika je obavezna",
+  required_signature: "Potpis je obavezan",
   close_wo: "Zatvori radni nalog",
   close: "Zatvori",
   task_update_success: "Zadatak uspješno ažuriran",
@@ -1682,6 +1682,7 @@ const locale = {
     title: "Besplatni CMMS otvorenog koda (Softver za upravljanje održavanjem)",
   },
   SSO: "SSO (jedinstvena prijava)",
+  prefer_one_time_purchase: "Više volite jednokratnu kupovinu? Doživotne licence su dostupne po 36× mjesečne cijene.",
 };
 
 export default locale;

@@ -217,7 +217,7 @@ const trJSON = {
   feedback_description: 'Geri bildiriminizi bildirin',
   required_feedback: 'Geri bildirim gerekli',
   signature: 'İmza',
-  required_signature: 'Resim gerekli',
+  required_signature: 'İmza gereklidir',
   close_wo: 'İş Emri Kapat',
   close: 'Kapalı',
   task_update_success: 'Görev başarıyla güncellendi',
@@ -247,6 +247,8 @@ const trJSON = {
   column_view: 'Sütun Görünümü',
   wo_create_success: 'İş Emri başarıyla oluşturuldu',
   wo_create_failure: 'İş Emri oluşturulamadı',
+  discard_changes: 'Değişiklikleri at',
+  discard_changes_question: 'Kaydedilmemiş değişiklikler atılsın mı?\nŞimdi ayrılırsanız, kaydedilmemiş değişiklikleri kaybedersiniz',
   changes_saved_success: 'Değişiklikler kaydedildi',
   wo_update_failure: 'İş Emri düzenlenemedi',
   wo_delete_success: 'İş Emri başarıyla silindi',
@@ -1562,6 +1564,16 @@ const trJSON = {
   feedback_description1:
     'Bunu duyduğumuza üzüldük. Geri bildiriminiz Atlas\'ı daha iyi hale getirmemize yardımcı oluyor.',
   feedback_placeholder: 'Bize neyin yanlış gittiğini veya nasıl iyileştirebileceğimizi anlatın…',
-  send: 'Gönder'
+  send: 'Gönder',
+  edit_additional_cost: 'Maliyeti Düzenle',
+  delete_additional_cost: 'Maliyeti Sil',
+  confirm_delete_additional_cost: 'Bu maliyeti silmek istediğinizden emin misiniz?',
+  edit_additional_time: 'Süreyi Düzenle',
+  delete_additional_time: 'Süreyi Sil',
+  confirm_delete_additional_time: 'Bu süreyi silmek istediğinizden emin misiniz?',
+  reset: 'Sıfırla',
+  operation_success: 'İşlem başarılı oldu',
+  edit_reading: 'Okumayı Düzenle',
+  are_you_sure_delete_reading: 'Bu okumayı silmek istediğinizden emin misiniz?'
 };
 export default trJSON;

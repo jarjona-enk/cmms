@@ -5,11 +5,11 @@ import * as Yup from 'yup';
 import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
-  IField,
   getCustomFieldsIFields,
-  getCustomFieldsRequiredShape
+  getCustomFieldsRequiredShape,
+  IField
 } from '../../models/form';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { CompanySettingsContext } from '../../contexts/CompanySettingsContext';
 import { getImageAndFiles } from '../../utils/overall';
 import { useDispatch, useSelector } from '../../store';
@@ -18,18 +18,17 @@ import { CustomSnackBarContext } from '../../contexts/CustomSnackBarContext';
 import { formatWorkOrderValues, getWorkOrderFields } from '../../utils/fields';
 import { formatCustomFields } from '../../utils/formatters';
 import { assetStatuses } from '../../models/asset';
-import { useTheme } from 'react-native-paper';
 import { useAppTheme } from '../../custom-theme';
 import { getErrorMessage } from '../../utils/api';
-import { getCustomFields } from '../../slices/customField';
 import { CustomFieldEntityType } from '../../models/customField';
+import useUnsavedChanges from '../../hooks/useUnsavedChanges';
 
 export default function CreateWorkOrderScreen({
   navigation,
   route
 }: RootStackScreenProps<'AddWorkOrder'>) {
   const { t } = useTranslation();
-  const [initialDueDate, setInitialDueDate] = useState<Date>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const theme = useAppTheme();
   const { uploadFiles, getWOFieldsAndShapes } = useContext(
     CompanySettingsContext
@@ -37,6 +36,8 @@ export default function CreateWorkOrderScreen({
   const { showSnackBar } = useContext(CustomSnackBarContext);
   const dispatch = useDispatch();
   const { customFields } = useSelector((state) => state.customFields);
+
+  useUnsavedChanges(navigation, isFormDirty);
 
   const defaultShape: { [key: string]: any } = {
     title: Yup.string().required(t('required_wo_title')),
@@ -82,7 +83,7 @@ export default function CreateWorkOrderScreen({
         submitText={t('save')}
         values={{
           requiredSignature: false,
-          dueDate: initialDueDate,
+          dueDate: null,
           location: route.params?.location
             ? {
                 label: route.params.location.name,
@@ -97,8 +98,9 @@ export default function CreateWorkOrderScreen({
             : null,
           estimatedDuration: 1
         }}
-        onChange={({ field, e }) => {}}
+        onChange={() => setIsFormDirty(true)}
         onSubmit={async (values) => {
+          setIsFormDirty(false);
           let formattedValues = formatWorkOrderValues(values);
           formattedValues = formatCustomFields(formattedValues);
           try {

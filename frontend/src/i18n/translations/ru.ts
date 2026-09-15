@@ -213,7 +213,7 @@ const ruJSON = {
   feedback_description: 'Оставьте отзыв',
   required_feedback: 'Отзыв обязателен',
   signature: 'Подпись',
-  required_signature: 'Изображение обязательно',
+  required_signature: 'Подпись обязательна',
 
   close_wo: 'Закрыть наряд',
   close: 'Закрыть',
@@ -1373,6 +1373,7 @@ const ruJSON = {
   API_ACCESS_feature: 'Доступ к API',
   WEBHOOK_feature: 'Вебхуки',
   IMPORT_CSV_feature: 'Импорт CSV',
+  RESOURCE_PLANNING_feature: 'Планирование ресурсов',
   no_import_access: 'Обновите тариф, чтобы импортировать из CSV и Excel',
 
   // --- Company & Members ---
@@ -1415,9 +1416,12 @@ const ruJSON = {
   switch_account_description: 'Выберите аккаунт для продолжения',
   put_location_in_map: 'Указать локацию на карте',
   confirm_disable_user:
-    'Вы уверены, что хотите отключить {{user}}? Включить его можно будет только через месяц',
+    'Вы уверены, что хотите отключить {{user}}?',
   user_disabled_success: 'Пользователь успешно отключён',
   disable: 'Отключить',
+  confirm_enable_user:
+    'Вы уверены, что хотите включить {{user}}?',
+  enable: 'Включить',
 
   // --- Assets & Import ---
   manufacturer: 'Производитель',
@@ -2006,8 +2010,31 @@ const ruJSON = {
    copy_meter_description:
      'Заполните поля ниже, чтобы скопировать этот счетчик',
    copy_part: 'Копировать деталь',
-   copy_part_description:
-     'Заполните поля ниже, чтобы скопировать эту деталь'
+    copy_part_description:
+      'Заполните поля ниже, чтобы скопировать эту деталь',
+  customize_report_description: 'Что должно быть включено в этот PDF?',
+  work_order_information: 'Информация о заявке',
+  brand_color: 'Цвет бренда',
+  restock_part: 'Пополнить деталь',
+   restock: 'Пополнить',
+  export_part_transactions: 'Экспорт транзакций запчастей',
+  export_parts: 'Экспорт запчастей',
+  edit_time: 'Редактировать время',
+  edit_cost: 'Редактировать стоимость',
+  confirm_delete_labor: 'Вы уверены, что хотите удалить эту рабочую силу?',
+  confirm_delete_additional_cost: 'Вы уверены, что хотите удалить эту стоимость?',
+  discard_changes: 'Отменить изменения',
+  discard_changes_question:
+    "Отменить несохраненные изменения?\n Если вы уйдете сейчас, вы потеряете несохраненные изменения",
+  email_contractors: 'Отправить email подрядчикам',
+  email_contractors_description: 'Настройте отчет и добавьте необязательное сообщение для отправки подрядчикам.',
+  custom_message_optional: 'Пользовательское сообщение (необязательно)',
+  send_work_order_as_pdf: 'Отправить заказ как PDF',
+  report_sent_success: 'Отчет успешно отправлен',
+  trigger_work_order: 'Запустить рабочий заказ',
+  edit_reading: 'Редактировать показание',
+  are_you_sure_delete_reading: 'Вы уверены, что хотите удалить это показание?',
+  no_custom_fields_found: 'Пользовательские поля не найдены'
 };
 
 export default ruJSON;

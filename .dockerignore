@@ -12,6 +12,14 @@ api/target
 **/.gradle
 *.iml
 api/src/main/resources/static/source
+# A previous dev workflow left a gitignored copy of the compiled SPA here. On a
+# developer machine that copy would be packaged BEFORE the fresh frontend build
+# and could shadow it; CI never has it (fresh clone). Keep it out of the context.
+api/src/main/resources/static/index.html
+api/src/main/resources/static/asset-manifest.json
+api/src/main/resources/static/static/js
+api/src/main/resources/static/static/css
+api/src/main/resources/static/static/media
 atlas_backups
 DEVELOPMENT-STATUS.md
 

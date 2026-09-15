@@ -9,11 +9,9 @@ import com.grash.dto.SuccessResponse;
 import com.grash.dto.license.LicenseEntitlement;
 import com.grash.exception.CustomException;
 import com.grash.mapper.AssetMapper;
-import com.grash.model.Asset;
-import com.grash.model.Location;
-import com.grash.model.User;
-import com.grash.model.Part;
+import com.grash.model.*;
 import com.grash.model.enums.PermissionEntity;
+import com.grash.model.enums.PortalFieldType;
 import com.grash.model.enums.RoleType;
 import com.grash.repository.AssetRepository;
 import com.grash.security.CurrentUser;
@@ -108,7 +106,7 @@ public class AssetController {
         if (optionalAsset.isPresent()) {
             Asset savedAsset = optionalAsset.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.ASSETS) &&
-                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.ASSETS) || savedAsset.getCreatedBy().equals(user.getId()))) {
+                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.ASSETS) || user.getId().equals(savedAsset.getCreatedBy()))) {
                 return assetMapper.toShowDto(savedAsset, assetService);
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -137,18 +135,18 @@ public class AssetController {
 
     @GetMapping("/children/{id}")
     @PreAuthorize("permitAll()")
+    @Deprecated
     public List<AssetShowDTO> getChildrenById(@PathVariable("id") Long id,
-                                              Pageable pageable,
                                               HttpServletRequest req) {
         User user = userService.whoami(req);
         if (id.equals(0L) && user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
-            return assetService.findByCompanyAndParentAssetNull(user.getCompany().getId(), pageable).stream().map(asset -> assetMapper.toShowDto(asset, assetService)).collect(Collectors.toList());
+            return assetService.findByCompanyAndParentAssetNull(user.getCompany().getId(), Pageable.unpaged()).stream().map(asset -> assetMapper.toShowDto(asset, assetService)).collect(Collectors.toList());
         }
         Optional<Asset> optionalAsset = assetService.findById(id);
         if (optionalAsset.isPresent()) {
             Asset savedAsset = optionalAsset.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.ASSETS)) {
-                return assetService.findAssetChildren(id, pageable).stream().map(asset -> assetMapper.toShowDto(asset,
+                return assetService.findAssetChildren(id, Pageable.unpaged()).stream().map(asset -> assetMapper.toShowDto(asset,
                         assetService)).collect(Collectors.toList());
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
 
@@ -217,7 +215,7 @@ public class AssetController {
         if (optionalAsset.isPresent()) {
             Asset savedAsset = optionalAsset.get();
             em.detach(savedAsset);
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS) || savedAsset.getCreatedBy().equals(user.getId())
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS) || user.getId().equals(savedAsset.getCreatedBy())
             ) {
                 if (!asset.getStatus().isReallyDown() && savedAsset.getStatus().isReallyDown()) {
                     assetService.stopDownTime(savedAsset.getId(), Helper.getLocale(user));
@@ -272,9 +270,11 @@ public class AssetController {
             throw new CustomException("Rate limit exceeded. Try again later.", HttpStatus.TOO_MANY_REQUESTS);
         }
         List<Asset> assets = new ArrayList<>();
-        Long companyId = requestPortalService.findByUuidByUser(portalUUID).get().getCompany().getId();
+        RequestPortal requestPortal = requestPortalService.findByUuidByUser(portalUUID).get();
+        if (requestPortal.getFields().stream().anyMatch(requestPortalField -> requestPortalField.getAsset() != null && requestPortalField.getType().equals(PortalFieldType.ASSET)))
+            throw new CustomException("This portal is not configured to show assets", HttpStatus.FORBIDDEN);
         if (locationId == null) {
-            assets = assetService.findByCompany(companyId);
+            assets = assetService.findByCompany(requestPortal.getCompany().getId());
         } else {
             assets = assetService.findByLocation(locationId);
         }

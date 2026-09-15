@@ -92,7 +92,8 @@ export default function MetersScreen({
     onSearchQueryChange<Meter>(query, criteria, setCriteria, setSearchQuery, [
       'name',
       'unit',
-      'category'
+      'category',
+      'customFieldValues.value'
     ]);
   };
   useDebouncedEffect(
@@ -137,7 +138,10 @@ export default function MetersScreen({
               onPress={() =>
                 navigation.push('MeterDetails', {
                   id: meter.id,
-                  meterProp: meter
+                  meterProp: meter,
+                  onNewReading: (readingValue) => {
+                    dispatch(getMeters(criteria));
+                  }
                 })
               }
               key={meter.id}

@@ -225,7 +225,7 @@ const locale = {
   feedback_description: "Dai il tuo feedback",
   required_feedback: "È richiesto un feedback",
   signature: "Firma",
-  required_signature: "L'immagine è obbligatoria",
+  required_signature: "La firma è obbligatoria",
   close_wo: "Chiudi ordine di lavoro",
   close: "Vicino",
   task_update_success: "Attività aggiornata con successo",
@@ -1654,6 +1654,7 @@ const locale = {
     keywords:
       "CMMS, sistema di gestione della manutenzione computerizzato, EAM, gestione delle risorse aziendali, cmms open source, software di manutenzione gratuito, gestione degli ordini di lavoro, manutenzione preventiva, tracciamento delle risorse, gestione delle strutture, software di tracciamento della manutenzione, manutenzione delle apparecchiature, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Preferisci un acquisto una tantum? Le licenze perpetue sono disponibili a 36× la tariffa mensile.",
 };
 
 export default locale;

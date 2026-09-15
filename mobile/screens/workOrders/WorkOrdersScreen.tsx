@@ -36,10 +36,10 @@ import { RootTabScreenProps } from '../../types';
 import Tag from '../../components/Tag';
 import { useDebouncedEffect } from '../../hooks/useDebouncedEffect';
 import _ from 'lodash';
-import EnumFilter from './EnumFilter';
+import EnumFilter from './components/EnumFilter';
 import { dayDiff } from '../../utils/dates';
 import { IconWithLabel } from '../../components/IconWithLabel';
-import QuickFilter from './QuickFilter';
+import QuickFilter from './components/QuickFilter';
 import { useAppTheme } from '../../custom-theme';
 import { getUserInitials } from '../../utils/displayers';
 import { UserMiniDTO } from '../../models/user';
@@ -134,6 +134,9 @@ export default function WorkOrdersScreen({
     newCriteria.filterFields = newFilters;
     setCriteria(newCriteria);
   };
+  const onResetFilters = () => {
+    setCriteria(getCriteriaFromFilterFields([]));
+  };
 
   const onQueryChange = (query) => {
     onSearchQueryChange<WorkOrder>(
@@ -141,7 +144,7 @@ export default function WorkOrdersScreen({
       criteria,
       setCriteria,
       setSearchQuery,
-      ['title', 'description', 'feedback', 'customId']
+      ['title', 'description', 'feedback', 'customId', 'customFieldValues.value']
     );
   };
   useDebouncedEffect(
@@ -212,7 +215,8 @@ export default function WorkOrdersScreen({
               onPress={() =>
                 navigation.navigate('WorkOrderFilters', {
                   filterFields: criteria.filterFields,
-                  onFilterChange
+                  onFilterChange,
+                  onReset: onResetFilters
                 })
               }
             />

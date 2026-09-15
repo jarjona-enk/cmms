@@ -80,7 +80,9 @@ import { AssetMiniDTO } from '../../../models/owns/asset';
 import { patchTasksOfPreventiveMaintenance } from '../../../slices/task';
 import { createColumnHelper } from '@tanstack/react-table';
 import useTableState from '../../../hooks/useTableState';
+import CompanyFilter from '../WorkOrders/Filters/CompanyFilter';
 import EnumFilter from '../WorkOrders/Filters/EnumFilter';
+import BusinessTwoToneIcon from '@mui/icons-material/BusinessTwoTone';
 import SignalCellularAltTwoToneIcon from '@mui/icons-material/SignalCellularAltTwoTone';
 import SearchInput from '../components/SearchInput';
 import WorkOrder from '../../../models/owns/workOrder';
@@ -123,6 +125,8 @@ function PMs() {
   const { t }: { t: any } = useTranslation();
   const { setTitle } = useContext(TitleContext);
   const [openAddModal, setOpenAddModal] = useState<boolean>(false);
+  const [openDiscardDialog, setOpenDiscardDialog] = useState<boolean>(false);
+  const [isFormDirty, setIsFormDirty] = useState<boolean>(false);
   const [copyPmData, setCopyPmData] = useState<PreventiveMaintenance | null>(
     null
   );
@@ -136,7 +140,8 @@ function PMs() {
     hasCreatePermission,
     getFilteredFields,
     hasViewOtherPermission,
-    hasFeature
+    hasFeature,
+    user
   } = useAuth();
   const [currentPM, setCurrentPM] = useState<PreventiveMaintenance>();
   const { tasksByPreventiveMaintenance } = useSelector((state) => state.tasks);
@@ -333,7 +338,8 @@ function PMs() {
     onSearchQueryChange<PreventiveMaintenance>(event, criteria, setCriteria, [
       'title',
       'description',
-      'name'
+      'name',
+      'customFieldValues.value'
     ]);
   };
   const onFilterChange = (newFilters: FilterField[]) => {
@@ -362,9 +368,7 @@ function PMs() {
         )
       : null,
     daysOfWeek: entity?.schedule?.daysOfWeek?.map((dayOfWeek) => ({
-      label: getWeekdays(dateLocale).find(
-        (day, index) => index === dayOfWeek
-      ),
+      label: getWeekdays(dateLocale).find((day, index) => index === dayOfWeek),
       value: dayOfWeek
     })),
     frequency: Number(entity?.schedule?.frequency),
@@ -383,6 +387,9 @@ function PMs() {
     newValues.daysOfWeek = newValues.daysOfWeek?.map((day) => day.value) ?? [];
     newValues.recurrenceBasedOn = newValues.recurrenceBasedOn?.value;
     newValues.recurrenceType = newValues.recurrenceType?.value;
+    newValues.requiredSignature = Array.isArray(newValues.requiredSignature)
+      ? newValues?.requiredSignature.includes('on')
+      : newValues.requiredSignature;
     return formatCustomFields(newValues);
   };
 
@@ -542,6 +549,11 @@ function PMs() {
       { delay: true }
     ),
     {
+      name: 'requiredSignature',
+      type: 'switch',
+      label: t('requires_signature')
+    },
+    {
       name: 'tasks',
       type: 'select',
       type2: 'task',
@@ -588,8 +600,12 @@ function PMs() {
       maxWidth="md"
       open={openAddModal}
       onClose={() => {
-        setOpenAddModal(false);
-        setCopyPmData(null);
+        if (isFormDirty) {
+          setOpenDiscardDialog(true);
+        } else {
+          setOpenAddModal(false);
+          setCopyPmData(null);
+        }
       }}
     >
       <DialogTitle
@@ -626,8 +642,9 @@ function PMs() {
                     recurrenceType: recurrenceTypes[0]
                   }
             }
-            onChange={({ field, e }) => {}}
+            onChange={() => setIsFormDirty(true)}
             onSubmit={async (values) => {
+              setIsFormDirty(false);
               let formattedValues = formatValues(values);
               try {
                 const uploadedFiles = await uploadFiles(
@@ -654,6 +671,18 @@ function PMs() {
           />
         </Box>
       </DialogContent>
+      <ConfirmDialog
+        open={openDiscardDialog}
+        onCancel={() => setOpenDiscardDialog(false)}
+        onConfirm={() => {
+          setOpenDiscardDialog(false);
+          setOpenAddModal(false);
+          setCopyPmData(null);
+          setIsFormDirty(false);
+        }}
+        confirmText={t('discard_changes')}
+        question={t('discard_changes_question')}
+      />
     </Dialog>
   );
   const renderUpdateModal = () => (
@@ -804,6 +833,14 @@ function PMs() {
                   fieldName="priority"
                   icon={<SignalCellularAltTwoToneIcon />}
                 />
+                {user?.superAccountRelations?.length > 0 && (
+                  <CompanyFilter
+                    filterFields={criteria.filterFields}
+                    onChange={onFilterChange}
+                    superAccountRelations={user.superAccountRelations}
+                    icon={<BusinessTwoToneIcon />}
+                  />
+                )}
                 <SearchInput onChange={debouncedQueryChange} />
               </Stack>
               <Box sx={{ width: '95%' }}>

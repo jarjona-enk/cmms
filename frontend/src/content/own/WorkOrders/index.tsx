@@ -27,7 +27,14 @@ import {
 } from '../type';
 import WorkOrder from '../../../models/owns/workOrder';
 import * as React from 'react';
-import { ChangeEvent, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  ChangeEvent,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { TitleContext } from '../../../contexts/TitleContext';
 import CustomDatagrid2, {
   CustomDatagridColumn2
@@ -80,8 +87,10 @@ import MoreVertTwoToneIcon from '@mui/icons-material/MoreVertTwoTone';
 import FilterAltTwoToneIcon from '@mui/icons-material/FilterAltTwoTone';
 import MoreFilters from './Filters/MoreFilters';
 import EnumFilter from './Filters/EnumFilter';
+import CompanyFilter from './Filters/CompanyFilter';
 import SignalCellularAltTwoToneIcon from '@mui/icons-material/SignalCellularAltTwoTone';
 import CircleTwoToneIcon from '@mui/icons-material/CircleTwoTone';
+import BusinessTwoToneIcon from '@mui/icons-material/BusinessTwoTone';
 import _ from 'lodash';
 import SearchInput from '../components/SearchInput';
 import { PlanFeature } from '../../../models/owns/subscriptionPlan';
@@ -94,6 +103,7 @@ import { ExportEntityType, useExport } from '../../../hooks/useExport';
 import { getCustomFields } from '../../../slices/customField';
 import { CustomFieldEntityType } from '../../../models/owns/customField';
 import { randomInt } from '../../../utils/generators';
+import type { Paths } from 'type-fest';
 
 const fieldMapping: Record<string, string> = {
   customId: 'customId',
@@ -136,11 +146,12 @@ const DEFAULT_FILTER_FIELDS: FilterField[] = [
   }
 ];
 
-const QUERY_SEARCH_FIELDS = new Set<keyof WorkOrder>([
+const QUERY_SEARCH_FIELDS = new Set<Paths<WorkOrder>>([
   'title',
   'description',
   'feedback',
-  'customId'
+  'customId',
+  'customFieldValues.value'
 ]);
 
 const getInitialFilterFields = (): FilterField[] =>
@@ -164,13 +175,12 @@ function WorkOrders() {
     hasFeature,
     user
   } = useAuth();
-  const uiConfiguration = user.uiConfiguration;
-  const { uploadFiles, getWOFieldsAndShapes } = useContext(
-    CompanySettingsContext
-  );
-  const { getFormattedDate, getUserNameById } = useContext(
-    CompanySettingsContext
-  );
+  const {
+    uploadFiles,
+    getWOFieldsAndShapes,
+    getFormattedDate,
+    getUserNameById
+  } = useContext(CompanySettingsContext);
   const hasResourcePlanningEntitlement =
     useLicenseEntitlement('RESOURCE_PLANNING');
   const tabs: {
@@ -197,7 +207,8 @@ function WorkOrders() {
         !hasFeature(PlanFeature.RESOURCE_PLANNING),
       hidden:
         !hasViewOtherPermission(PermissionEntity.WORK_ORDERS) ||
-        !hasViewPermission(PermissionEntity.PEOPLE_AND_TEAMS)
+        !hasViewPermission(PermissionEntity.PEOPLE_AND_TEAMS) ||
+        user.superAccountRelations.length > 0
     },
     {
       value: 'column',
@@ -216,6 +227,8 @@ function WorkOrders() {
     setSearchParams(newParams);
   };
   const [openAddModal, setOpenAddModal] = useState<boolean>(false);
+  const [openDiscardDialog, setOpenDiscardDialog] = useState<boolean>(false);
+  const [isFormDirty, setIsFormDirty] = useState<boolean>(false);
   const [copyWorkOrderData, setCopyWorkOrderData] = useState<WorkOrder | null>(
     null
   );
@@ -462,12 +475,20 @@ function WorkOrders() {
   const onDeleteFailure = (err) =>
     showSnackBar(t('wo_delete_failure'), 'error');
 
-  const onQueryChange = (event) => {
-    onSearchQueryChange<WorkOrder>(event, criteria, setCriteria, [
-      ...QUERY_SEARCH_FIELDS.values()
-    ]);
-  };
-  const debouncedQueryChange = useMemo(() => debounce(onQueryChange, 1300), []);
+  const criteriaRef = useRef(criteria);
+  criteriaRef.current = criteria;
+  const debouncedQueryChange = useMemo(
+    () =>
+      debounce((event) => {
+        onSearchQueryChange<WorkOrder>(
+          event,
+          criteriaRef.current,
+          setCriteria,
+          [...QUERY_SEARCH_FIELDS.values()]
+        );
+      }, 1300),
+    []
+  );
   useEffect(() => {
     dispatch(getWorkOrders(criteria));
   }, [criteria]);
@@ -761,8 +782,12 @@ function WorkOrders() {
       maxWidth="md"
       open={openAddModal}
       onClose={() => {
-        setOpenAddModal(false);
-        setCopyWorkOrderData(null);
+        if (isFormDirty) {
+          setOpenDiscardDialog(true);
+        } else {
+          setOpenAddModal(false);
+          setCopyWorkOrderData(null);
+        }
       }}
     >
       <DialogTitle
@@ -816,8 +841,9 @@ function WorkOrders() {
                     estimatedDuration: 1
                   }
             }
-            onChange={({ field, e }) => {}}
+            onChange={() => setIsFormDirty(true)}
             onSubmit={async (values) => {
+              setIsFormDirty(false);
               if (workOrders.totalElements === 0)
                 fireGa4Event('first_wo_creation');
               let formattedValues = formatValues(values);
@@ -846,6 +872,18 @@ function WorkOrders() {
           />
         </Box>
       </DialogContent>
+      <ConfirmDialog
+        open={openDiscardDialog}
+        onCancel={() => setOpenDiscardDialog(false)}
+        onConfirm={() => {
+          setOpenDiscardDialog(false);
+          setOpenAddModal(false);
+          setCopyWorkOrderData(null);
+          setIsFormDirty(false);
+        }}
+        confirmText={t('discard_changes')}
+        question={t('discard_changes_question')}
+      />
     </Dialog>
   );
   const renderWorkOrderUpdateModal = () => (
@@ -1084,6 +1122,14 @@ function WorkOrders() {
                 fieldName="status"
                 icon={<CircleTwoToneIcon />}
               />
+              {user.superAccountRelations.length > 0 && (
+                <CompanyFilter
+                  filterFields={criteria.filterFields}
+                  onChange={onFilterChange}
+                  superAccountRelations={user.superAccountRelations}
+                  icon={<BusinessTwoToneIcon />}
+                />
+              )}
               <SearchInput onChange={debouncedQueryChange} />
             </Stack>
           )}
@@ -1124,6 +1170,10 @@ function WorkOrders() {
                   if (type === 'WORK_ORDER') handleOpenDetails(id);
                   else navigate(getPreventiveMaintenanceUrl(id));
                 }}
+                companyId={
+                  criteria.filterFields.find((ff) => ff.field === 'company')
+                    ?.values?.[0] ?? null
+                }
               />
             ) : (
               <WorkloadView
@@ -1152,6 +1202,7 @@ function WorkOrders() {
           tasks={tasks}
           onDelete={handleOpenDelete}
           onCopy={handleCopyWorkOrder}
+          onClose={handleCloseDetails}
         />
       </Drawer>
       <Drawer

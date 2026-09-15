@@ -236,7 +236,7 @@ const ptBRJSON = {
   feedback_description: 'Dê seu feedback',
   required_feedback: 'O feedback é obrigatório',
   signature: 'Assinatura',
-  required_signature: 'A imagem é obrigatória',
+  required_signature: 'A assinatura é obrigatória',
   close_wo: 'Fechar Ordem de Serviço',
   close: 'Fechar',
   task_update_success: 'Tarefa atualizada com sucesso',
@@ -267,6 +267,8 @@ const ptBRJSON = {
   column_view: 'Visualização em Coluna',
   wo_create_success: 'A ordem de serviço foi criada com sucesso',
   wo_create_failure: 'A ordem de serviço não pôde ser criada',
+  discard_changes: 'Descartar alterações',
+  discard_changes_question: 'Descartar alterações não salvas?\nSe você sair agora, perderá as alterações não salvas',
   changes_saved_success: 'As alterações foram salvas',
   wo_update_failure: 'A ordem de serviço não pôde ser editada',
   wo_delete_success: 'A ordem de serviço foi excluída com sucesso',
@@ -1534,6 +1536,16 @@ const ptBRJSON = {
   feedback_description1:
     'Lamentamos ouvir isso. Seu feedback nos ajuda a melhorar o Atlas.',
   feedback_placeholder: 'Conte-nos o que deu errado ou como podemos melhorar…',
-  send: 'Enviar'
+  send: 'Enviar',
+  edit_additional_cost: 'Editar custo',
+  delete_additional_cost: 'Excluir custo',
+  confirm_delete_additional_cost: 'Tem certeza de que deseja excluir este custo?',
+  edit_additional_time: 'Editar tempo',
+  delete_additional_time: 'Excluir tempo',
+  confirm_delete_additional_time: 'Tem certeza de que deseja excluir este tempo?',
+  reset: 'Redefinir',
+  operation_success: 'A operação foi bem-sucedida',
+  edit_reading: 'Editar leitura',
+  are_you_sure_delete_reading: 'Tem certeza de que deseja excluir esta leitura?'
 };
 export default ptBRJSON;

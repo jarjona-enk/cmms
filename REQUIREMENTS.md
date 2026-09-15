@@ -288,6 +288,23 @@ defaults to `sslmode=prefer`: the connection is still encrypted and no
 certificate hostname check is performed. Do not add `sslmode=verify-full`
 without linking a private DNS zone and switching to the FQDN first.
 
+**PostgreSQL extensions.** Since upstream v1.8.0 the changelog runs
+`CREATE EXTENSION IF NOT EXISTS unaccent` (accent-insensitive search). On Azure
+Database for PostgreSQL Flexible Server an extension must be **allow-listed in
+the `azure.extensions` server parameter** before any role can create it,
+otherwise Liquibase stops on that changeset and the application never starts.
+`db-caneast-pmdms` has `PG_STAT_STATEMENTS,PG_TRGM,UNACCENT` (added
+2026-09-15; it is a dynamic parameter, no restart). Check with:
+
+```bash
+az postgres flexible-server parameter show -g RG-CanEast-PMDMS \
+  -s db-caneast-pmdms -n azure.extensions --query value -o tsv
+```
+
+Any other server this app is pointed at needs the same. `unaccent` is a
+*trusted* extension, so once allow-listed the `atlas` role can create it in its
+own database.
+
 Each environment's database password goes into that environment's vault as
 `db-password`.
 
@@ -375,17 +392,19 @@ git tag release/1.6.0-enerkem.1 && git push origin release/1.6.0-enerkem.1
 Tags must carry the upstream release number they are built on. The first
 pipeline step validates this against `UPSTREAM_VERSION` and fails otherwise:
 
-| Tag | Result while `UPSTREAM_VERSION` is `1.6.0` |
+| Tag | Result while `UPSTREAM_VERSION` is `1.8.0` |
 |---|---|
-| `release/1.6.0-enerkem.1` | deploys to production |
-| `release/1.7.0-enerkem.1` | **rejected** — upstream v1.7.0 is not merged |
-| `release/1.6.0` | **rejected** — no `-enerkem.<n>` counter |
-| `release/v1.6.0-enerkem.1` | **rejected** — no `v` prefix |
-| `test/1.6.0-enerkem.1` | **nothing happens** — the trigger only matches `release/*` |
+| `release/1.8.0-enerkem.1` | deploys to production |
+| `release/1.6.0-enerkem.3` | **rejected** — we are past upstream 1.6.0 |
+| `release/1.9.0-enerkem.1` | **rejected** — upstream v1.9.0 is not merged |
+| `release/1.8.0` | **rejected** — no `-enerkem.<n>` counter |
+| `release/v1.8.0-enerkem.1` | **rejected** — no `v` prefix |
+| `test/1.8.0-enerkem.1` | **nothing happens** — the trigger only matches `release/*` |
 
-There is no test environment, so there is no ship-to-test-first step. The
-smoke test in the run is what stands in for it: the image has to boot and serve
-the SPA on the agent before it can reach the registry.
+The counter restarts at 1 after every upstream merge, so the first release on
+the 1.8.0 base is `release/1.8.0-enerkem.1`. There is no test environment and,
+since 2026-09-15, no smoke test in the run either: verify locally before
+tagging (DEVELOPMENT-STATUS.md §12.18 describes what was run for 1.8.0).
 
 ### What a run does
 

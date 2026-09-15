@@ -265,7 +265,8 @@ function SidebarMenu() {
       {isCloudVersion &&
         !company.demo &&
         user.ownsCompany &&
-        !company.subscription.activated && (
+        !company.subscription.activated &&
+        user.superAccountRelations.length === 0 && (
           <Stack
             sx={{
               backgroundColor: 'rgb(51, 194, 255)',
@@ -296,7 +297,22 @@ function SidebarMenu() {
           </Stack>
         )}
       <>
-        {(user.superAccountRelations.length ? [] : menuItems)
+        {(user.superAccountRelations.length
+          ? [
+              {
+                ...menuItems[0],
+                items: menuItems[0].items.filter((item) =>
+                  [
+                    'work_orders',
+                    'Statistics',
+                    'requests',
+                    'preventive_maintenance'
+                  ].includes(item.name)
+                )
+              }
+            ]
+          : menuItems
+        )
           .map((section, index) => {
             const sectionClone = { ...section };
             sectionClone.items = sectionClone.items.filter((item) => {

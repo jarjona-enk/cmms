@@ -14,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.commons.lang3.reflect.FieldUtils.getAllFields;
@@ -45,9 +46,8 @@ public class TenantAspect {
             Parameter parameter = parameters[i];
             if (parameter.isAnnotationPresent(RequestBody.class)) {
                 Object arg = joinPoint.getArgs()[i]; // Get the requestBody
-                if (arg instanceof List) {
-                    List<?> list = (List<?>) arg;
-                    list.forEach(this::validateObject);
+                if (arg instanceof Collection<?> collection) {
+                    collection.forEach(this::validateObject);
                 } else {
                     validateObject(arg);
                 }
@@ -65,9 +65,8 @@ public class TenantAspect {
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
-            if (fieldValue instanceof List) {
-                List<?> list = (List<?>) fieldValue;
-                list.forEach(this::validateFieldElement);
+            if (fieldValue instanceof Collection<?> collection) {
+                collection.forEach(this::validateFieldElement);
             } else {
                 validateFieldElement(fieldValue);
             }
@@ -75,8 +74,7 @@ public class TenantAspect {
     }
 
     private void validateFieldElement(Object object) {
-        if (object instanceof CompanyAudit) {
-            CompanyAudit companyAudit = (CompanyAudit) object;
+        if (object instanceof CompanyAudit companyAudit) {
             if (companyAudit.getId() == null) return;
             entityManager.find(object.getClass(), companyAudit.getId()); // should fail here if from other company
             // because of @PostLoad

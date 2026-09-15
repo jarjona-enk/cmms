@@ -225,7 +225,7 @@ const locale = {
   feedback_description: "フィードバックを送信してください",
   required_feedback: "フィードバックは必須です",
   signature: "署名",
-  required_signature: "画像は必須です",
+  required_signature: "署名は必須です",
   close_wo: "作業指示書を閉じる",
   close: "閉じる",
   task_update_success: "タスクが正常に更新されました",
@@ -1655,6 +1655,7 @@ const locale = {
       "CMMS, コンピュータ化されたメンテナンス管理システム, EAM, エンタープライズ資産管理, オープンソースCMMS, 無料メンテナンスソフトウェア, 作業指示書管理, 予防保全, 資産追跡, 施設管理, メンテナンス追跡ソフトウェア, 設備メンテナンス, Atlas CMMS",
   },
   SSO: "SSO",
+  prefer_one_time_purchase: "一回限りの購入をご希望ですか？永久ライセンスは月額料金の36倍でご利用いただけます。",
 };
 
 export default locale;

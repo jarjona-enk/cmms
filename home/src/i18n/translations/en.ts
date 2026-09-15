@@ -204,7 +204,7 @@ const locale = {
   feedback_description: "Give your feedback",
   required_feedback: "Feedback is required",
   signature: "Signature",
-  required_signature: "Image is required",
+  required_signature: "Signature is required",
   close_wo: "Close Work Order",
   close: "Close",
   task_update_success: "Task updated successfully",
@@ -1647,6 +1647,7 @@ const locale = {
       "CMMS, computerized maintenance management system, EAM, enterprise asset management, open source CMMS, free maintenance software, work order management, preventive maintenance, asset tracking, facility management, maintenance tracking software, equipment maintenance, Atlas CMMS",
   },
   SSO: "SSO",
+  prefer_one_time_purchase: "Prefer a one-time purchase? Perpetual licenses are available at 36× the monthly rate.",
 };
 
 export default locale;

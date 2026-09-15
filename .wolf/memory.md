@@ -443,3 +443,28 @@ blocking.
 
 Noted the cost rather than arguing it again: the smoke test is what caught the
 JWT_SECRET_KEY base64 bug. See DEVELOPMENT-STATUS.md 12.17.
+| 22:32 | Session end: 2 writes across 2 files (striptests.py, notests_docs.py) | 0 reads | ~4303 tok |
+
+## Session: 2026-09-15 22:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 22:58 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/run-local.sh | — | ~564 |
+| 23:07 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/resolve-v180.py | — | ~955 |
+| 23:13 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/api-smoke.sh | — | ~1101 |
+| 23:42 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/api-smoke2.sh | — | ~1385 |
+| 23:55 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-v180.py | — | ~6390 |
+
+## Session note - 2026-09-15 (upstream v1.7.0 + v1.8.0 merged)
+
+Found an in-progress merge of upstream/main on main; aborted with consent.
+Merged v1.7.0 (1 conflict, en.ts) then v1.8.0 (3 conflicts: .gitignore,
+api/pom.xml, OAuth2AuthenticationSuccessHandler) on merge/upstream-* branches.
+UPSTREAM_VERSION 1.6.0 -> 1.7.0 -> 1.8.0 inside the merges. SSO changes intact.
+Owner allow-listed UNACCENT on db-caneast-pmdms (needed by a v1.8.0 changeset).
+Local tests on :8085: fresh install 806 changesets, upgrade 802+4, API suite
+8/8 twice, browser login + grids, SSO redirect pinned to tenant. Traps: stale
+gitignored SPA copy in api/src/main/resources/static; Git Bash curl UTF-8
+mangling; MAIL_RECIPIENTS/MinIO for local runs. See DEVELOPMENT-STATUS 12.18.
+| 23:56 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-fork-and-release-process.md | — | ~1087 |
+| 23:56 | Created ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/atlas-cmms-internal-build-state.md | — | ~865 |

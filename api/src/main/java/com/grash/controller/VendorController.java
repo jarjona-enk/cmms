@@ -44,19 +44,19 @@ public class VendorController {
 
     @PostMapping("/search")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<Page<Vendor>> search(@Parameter(description = "Search criteria for filtering vendors") @RequestBody SearchCriteria searchCriteria, HttpServletRequest req) {
+    public ResponseEntity<Page<VendorShowDTO>> search(@Parameter(description = "Search criteria for filtering " +
+            "vendors") @RequestBody SearchCriteria searchCriteria, HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
             if (user.getRole().getViewPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS)) {
                 searchCriteria.filterCompany(user);
             } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         }
-        return ResponseEntity.ok(vendorService.findBySearchCriteria(searchCriteria));
+        return ResponseEntity.ok(vendorService.findBySearchCriteria(searchCriteria).map(vendorMapper::toShowDto));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public VendorShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<Vendor> optionalVendor = vendorService.findById(id);
@@ -70,7 +70,6 @@ public class VendorController {
 
     @GetMapping("/mini")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public Collection<VendorMiniDTO> getMini(HttpServletRequest req) {
         User user = userService.whoami(req);
         return vendorService.findByCompany(user.getCompany().getId()).stream().map(vendorMapper::toMiniDto).collect(Collectors.toList());
@@ -89,7 +88,6 @@ public class VendorController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public VendorShowDTO patch(@Parameter(description = "Vendor fields to update") @Valid @RequestBody VendorPatchDTO vendor
             , @PathVariable(
                     "id") Long id,
@@ -99,7 +97,7 @@ public class VendorController {
 
         if (optionalVendor.isPresent()) {
             Vendor savedVendor = optionalVendor.get();
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS) || savedVendor.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS) || user.getId().equals(savedVendor.getCreatedBy())) {
                 Vendor updatedVendor = vendorService.update(id, vendor, user.getCompany());
                 return vendorMapper.toShowDto(updatedVendor);
             } else throw new CustomException("Forbidden", HttpStatus.FORBIDDEN);
@@ -108,7 +106,6 @@ public class VendorController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 

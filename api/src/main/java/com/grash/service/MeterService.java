@@ -13,6 +13,7 @@ import com.grash.mapper.MeterMapper;
 import com.grash.model.*;
 import com.grash.model.enums.CustomFieldEntityType;
 import com.grash.model.enums.NotificationType;
+import com.grash.model.enums.PermissionEntity;
 import com.grash.repository.MeterRepository;
 import com.grash.service.CustomFieldValueService;
 import lombok.RequiredArgsConstructor;
@@ -142,7 +143,7 @@ public class MeterService {
     public Collection<Meter> findByAsset(Long id) {
         return meterRepository.findByAsset_Id(id);
     }
-    
+
 
     public Page<MeterShowDTO> findBySearchCriteria(SearchCriteria searchCriteria) {
         SpecificationBuilder<Meter> builder = new SpecificationBuilder<>();
@@ -156,7 +157,6 @@ public class MeterService {
     public void importMeter(Meter meter, MeterImportDTO dto, Company company) {
         checkUsageBasedLimit(company);
         Long companyId = company.getId();
-        Long companySettingsId = company.getCompanySettings().getId();
         meter.setCompany(company);
         meter.setName(dto.getName());
         meter.setUnit(dto.getUnit());
@@ -167,9 +167,10 @@ public class MeterService {
         Optional<Asset> optionalAsset = assetService.findByNameIgnoreCaseAndCompany(dto.getAssetName(),
                 companyId).stream().findFirst();
         optionalAsset.ifPresent(meter::setAsset);
-        Optional<MeterCategory> optionalMeterCategory =
-                meterCategoryService.findByNameIgnoreCaseAndCompanySettings(dto.getMeterCategory(), companySettingsId);
-        optionalMeterCategory.ifPresent(meter::setMeterCategory);
+        if (dto.getMeterCategory() != null && !dto.getMeterCategory().isBlank()) {
+            MeterCategory category = meterCategoryService.getOrCreate(dto.getMeterCategory(), company.getCompanySettings());
+            meter.setMeterCategory(category);
+        }
         List<User> users = new ArrayList<>();
         dto.getUsersEmails().forEach(email -> {
             Optional<User> optionalUser1 = userService.findByEmailAndCompany(email, companyId);
@@ -188,6 +189,11 @@ public class MeterService {
 
     public List<Meter> findByIdsAndCompany(List<Long> ids, Long companyId) {
         return meterRepository.findByIdInAndCompany_Id(ids, companyId);
+    }
+
+    public boolean isAccessibleBy(User user, Meter meter) {
+        return (user.getRole().getViewPermissions().contains(PermissionEntity.METERS) &&
+                (user.getRole().getViewOtherPermissions().contains(PermissionEntity.METERS) || (meter.getCreatedBy() != null && meter.getCreatedBy().equals(user.getId())) || meter.isAssignedTo(user)));
     }
 }
 

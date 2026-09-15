@@ -252,6 +252,8 @@ const locale = {
   column_view: '列表示',
   wo_create_success: '作業指示書が正常に作成されました',
   wo_create_failure: '作業指示書を作成できませんでした',
+  discard_changes: '変更を破棄',
+  discard_changes_question: '保存されていない変更を破棄しますか？\n今すぐ離れると、保存されていない変更が失われます',
   changes_saved_success: '変更が保存されました',
   wo_update_failure: '作業指示書を編集できませんでした',
   wo_delete_success: '作業指示書が正常に削除されました',
@@ -1495,6 +1497,16 @@ const locale = {
   feedback_description1:
     'お気に召さなかったようで残念です。お客さまのフィードバックがAtlasの改善につながります。',
   feedback_placeholder: '何が問題だったか、またはどのように改善できるかをお聞かせください…',
-  send: '送信'
+  send: '送信',
+  edit_additional_cost: '費用を編集',
+  delete_additional_cost: '費用を削除',
+  confirm_delete_additional_cost: 'この費用を削除してもよろしいですか？',
+  edit_additional_time: '時間を編集',
+  delete_additional_time: '時間を削除',
+  confirm_delete_additional_time: 'この時間を削除してもよろしいですか？',
+  reset: 'リセット',
+  operation_success: '操作が成功しました',
+  edit_reading: '読み取りを編集',
+  are_you_sure_delete_reading: 'この読み取りを削除してもよろしいですか？'
 };
 export default locale;

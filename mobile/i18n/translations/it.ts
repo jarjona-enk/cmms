@@ -226,7 +226,7 @@ const locale = {
   feedback_description: 'Dai il tuo feedback',
   required_feedback: 'È richiesto un feedback',
   signature: 'Firma',
-  required_signature: "L'immagine è obbligatoria",
+  required_signature: "La firma è obbligatoria",
   close_wo: 'Chiudi ordine di lavoro',
   close: 'Vicino',
   task_update_success: 'Attività aggiornata con successo',
@@ -256,6 +256,8 @@ const locale = {
   column_view: 'Vista colonna',
   wo_create_success: "L'ordine di lavoro è stato creato correttamente",
   wo_create_failure: "Non è stato possibile creare l'ordine di lavoro",
+  discard_changes: 'Annulla le modifiche',
+  discard_changes_question: 'Annullare le modifiche non salvate?\nSe esci ora, perderai le modifiche non salvate',
   changes_saved_success: 'Le modifiche sono state salvate',
   wo_update_failure: "L'ordine di lavoro non può essere modificato",
   wo_delete_success: "L'ordine di lavoro è stato eliminato correttamente",
@@ -1506,6 +1508,16 @@ const locale = {
   feedback_description1:
     'Ci dispiace saperlo. Il tuo feedback ci aiuta a migliorare Atlas.',
   feedback_placeholder: 'Dicci cosa è andato storto o come possiamo migliorare…',
-  send: 'Invia'
+  send: 'Invia',
+  edit_additional_cost: 'Modifica costo',
+  delete_additional_cost: 'Elimina costo',
+  confirm_delete_additional_cost: 'Sei sicuro di voler eliminare questo costo?',
+  edit_additional_time: 'Modifica tempo',
+  delete_additional_time: 'Elimina tempo',
+  confirm_delete_additional_time: 'Sei sicuro di voler eliminare questo tempo?',
+  reset: 'Reimposta',
+  operation_success: "L'operazione è riuscita",
+  edit_reading: 'Modifica lettura',
+  are_you_sure_delete_reading: 'Sei sicuro di voler eliminare questa lettura?'
 };
 export default locale;

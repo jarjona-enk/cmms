@@ -89,7 +89,7 @@ is compiled into the SPA bundle at image build time, so an image is specific to
 one environment.
 
 The repo-root file **`UPSTREAM_VERSION`** records the upstream release we are
-merged up to (currently `1.6.0`). The pipeline reads it and fails the release
+merged up to (currently `1.8.0`). The pipeline reads it and fails the release
 unless the tag's upstream half matches, so:
 
 - **Bump `UPSTREAM_VERSION` inside the upstream merge itself**, never as a
@@ -103,26 +103,37 @@ mirrored into this repo (see above), so CI cannot see them.
 
 ### Current position
 
-Base is `51341f8e` (2026-06-15), which is after upstream `v1.6.0`.
+Merged up to upstream **`v1.8.0`** (`1f0c04ea`, 2026-07-31) on 2026-09-15, via
+`v1.7.0` first as the policy requires. Merge commits: `ed27a766` (v1.7.0, one
+conflict) and `963b2c0b` (v1.8.0, three conflicts). Both built, started against
+an empty database and against a 1.6.0 database, and passed an API + browser
+smoke locally. Details in DEVELOPMENT-STATUS.md §12.18.
 
 | tag | commits from our base | status |
 |---|---|---|
-| `v1.7.0` (2026-06-19) | +16 | **pending review** — do next |
-| `v1.8.0` (2026-07-31) | +228 | pending, after v1.7.0 |
-| `upstream/main` | +507 | never merge; unreleased |
+| `v1.7.0` (2026-06-19) | merged | done |
+| `v1.8.0` (2026-07-31) | merged | done — `UPSTREAM_VERSION` is `1.8.0` |
+| `upstream/main` | +371 past v1.8.0 | never merge; unreleased |
 
-**We are deliberately pinned to the current base.** Do not start the v1.7.0
-merge on your own initiative — it is reviewed and scheduled by the repo owner.
-Ask first.
+No newer upstream release tag exists as of 2026-09-15 (`git fetch upstream
+--tags` to check). **Do not merge the next one on your own initiative** — it is
+reviewed and scheduled by the repo owner. Ask first.
+
+**v1.8.0 needs the PostgreSQL `unaccent` extension** (changeset
+`2026_07_16_00000000001_create_unaccent`, used by the accent-insensitive
+search). On Azure Flexible Server it must be allow-listed in the
+`azure.extensions` server parameter first; `db-caneast-pmdms` has it since
+2026-09-15. A server without it fails Liquibase on first start.
 
 ### Known conflict hot spots
 
 Measured against our base. When a merge touches these, expect work:
 
-- `frontend/package.json` + `package-lock.json` — **the worst one.** Upstream
-  has since *removed* axios, firebase and jsonwebtoken, while our dependency
-  refresh bumped axios to ^1.7.9. Do not hand-merge the lockfile. Take
-  upstream's both files, re-apply only the pins we still need, then
+- `frontend/package.json` + `package-lock.json` — **the worst one.** On
+  `upstream/main` (not yet in a release tag) axios, firebase and jsonwebtoken
+  are *removed*, while our dependency refresh bumped axios to ^1.7.9. Up to
+  v1.8.0 both auto-merged. When they do collide: do not hand-merge the lockfile.
+  Take upstream's both files, re-apply only the pins we still need, then
   `npm ci && npm run build`. Treat our dep-refresh commit as disposable.
 - `frontend/src/i18n/translations/en.ts` — 23 upstream commits.
 - `api/pom.xml` — 14. Our frontend-maven-plugin and resource-copy blocks live
@@ -206,11 +217,18 @@ Full detail in DEVELOPMENT-STATUS.md §2–3. The parts that break builds:
 - **JDK 17.** The machine default JDK 26 breaks Lombok
   (`ExceptionInInitializerError: ... TypeTag :: UNKNOWN`). JDK 17 is at
   `C:\java\jdk-17`; set `JAVA_HOME` first.
-- **Run `mvnw` from `api/`**, not the repo root — `.mvn` lives in `api/`.
+- **Run `mvnw` from `api/`**, not the repo root — `.mvn` lives in `api/` and the
+  wrapper resolves it from the *current directory*. To build the whole reactor
+  (frontend + jar) from there: `mvnw -f ..\pom.xml -DskipTests package`.
 - **`npm ci`, never `npm install`.** `npm install` rewrites the lockfile and
   drifts i18next into `TS2339: Property 'language' does not exist on type
   'i18n'`. If you see it: `git checkout -- frontend/package-lock.json`.
-- Full build ≈10 min. Use `-DskipFrontend=true` for ~30s Java-only loops.
+- Full build ≈10–15 min. Use `-DskipFrontend=true` for ~1 min Java-only loops —
+  but note it also skips copying `frontend/build` into the jar, so a jar built
+  that way serves whatever is already in `target/classes/static`. If
+  `api/src/main/resources/static/` holds a stale gitignored SPA copy from an
+  older workflow (it did until 2026-09-15), that stale copy is what ships.
+  Delete it (`git clean -fdX api/src/main/resources/static`, keep `source/`).
 - Output is a single fat jar `api/target/app.jar` serving API + SPA on one
   port.
 - The container's **runtime stage is `eclipse-temurin:17-jre-noble`**, not

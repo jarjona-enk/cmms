@@ -43,19 +43,18 @@ public class CustomerController {
 
     @PostMapping("/search")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<Page<Customer>> search(@Parameter(description = "Customer search criteria") @RequestBody SearchCriteria searchCriteria, HttpServletRequest req) {
+    public ResponseEntity<Page<CustomerShowDTO>> search(@Parameter(description = "Customer search criteria") @RequestBody SearchCriteria searchCriteria, HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
             if (user.getRole().getViewPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS)) {
                 searchCriteria.filterCompany(user);
             } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         }
-        return ResponseEntity.ok(customerService.findBySearchCriteria(searchCriteria));
+        return ResponseEntity.ok(customerService.findBySearchCriteria(searchCriteria).map(customerMapper::toShowDto));
     }
 
     @GetMapping("/mini")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public Collection<CustomerMiniDTO> getMini(HttpServletRequest req) {
         User user = userService.whoami(req);
         return customerService.findByCompany(user.getCompany().getId()).stream().map(customerMapper::toMiniDto).collect(Collectors.toList());
@@ -63,7 +62,6 @@ public class CustomerController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public CustomerShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<Customer> optionalCustomer = customerService.findById(id);
@@ -88,7 +86,6 @@ public class CustomerController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public CustomerShowDTO patch(@Parameter(description = "Customer fields to update") @Valid @RequestBody CustomerPatchDTO customer,
                                  @PathVariable("id") Long id,
                                  HttpServletRequest req) {
@@ -97,7 +94,7 @@ public class CustomerController {
 
         if (optionalCustomer.isPresent()) {
             Customer savedCustomer = optionalCustomer.get();
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS) || savedCustomer.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.VENDORS_AND_CUSTOMERS) || user.getId().equals(savedCustomer.getCreatedBy())) {
                 Customer updatedCustomer = customerService.update(id, customer, user.getCompany());
                 return customerMapper.toShowDto(updatedCustomer);
             } else throw new CustomException("Forbidden", HttpStatus.FORBIDDEN);
@@ -106,7 +103,6 @@ public class CustomerController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 

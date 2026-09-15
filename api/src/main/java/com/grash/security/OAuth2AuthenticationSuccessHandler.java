@@ -5,10 +5,10 @@ import com.grash.factory.MailServiceFactory;
 import com.grash.model.Company;
 import com.grash.model.User;
 import com.grash.model.Subscription;
+import com.grash.model.enums.RoleCode;
 import com.grash.repository.UserRepository;
 import com.grash.service.*;
 import com.grash.utils.Helper;
-import com.grash.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,11 +43,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final MailServiceFactory mailServiceFactory;
     private final CompanyService companyService;
     private final RoleService roleService;
+
     @Value("${mail.recipients:#{null}}")
     private String[] recipients;
     @Value("${cloud-version}")
     private boolean cloudVersion;
-    private final Utils utils;
     @Autowired
     @Lazy
     private PasswordEncoder passwordEncoder;
@@ -85,8 +85,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             User user;
 
             if (!userOptional.isPresent()) {
-                // Auto-register new users from SSO if they don't exist
-                // In a real implementation, you might want more complex logic here
                 user = createUserFromOAuth(email, attributes, authToken.getAuthorizedClientRegistrationId());
             } else {
                 user = userOptional.get();
@@ -126,8 +124,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         user.setSsoProviderId(extractProviderId(attributes, provider));
         user.setFirstName(extractFirstName(attributes, provider));
         user.setLastName(extractLastName(attributes, provider));
-        user.setUsername(utils.generateStringId());
-        user.setPassword(passwordEncoder.encode(utils.generateStringId()));
+        user.setUsername(Helper.generateStringId());
+        user.setPassword(passwordEncoder.encode(Helper.generateStringId()));
 
         try {
             Subscription subscription = Subscription.builder()
@@ -147,12 +145,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
             user.setOwnsCompany(true);
             // Roles are global default roles (not per-company), mirroring the
-            // regular signup flow in UserService.signup(). The freshly created
-            // company's roleList is empty, so resolve "Administrator" from the
-            // default roles instead.
-            user.setRole(roleService.findDefaultRoles().stream()
-                    .filter(role -> role.getName().equals("Administrator"))
-                    .findFirst().orElseThrow(() -> new CustomException(
+            // regular signup flow in UserService.signup(). Upstream's typed lookup,
+            // but fail with a clear message rather than a bare .get() if the
+            // default Administrator role is missing.
+            user.setRole(roleService.findDefaultRoleWithCode(RoleCode.ADMIN)
+                    .orElseThrow(() -> new CustomException(
                             "Default Administrator role not found", HttpStatus.INTERNAL_SERVER_ERROR)));
 
             user.setCompany(company);
@@ -188,9 +185,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             case "google":
                 email = (String) attributes.get("email");
                 break;
-            case "github":
-                email = (String) attributes.get("email");
-                break;
             case "microsoft":
                 // Microsoft Entra ID (Azure AD) can return email in different attributes
                 email = (String) attributes.get("email");
@@ -214,8 +208,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             case "google":
             case "microsoft":
                 return (String) attributes.get("sub");
-            case "github":
-                return String.valueOf(attributes.get("id"));
             default:
                 return "unknown";
         }
@@ -226,9 +218,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             case "google":
             case "microsoft":
                 return (String) attributes.get("given_name");
-            case "github":
-                String name = (String) attributes.get("name");
-                return name != null ? name.split(" ")[0] : "User";
             default:
                 return "User";
         }
@@ -238,10 +227,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         switch (registrationId) {
             case "google":
                 return (String) attributes.get("family_name");
-            case "github":
-                String name = (String) attributes.get("name");
-                String[] parts = name != null ? name.split(" ") : new String[]{"User"};
-                return parts.length > 1 ? parts[1] : "";
             case "microsoft":
                 String lastName = (String) attributes.get("family_name");
                 if (lastName == null) {

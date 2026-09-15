@@ -277,6 +277,7 @@ export const editWorkOrder =
       workOrder
     );
     dispatch(slice.actions.editWorkOrder({ workOrder: workOrderResponse }));
+    if (workOrder.archived) dispatch(slice.actions.deleteWorkOrder({ id }));
   };
 export const addFilesToWorkOrder =
   (id: number, files: { id: number }[]): AppThunk =>
@@ -344,23 +345,54 @@ export const getWorkOrdersByPart =
       })
     );
   };
+export interface ReportConfig {
+  cost: boolean;
+  comments: boolean;
+  workOrderHistory: boolean;
+  estimatedTime: boolean;
+  locationAddress: boolean;
+  priority: boolean;
+  workOrderInformation: boolean;
+  relations: boolean;
+  files: boolean;
+  signature: boolean;
+  tasks: boolean;
+}
+
+export interface WorkOrderSendReportDTO {
+  config?: ReportConfig;
+  message?: string;
+  customers: { id: number }[];
+}
+
 export const getPDFReport =
-  (id: number): AppThunk =>
+  (id: number, config?: ReportConfig): AppThunk =>
   async (dispatch): Promise<string> => {
-    const response = await api.get<{ success: boolean; message: string }>(
-      `${basePath}/report/${id}`
+    const response = await api.post<{ success: boolean; message: string }>(
+      `${basePath}/report/${id}`,
+      config
     );
     const { message } = response;
     return message;
   };
 
+export const sendWorkOrderReport =
+  (id: number, body: WorkOrderSendReportDTO): AppThunk =>
+  async (dispatch): Promise<{ success: boolean; message: string }> => {
+    const res = await api.post<{ success: boolean; message: string }>(
+      `${basePath}/${id}/report/send`,
+      body
+    );
+    return res;
+  };
+
 export const getWorkOrderEvents =
-  (start: Date, end: Date): AppThunk =>
+  (start: Date, end: Date, companyId: number = null): AppThunk =>
   async (dispatch) => {
     dispatch(slice.actions.setLoadingGet({ loading: true }));
     const response = await api.post<
       CalendarEvent<WorkOrder | PreventiveMaintenance>[]
-    >(`${basePath}/events`, {
+    >(`${basePath}/events?companyId=${companyId || ''}`, {
       start,
       end
     });

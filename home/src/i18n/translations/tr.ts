@@ -223,7 +223,7 @@ const trJSON = {
   feedback_description: "Geri bildiriminizi bildirin",
   required_feedback: "Geri bildirim gerekli",
   signature: "İmza",
-  required_signature: "Resim gerekli",
+  required_signature: "İmza gereklidir",
   close_wo: "İş Emri Kapat",
   close: "Kapalı",
   task_update_success: "Görev başarıyla güncellendi",
@@ -1696,6 +1696,7 @@ const trJSON = {
     keywords:
       "CMMS, bilgisayarlı bakım yönetim sistemi, EAM, kurumsal varlık yönetimi, açık kaynaklı CMMS, ücretsiz bakım yazılımı, iş emri yönetimi, önleyici bakım, varlık takibi, tesis yönetimi, bakım takip yazılımı, ekipman bakımı, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Tek seferlik satın almayı mı tercih edersiniz? Süresiz lisanslar aylık ücretin 36 katına mevcuttur.",
 };
 
 export default trJSON;

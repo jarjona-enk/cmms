@@ -331,7 +331,7 @@ const frJSON = {
   feedback_description: "Donnez votre avis",
   required_feedback: "L'avis est requis",
   signature: "Signature",
-  required_signature: "L'image est requise",
+  required_signature: "La signature est requise",
   close_wo: "Terminer le bon de travail",
   close: "Fermer",
   task_update_success: "Tâche mise à jour avec succès",
@@ -1740,6 +1740,7 @@ const frJSON = {
     keywords:
       "GMAO, système de gestion de maintenance assistée par ordinateur, EAM, gestion des actifs d'entreprise, GMAO open source, logiciel de maintenance gratuit, gestion des bons de travail, maintenance préventive, suivi des actifs, gestion des installations, logiciel de suivi de maintenance, maintenance des équipements, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Vous préférez un achat unique ? Des licences perpétuelles sont disponibles à 36× le tarif mensuel.",
 };
 
 export default frJSON;

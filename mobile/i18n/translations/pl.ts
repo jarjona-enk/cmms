@@ -230,7 +230,7 @@ const plJSON = {
   feedback_description: 'Przekaż swoją opinię',
   required_feedback: 'Wymagana jest opinia',
   signature: 'Podpis',
-  required_signature: 'Obraz jest wymagany',
+  required_signature: 'Podpis jest wymagany',
   close_wo: 'Zamknij zlecenie robocze',
   close: 'Zamknąć',
   task_update_success: 'Zadanie zostało pomyślnie zaktualizowane',
@@ -260,6 +260,8 @@ const plJSON = {
   column_view: 'Widok kolumny',
   wo_create_success: 'Zlecenie robocze zostało pomyślnie utworzone',
   wo_create_failure: 'Nie można utworzyć zlecenia roboczego',
+  discard_changes: 'Odrzuć zmiany',
+  discard_changes_question: 'Odrzucić niezapisane zmiany?\nJeśli teraz wyjdziesz, stracisz niezapisane zmiany',
   changes_saved_success: 'Zmiany zostały zapisane',
   wo_update_failure: 'Nie można edytować zlecenia roboczego',
   wo_delete_success: 'Zlecenie robocze zostało pomyślnie usunięte',
@@ -1497,6 +1499,16 @@ const plJSON = {
   feedback_description1:
     'Przykro nam to słyszeć. Twoja opinia pomaga nam ulepszać Atlas.',
   feedback_placeholder: 'Powiedz nam, co poszło nie tak lub jak możemy się poprawić…',
-  send: 'Wyślij'
+  send: 'Wyślij',
+  edit_additional_cost: 'Edytuj koszt',
+  delete_additional_cost: 'Usuń koszt',
+  confirm_delete_additional_cost: 'Czy na pewno chcesz usunąć ten koszt?',
+  edit_additional_time: 'Edytuj czas',
+  delete_additional_time: 'Usuń czas',
+  confirm_delete_additional_time: 'Czy na pewno chcesz usunąć ten czas?',
+  reset: 'Reset',
+  operation_success: 'Operacja zakończyła się sukcesem',
+  edit_reading: 'Edytuj odczyt',
+  are_you_sure_delete_reading: 'Czy na pewno chcesz usunąć ten odczyt?'
 };
 export default plJSON;

@@ -22,6 +22,7 @@ import com.grash.service.RequestPortalService;
 import com.grash.service.TaskService;
 import com.grash.service.UserService;
 import com.grash.utils.Helper;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -60,12 +61,17 @@ public class FileController {
                                                       "folder") String folder,
                                               @Parameter(description = "Whether files should be hidden (true/false)") @RequestParam("hidden") String hidden, HttpServletRequest req,
                                               @Parameter(description = "Type of file") @RequestParam("type") FileType fileType,
+                                              @Parameter(hidden = true) @RequestParam(value = "bypass", required =
+                                                      false) Boolean bypass,
                                               @Parameter(description = "Optional task ID to associate files with") @RequestParam(value = "taskId", required = false) Integer taskId) {
         if (!licenseService.hasEntitlement(LicenseEntitlement.FILE_ATTACHMENTS))
             throw new CustomException("You need a license to add a file", HttpStatus.FORBIDDEN);
         User user = userService.whoami(req);
-        if (user.getRole().getCreatePermissions().contains(PermissionEntity.FILES) &&
-                user.getCompany().getSubscription().getSubscriptionPlan().getFeatures().contains(PlanFeatures.FILE)) {
+        if (!rateLimiterService.resolveFileUploadAuthenticatedBucket(String.valueOf(user.getId())).tryConsume(1)) {
+            throw new CustomException("Rate limit exceeded. Try again later.", HttpStatus.TOO_MANY_REQUESTS);
+        }
+        if (Boolean.TRUE.equals(bypass) || (user.getRole().getCreatePermissions().contains(PermissionEntity.FILES) &&
+                user.getCompany().getSubscription().getSubscriptionPlan().getFeatures().contains(PlanFeatures.FILE))) {
             Collection<File> result = new ArrayList<>();
             Arrays.asList(filesReq).forEach(fileReq -> {
                 String filePath = storageServiceFactory.getStorageService().upload(fileReq, folder);
@@ -134,14 +140,13 @@ public class FileController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public FileShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<File> optionalFile = fileService.findById(id);
         if (optionalFile.isPresent()) {
             File savedFile = optionalFile.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.FILES) &&
-                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.FILES) || savedFile.getCreatedBy().equals(user.getId()))) {
+                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.FILES) || user.getId().equals(savedFile.getCreatedBy()))) {
                 return fileMapper.toShowDto(savedFile);
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -149,7 +154,6 @@ public class FileController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public FileShowDTO patch(@Parameter(description = "File fields to update") @Valid @RequestBody FilePatchDTO file,
                              @PathVariable("id") Long id,
                              HttpServletRequest req) {
@@ -158,7 +162,7 @@ public class FileController {
 
         if (optionalFile.isPresent()) {
             File savedFile = optionalFile.get();
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.FILES) || savedFile.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.FILES) || user.getId().equals(savedFile.getCreatedBy())) {
                 savedFile.setName(file.getName());
                 return fileMapper.toShowDto(fileService.update(savedFile));
             } else throw new CustomException("Forbidden", HttpStatus.FORBIDDEN);
@@ -167,7 +171,6 @@ public class FileController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 

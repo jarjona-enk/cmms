@@ -220,7 +220,7 @@ const locale = {
   feedback_description: 'Ge din feedback',
   required_feedback: 'Feedback krävs',
   signature: 'Signatur',
-  required_signature: 'Bild krävs',
+  required_signature: 'Signatur krävs',
   close_wo: 'Stäng arbetsorder',
   close: 'Nära',
   task_update_success: 'Uppgiften har uppdaterats',
@@ -251,6 +251,8 @@ const locale = {
   column_view: 'Kolumnvy',
   wo_create_success: 'Arbetsordern har skapats',
   wo_create_failure: 'Arbetsordern kunde inte skapas',
+  discard_changes: 'Ignorera ändringar',
+  discard_changes_question: 'Ignorera osparade ändringar?\nOm du lämnar nu förlorar du osparade ändringar',
   changes_saved_success: 'Ändringarna har sparats',
   wo_update_failure: 'Arbetsordern kunde inte redigeras',
   wo_delete_success: 'Arbetsordern har raderats',
@@ -1482,6 +1484,16 @@ const locale = {
   feedback_description1:
     'Vi är ledsna att höra det. Din feedback hjälper oss att göra Atlas bättre.',
   feedback_placeholder: 'Berätta vad som gick fel eller hur vi kan förbättras…',
-  send: 'Skicka'
+  send: 'Skicka',
+  edit_additional_cost: 'Redigera kostnad',
+  delete_additional_cost: 'Ta bort kostnad',
+  confirm_delete_additional_cost: 'Är du säker på att du vill ta bort denna kostnad?',
+  edit_additional_time: 'Redigera tid',
+  delete_additional_time: 'Ta bort tid',
+  confirm_delete_additional_time: 'Är du säker på att du vill ta bort denna tid?',
+  reset: 'Återställ',
+  operation_success: 'Åtgärden lyckades',
+  edit_reading: 'Redigera mätning',
+  are_you_sure_delete_reading: 'Är du säker på att du vill ta bort denna mätning?'
 };
 export default locale;

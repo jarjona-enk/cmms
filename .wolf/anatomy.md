@@ -1,13 +1,13 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T02:31:25.136Z
-> Files: 573 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T03:56:28.028Z
+> Files: 579 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
 - `atlas-cmms-azure-infrastructure.md` (~1862 tok)
-- `atlas-cmms-fork-and-release-process.md` (~695 tok)
-- `atlas-cmms-internal-build-state.md` (~789 tok)
+- `atlas-cmms-fork-and-release-process.md` (~1019 tok)
+- `atlas-cmms-internal-build-state.md` (~811 tok)
 - `MEMORY.md` — Memory index (~281 tok)
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-935e-57654313f459/scratchpad/
@@ -16,12 +16,15 @@
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/
 
+- `api-smoke.sh` — Functional API smoke against a locally running app (SSO off): signup, signin, (~1101 tok)
+- `api-smoke2.sh` — Functional API smoke against a locally running app (SSO off). (~1385 tok)
 - `checkvars.py` — Find every $(macro) in the pipeline and classify where it comes from. (~853 tok)
 - `dbname.py` — -*- coding: utf-8 -*- (~1126 tok)
 - `dbuser.py` — -*- coding: utf-8 -*- (~1325 tok)
 - `deploydesc.py` — -*- coding: utf-8 -*- (~1390 tok)
 - `devstatus.py` — -*- coding: utf-8 -*- (~3624 tok)
 - `docs_update.py` — -*- coding: utf-8 -*- (~1732 tok)
+- `docs-v180.py` — ` permits, and the `OAUTH2_TENANT_ID` authority pinning are all (~6390 tok)
 - `envfile.py` — -*- coding: utf-8 -*- (~2022 tok)
 - `notests_docs.py` — -*- coding: utf-8 -*- (~2363 tok)
 - `park.py` — -*- coding: utf-8 -*- (~1694 tok)
@@ -32,6 +35,8 @@
 - `record129.py` — -*- coding: utf-8 -*- (~1943 tok)
 - `req_append.py` — -*- coding: utf-8 -*- (~1594 tok)
 - `req_update.py` — -*- coding: utf-8 -*- (~4279 tok)
+- `resolve-v180.py` — Resolve the three v1.8.0 merge conflicts. Assert-heavy on purpose. (~955 tok)
+- `run-local.sh` — Start api/target/app.jar locally against dev.env and wait for it to come up. (~564 tok)
 - `save1214.py` — -*- coding: utf-8 -*- (~4014 tok)
 - `sec35.py` — -*- coding: utf-8 -*- (~1231 tok)
 - `secrets.py` — -*- coding: utf-8 -*- (~2124 tok)
@@ -46,7 +51,7 @@
 
 ## ./
 
-- `.dockerignore` — Governs the repo-root build context AND therefore the AGPLv3 source zip embedded in the image. Excludes `**/.terraform` (3 x 251 MB provider binaries) and every `*.env` — `dev.env` was reaching the publicly served bundle before 2026-09-10. Not merely a build-speed file (~420 tok)
+- `.dockerignore` — Governs the repo-root build context AND therefore the AGPLv3 source zip embedded in the image. Also excludes a possible stale SPA copy under api/src/main/resources/static (index.html, asset-manifest, static/js|css|media). Excludes `**/.terraform` (3 x 251 MB provider binaries) and every `*.env` — `dev.env` was reaching the publicly served bundle before 2026-09-10. Not merely a build-speed file (~420 tok)
 - `.easignore` (~70 tok)
 - `.gitattributes` — Line endings for the files Linux consumes at runtime. (~357 tok)
 - `.gitignore` — Git ignore rules (~102 tok)
@@ -64,7 +69,7 @@
 - `README.MD` — ⚡ **Features** (~4851 tok)
 - `REQUIREMENTS.md` — REQUIREMENTS.md — what the pipeline and the infrastructure need from you (~3093 tok)
 - `Security.md` — Security Policy (~549 tok)
-- `UPSTREAM_VERSION` (~2 tok)
+- `UPSTREAM_VERSION` — `1.8.0` since 2026-09-15 (merged v1.7.0 then v1.8.0). Bump only inside an upstream merge commit (~2 tok)
 
 ## .azure/
 
@@ -396,6 +401,7 @@
 - `PartConsumptionsByMonth.java` — Class: PartConsumptionsByMonth (~152 tok)
 - `PartConsumptionsByPart.java` — Class: PartConsumptionsByPart (~147 tok)
 - `PartStats.java` — Class: PartStats (~154 tok)
+- `PartTransaction.java` — v1.8.0: renamed from PartConsumption (entity + changeset 2026_06_25_1782400207_part_transaction) (~400 tok)
 
 ## api/src/main/java/com/grash/dto/analytics/requests/
 

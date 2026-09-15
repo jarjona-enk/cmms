@@ -223,7 +223,7 @@ const plJSON = {
   feedback_description: 'Przekaż swoją opinię',
   required_feedback: 'Opinie są wymagane',
   signature: 'Podpis',
-  required_signature: 'Obraz podpisu jest wymagany',
+  required_signature: 'Podpis jest wymagany',
   close_wo: 'Zamknij zlecenie pracy',
   close: 'Zamknij',
   task_update_success: 'Zadanie zostało pomyślnie zaktualizowane',
@@ -1343,6 +1343,7 @@ const plJSON = {
   edit_company: 'Edytuj firmę',
   fill_fields_below: 'Wypełnij poniższe pola',
   IMPORT_CSV_feature: 'Import CSV',
+  RESOURCE_PLANNING_feature: 'Planowanie zasobów',
   no_import_access: 'Ulepsz swój plan, aby importować z CSV, plików Excel',
   members: 'Członkowie',
   assign_user: 'Przypisz użytkownika',
@@ -1375,9 +1376,12 @@ const plJSON = {
   switch_account_description: 'Wybierz konto, aby kontynuować',
   put_location_in_map: 'Umieść lokalizację na mapie',
   confirm_disable_user:
-    'Czy na pewno chcesz wyłączyć {{user}}? Będziesz mógł go włączyć dopiero po miesiącu',
+    'Czy na pewno chcesz wyłączyć {{user}}?',
   user_disabled_success: 'Użytkownik został pomyślnie wyłączony',
   disable: 'Wyłącz',
+  confirm_enable_user:
+    'Czy na pewno chcesz włączyć {{user}}?',
+  enable: 'Włącz',
   manufacturer: 'Producent',
   power: 'Moc',
   import_error: 'Import nie powiódł się',
@@ -1943,8 +1947,31 @@ const plJSON = {
    copy_meter_description:
      'Wypełnij pola poniżej, aby skopiować ten licznik',
    copy_part: 'Kopiuj część',
-   copy_part_description:
-     'Wypełnij pola poniżej, aby skopiować tę część'
+    copy_part_description:
+      'Wypełnij pola poniżej, aby skopiować tę część',
+  customize_report_description: 'Co powinno znaleźć się w tym pliku PDF?',
+  work_order_information: 'Informacje o zleceniu',
+  brand_color: 'Kolor marki',
+  restock_part: 'Uzupełnij część',
+   restock: 'Uzupełnij',
+  export_part_transactions: 'Eksportuj transakcje części',
+  export_parts: 'Eksportuj części',
+  edit_time: 'Edytuj czas',
+  edit_cost: 'Edytuj koszt',
+  confirm_delete_labor: 'Czy na pewno chcesz usunąć tę robociznę?',
+  confirm_delete_additional_cost: 'Czy na pewno chcesz usunąć ten koszt?',
+  discard_changes: 'Odrzuć zmiany',
+  discard_changes_question:
+    "Odrzucić niezapisane zmiany?\n Jeśli opuścisz teraz, stracisz niezapisane zmiany",
+  email_contractors: 'Wyślij e-mail do wykonawców',
+  email_contractors_description: 'Skonfiguruj raport i dodaj opcjonalną wiadomość do wysłania do wykonawców.',
+  custom_message_optional: 'Wiadomość niestandardowa (opcjonalnie)',
+  send_work_order_as_pdf: 'Wyślij zlecenie jako PDF',
+  report_sent_success: 'Raport wysłany pomyślnie',
+  trigger_work_order: 'Uruchom zlecenie',
+  edit_reading: 'Edytuj odczyt',
+  are_you_sure_delete_reading: 'Czy na pewno chcesz usunąć ten odczyt?',
+  no_custom_fields_found: 'Nie znaleziono pól niestandardowych'
 };
 
 export default plJSON;

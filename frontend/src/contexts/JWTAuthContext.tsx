@@ -614,6 +614,9 @@ export const AuthProvider: FC<AuthProviderProps> = (props) => {
       `auth/switch-account?id=${id}`
     );
     const { accessToken } = response;
+    Object.keys(localStorage)
+      .filter((key) => key.endsWith('_filters'))
+      .forEach((key) => localStorage.removeItem(key));
     return loginInternal(accessToken);
   };
   const logout = async (): Promise<void> => {
@@ -859,13 +862,17 @@ export const AuthProvider: FC<AuthProviderProps> = (props) => {
     return state.user.role.viewOtherPermissions.includes(permissionEntity);
   };
   const hasCreatePermission = (permissionEntity: PermissionEntity) => {
-    return state.user.role.createPermissions.includes(permissionEntity);
+    return (
+      state.user.role.createPermissions.includes(permissionEntity) &&
+      state.user.superAccountRelations.length === 0
+    );
   };
   const hasEditPermission = <Entity extends Audit>(
     permissionEntity: PermissionEntity,
     entity: Entity
   ) => {
     if (!entity) return false;
+    if (state.user.superAccountRelations.length > 0) return false;
     if (permissionEntity === PermissionEntity.PEOPLE_AND_TEAMS) {
       return (
         state.user.id === entity.id ||
@@ -939,6 +946,7 @@ export const AuthProvider: FC<AuthProviderProps> = (props) => {
     entity: Entity
   ) => {
     if (!entity) return false;
+    if (state.user.superAccountRelations.length > 0) return false;
     return (
       state.user.id === entity.createdBy ||
       state.user.role.deleteOtherPermissions.includes(permissionEntity)

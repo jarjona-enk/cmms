@@ -1340,6 +1340,7 @@ const locale = {
   edit_company: 'Bedrijf bewerken',
   fill_fields_below: 'Vul de onderstaande velden in',
   IMPORT_CSV_feature: 'CSV-import',
+  RESOURCE_PLANNING_feature: 'Resourceplanning',
   no_import_access:
     'Upgrade uw plan om te importeren vanuit CSV- en Excel-bestanden',
   register_here: 'Hier registreren',
@@ -1447,6 +1448,14 @@ const locale = {
   switch_account: 'Account wisselen',
   switch_to_super_user: 'Overschakelen naar superbeheerder',
   switch_account_description: 'Kies een account om door te gaan',
+  put_location_in_map: 'Put location in map',
+  confirm_disable_user:
+    'Are you sure you want to disable {{user}}?',
+  confirm_enable_user:
+    'Weet u zeker dat u {{user}} wilt inschakelen?',
+  user_disabled_success: 'User disabled successfully',
+  disable: 'Disable',
+  enable: 'Inschakelen',
   manufacturer: 'Fabrikant',
   power: 'Vermogen',
   library: 'Bibliotheek',
@@ -1940,7 +1949,30 @@ const locale = {
    copy_meter_description:
      'Vul de onderstaande velden in om deze meter te kopiëren',
    copy_part: 'Onderdeel kopiëren',
-   copy_part_description:
-     'Vul de onderstaande velden in om dit onderdeel te kopiëren'
+    copy_part_description:
+      'Vul de onderstaande velden in om dit onderdeel te kopiëren',
+  customize_report_description: 'Wat moet er in deze PDF worden opgenomen?',
+  work_order_information: 'Werkorderinformatie',
+  brand_color: 'Merkkleur',
+  restock_part: 'Onderdeel bijvullen',
+   restock: 'Bijvullen',
+  export_part_transactions: 'Onderdeeltransacties exporteren',
+  export_parts: 'Onderdelen exporteren',
+  edit_time: 'Tijd bewerken',
+  edit_cost: 'Kosten bewerken',
+  confirm_delete_labor: 'Weet u zeker dat u deze arbeid wilt verwijderen?',
+  confirm_delete_additional_cost: 'Weet u zeker dat u deze kosten wilt verwijderen?',
+  discard_changes: 'Wijzigingen annuleren',
+  discard_changes_question:
+    "Niet-opgeslagen wijzigingen annuleren?\n Als u nu weggaat, verliest u niet-opgeslagen wijzigingen",
+  email_contractors: 'E-mail aannemers',
+  email_contractors_description: 'Configureer het rapport en voeg een optioneel bericht toe om naar de aannemers te sturen.',
+  custom_message_optional: 'Aangepast bericht (optioneel)',
+  send_work_order_as_pdf: 'Werkorder als PDF verzenden',
+  report_sent_success: 'Rapport succesvol verzonden',
+  trigger_work_order: 'Werkorder activeren',
+  edit_reading: 'Meting bewerken',
+  are_you_sure_delete_reading: 'Weet u zeker dat u deze meting wilt verwijderen?',
+  no_custom_fields_found: 'Geen aangepaste velden gevonden'
 };
 export default locale;

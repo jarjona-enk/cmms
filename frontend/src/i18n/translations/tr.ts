@@ -216,7 +216,7 @@ const trJSON = {
   feedback_description: 'Geri bildiriminizi bildirin',
   required_feedback: 'Geri bildirim gerekli',
   signature: 'İmza',
-  required_signature: 'Resim gerekli',
+  required_signature: 'İmza gereklidir',
   close_wo: 'İş Emri Kapat',
   close: 'Kapalı',
   task_update_success: 'Görev başarıyla güncellendi',
@@ -1291,6 +1291,7 @@ const trJSON = {
   edit_company: 'Şirketi düzenle',
   fill_fields_below: 'Aşağıdaki alanları doldurun',
   IMPORT_CSV_feature: "CSV'yi İçe Aktarma",
+  RESOURCE_PLANNING_feature: 'Kaynak planlama',
   no_import_access:
     'CSV ve Excel dosyalarından içe aktarma planınızı yükseltin',
   members: 'Üyeler',
@@ -1429,9 +1430,12 @@ const trJSON = {
     'Gösterim amacıyla modelin yalnızca küçük bir kısmını tercüme ettik.',
   put_location_in_map: 'konumu haritaya koy',
   confirm_disable_user:
-    '{{user}} ı devre dışı bırakmak istediğinizden emin misiniz? Yalnızca bir ay sonra etkinleştirebileceksiniz',
+    '{{user}} ı devre dışı bırakmak istediğinizden emin misiniz?',
   user_disabled_success: 'Kullanıcı başarıyla devre dışı bırakıldı',
   disable: 'Devre dışı bırakmak',
+  confirm_enable_user:
+    '{{user}} ı etkinleştirmek istediğinizden emin misiniz?',
+  enable: 'Etkinleştir',
   manufacturer: 'Üretici',
   power: 'Güç',
   import_error: 'İçe aktarma başarısız olmadı',
@@ -1943,8 +1947,31 @@ const trJSON = {
    copy_meter_description:
      'Bu sayacı kopyalamak için aşağıdaki alanları doldurun',
    copy_part: 'Parçayı Kopyala',
-   copy_part_description:
-     'Bu parçayı kopyalamak için aşağıdaki alanları doldurun'
+    copy_part_description:
+      'Bu parçayı kopyalamak için aşağıdaki alanları doldurun',
+  customize_report_description: 'Bu PDF\'ye neler dahil edilmeli?',
+  work_order_information: 'İş emri bilgileri',
+  brand_color: 'Marka rengi',
+  restock_part: 'Parçayı Yenile',
+   restock: 'Yenile',
+  export_part_transactions: 'Parça işlemlerini dışa aktar',
+  export_parts: 'Parçaları dışa aktar',
+  edit_time: 'Süreyi Düzenle',
+  edit_cost: 'Maliyeti Düzenle',
+  confirm_delete_labor: 'Bu işçiliği silmek istediğinize emin misiniz?',
+  confirm_delete_additional_cost: 'Bu maliyeti silmek istediğinize emin misiniz?',
+  discard_changes: 'Değişiklikleri İptal Et',
+  discard_changes_question:
+    "Kaydedilmemiş değişiklikler iptal edilsin mi?\n Şimdi ayrılırsanız, kaydedilmemiş değişiklikleri kaybedersiniz",
+  email_contractors: 'Yüklenicilere E-posta Gönder',
+  email_contractors_description: 'Raporu yapılandırın ve yüklenicilere göndermek için isteğe bağlı bir mesaj ekleyin.',
+  custom_message_optional: 'Özel mesaj (isteğe bağlı)',
+  send_work_order_as_pdf: 'İş Emrini PDF Olarak Gönder',
+  report_sent_success: 'Rapor başarıyla gönderildi',
+  trigger_work_order: 'İş Emrini Tetikle',
+  edit_reading: 'Okumayı Düzenle',
+  are_you_sure_delete_reading: 'Bu okumayı silmek istediğinizden emin misiniz?',
+  no_custom_fields_found: 'Özel alan bulunamadı'
 };
 
 export default trJSON;

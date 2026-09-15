@@ -1,5 +1,6 @@
 package com.grash.controller;
 
+import com.grash.advancedsearch.FilterField;
 import com.grash.advancedsearch.SearchCriteria;
 import com.grash.dto.PreventiveMaintenancePatchDTO;
 import com.grash.dto.PreventiveMaintenancePostDTO;
@@ -12,12 +13,16 @@ import com.grash.mapper.WorkOrderMapper;
 import com.grash.model.User;
 import com.grash.model.PreventiveMaintenance;
 import com.grash.model.Schedule;
+import com.grash.model.WorkOrder;
 import com.grash.model.enums.PermissionEntity;
 import com.grash.model.enums.RoleType;
 import com.grash.service.PreventiveMaintenanceService;
 import com.grash.service.ScheduleService;
 import com.grash.service.UserService;
 import com.grash.service.WorkOrderService;
+import com.grash.utils.TenantAspectUtils;
+
+import jakarta.persistence.criteria.JoinType;
 
 
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +39,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -61,20 +67,36 @@ public class PreventiveMaintenanceController {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
             if (user.getRole().getViewPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)) {
-                searchCriteria.filterCompany(user);
+                if (!user.getSuperAccountRelations().isEmpty()) {
+                    List<Long> childCompanyIds = user.getSuperAccountRelations().stream()
+                            .map(rel -> rel.getChildUser().getCompany().getId())
+                            .distinct()
+                            .toList();
+                    searchCriteria.getFilterFields().add(FilterField.builder()
+                            .field("company")
+                            .operation("inm")
+                            .joinType(JoinType.LEFT)
+                            .value("")
+                            .values(new ArrayList<>(childCompanyIds))
+                            .build());
+                } else {
+                    searchCriteria.filterCompany(user);
+                }
             } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         }
-        return ResponseEntity.ok(preventiveMaintenanceService.findBySearchCriteria(searchCriteria));
+        return ResponseEntity.ok(TenantAspectUtils.executeWithDisabledCompanyCheck(() ->
+                preventiveMaintenanceService.findBySearchCriteria(searchCriteria)
+        ));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public PreventiveMaintenanceShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<PreventiveMaintenance> optionalPreventiveMaintenance = preventiveMaintenanceService.findById(id);
         if (optionalPreventiveMaintenance.isPresent()) {
             PreventiveMaintenance savedPreventiveMaintenance = optionalPreventiveMaintenance.get();
+            checkAccessToPreventiveMaintenance(user, savedPreventiveMaintenance);
             return preventiveMaintenanceMapper.toShowDto(savedPreventiveMaintenance);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
     }
@@ -83,9 +105,27 @@ public class PreventiveMaintenanceController {
     @PreAuthorize("permitAll()")
     public List<WorkOrderMiniDTO> getRecentWorkOrders(@PathVariable("id") Long id,
                                                       HttpServletRequest req) {
+        User user = userService.whoami(req);
+        checkAccessToPreventiveMaintenance(user, preventiveMaintenanceService.findByIdAndCompany(id,
+                user.getCompany().getId()).get());
         return workOrderService.findLastByPM(id, 10).stream()
                 .map(workOrderMapper::toMiniDto)
                 .collect(Collectors.toList());
+    }
+
+    @PostMapping("/{id}/trigger-work-order")
+    @PreAuthorize("hasRole('ROLE_CLIENT')")
+    public WorkOrderMiniDTO triggerWorkOrder(@PathVariable("id") Long id, HttpServletRequest req) {
+        User user = userService.whoami(req);
+        if (!(user.getRole().getCreatePermissions().contains(PermissionEntity.WORK_ORDERS))) {
+            throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
+        }
+        PreventiveMaintenance preventiveMaintenance = preventiveMaintenanceService.findById(id)
+                .orElseThrow(() -> new CustomException("PreventiveMaintenance not found", HttpStatus.NOT_FOUND));
+        checkAccessToPreventiveMaintenance(user, preventiveMaintenance);
+        WorkOrder workOrder =
+                preventiveMaintenanceService.createWorkOrderFromPreventiveMaintenance(preventiveMaintenance);
+        return workOrderMapper.toMiniDto(workOrder);
     }
 
     @Transactional
@@ -94,28 +134,29 @@ public class PreventiveMaintenanceController {
     PreventiveMaintenanceShowDTO create(@Parameter(description = "Preventive maintenance data to create") @Valid @RequestBody PreventiveMaintenancePostDTO preventiveMaintenancePost,
                                         HttpServletRequest req) {
         User user = userService.whoami(req);
-        PreventiveMaintenance preventiveMaintenance = preventiveMaintenanceService.create(preventiveMaintenancePost,
-                user);
+        if (user.getRole().getCreatePermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)) {
+            PreventiveMaintenance preventiveMaintenance = preventiveMaintenanceService.create(preventiveMaintenancePost,
+                    user);
 
-        Schedule schedule = preventiveMaintenance.getSchedule();
-        schedule.setDaysOfWeek(preventiveMaintenancePost.getDaysOfWeek());
-        schedule.setRecurrenceBasedOn(preventiveMaintenancePost.getRecurrenceBasedOn());
-        schedule.setRecurrenceType(preventiveMaintenancePost.getRecurrenceType());
-        schedule.setEndsOn(preventiveMaintenancePost.getEndsOn());
-        schedule.setStartsOn(preventiveMaintenancePost.getStartsOn() != null ?
-                preventiveMaintenancePost.getStartsOn() : new Date());
-        schedule.setFrequency(preventiveMaintenancePost.getFrequency());
-        schedule.setDueDateDelay(preventiveMaintenancePost.getDueDateDelay());
-        Schedule savedSchedule = scheduleService.save(schedule);
-        em.refresh(savedSchedule);
-        em.refresh(preventiveMaintenance);
-        scheduleService.scheduleWorkOrder(savedSchedule);
-        return preventiveMaintenanceMapper.toShowDto(preventiveMaintenance);
+            Schedule schedule = preventiveMaintenance.getSchedule();
+            schedule.setDaysOfWeek(preventiveMaintenancePost.getDaysOfWeek());
+            schedule.setRecurrenceBasedOn(preventiveMaintenancePost.getRecurrenceBasedOn());
+            schedule.setRecurrenceType(preventiveMaintenancePost.getRecurrenceType());
+            schedule.setEndsOn(preventiveMaintenancePost.getEndsOn());
+            schedule.setStartsOn(preventiveMaintenancePost.getStartsOn() != null ?
+                    preventiveMaintenancePost.getStartsOn() : new Date());
+            schedule.setFrequency(preventiveMaintenancePost.getFrequency());
+            schedule.setDueDateDelay(preventiveMaintenancePost.getDueDateDelay());
+            Schedule savedSchedule = scheduleService.save(schedule);
+            em.refresh(savedSchedule);
+            em.refresh(preventiveMaintenance);
+            scheduleService.scheduleWorkOrder(savedSchedule);
+            return preventiveMaintenanceMapper.toShowDto(preventiveMaintenance);
+        } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public PreventiveMaintenanceShowDTO patch(@Parameter(description = "Preventive maintenance fields to update") @Valid @RequestBody PreventiveMaintenancePatchDTO preventiveMaintenance
             , @PathVariable("id") Long id,
                                               HttpServletRequest req) {
@@ -124,27 +165,39 @@ public class PreventiveMaintenanceController {
 
         if (optionalPreventiveMaintenance.isPresent()) {
             PreventiveMaintenance savedPreventiveMaintenance = optionalPreventiveMaintenance.get();
-            PreventiveMaintenance patchedPreventiveMaintenance = preventiveMaintenanceService.update(id,
-                    preventiveMaintenance, user);
-            return preventiveMaintenanceMapper.toShowDto(patchedPreventiveMaintenance);
+            if (user.getId().equals(savedPreventiveMaintenance.getCreatedBy())
+                    || user.getRole().getEditOtherPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)) {
+                PreventiveMaintenance patchedPreventiveMaintenance = preventiveMaintenanceService.update(id,
+                        preventiveMaintenance, user);
+                return preventiveMaintenanceMapper.toShowDto(patchedPreventiveMaintenance);
+            } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("PreventiveMaintenance not found", HttpStatus.NOT_FOUND);
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
         Optional<PreventiveMaintenance> optionalPreventiveMaintenance = preventiveMaintenanceService.findById(id);
         if (optionalPreventiveMaintenance.isPresent()) {
-            scheduleService.stopScheduleJobs(optionalPreventiveMaintenance.get().getSchedule().getId());
-            preventiveMaintenanceService.delete(id);
-            return new ResponseEntity(new SuccessResponse(true, "Deleted successfully"),
-                    HttpStatus.OK);
+            PreventiveMaintenance savedPreventiveMaintenance = optionalPreventiveMaintenance.get();
+            if (user.getId().equals(savedPreventiveMaintenance.getCreatedBy())
+                    || user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)) {
+                scheduleService.stopScheduleJobs(optionalPreventiveMaintenance.get().getSchedule().getId());
+                preventiveMaintenanceService.delete(id);
+                return new ResponseEntity(new SuccessResponse(true, "Deleted successfully"),
+                        HttpStatus.OK);
+            } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("PreventiveMaintenance not found", HttpStatus.NOT_FOUND);
     }
 
+    private void checkAccessToPreventiveMaintenance(User user, PreventiveMaintenance preventiveMaintenance) {
+        if (!(user.getRole().getViewPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES) && (user.getId().equals(preventiveMaintenance.getCreatedBy())
+                || user.getRole().getViewOtherPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)))) {
+            throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
+        }
+    }
 }
 
 

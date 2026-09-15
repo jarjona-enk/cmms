@@ -1,5 +1,6 @@
 import {
   Box,
+  CircularProgress,
   Divider,
   Grid,
   IconButton,
@@ -19,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import AddShoppingCartTwoToneIcon from '@mui/icons-material/AddShoppingCartTwoTone';
 import Part from '../../../models/owns/part';
 import { CompanySettingsContext } from '../../../contexts/CompanySettingsContext';
 import { PermissionEntity } from '../../../models/owns/role';
@@ -42,6 +44,7 @@ import { getWorkOrdersByPart } from '../../../slices/workOrder';
 import { getFormattedQuantityWithUnit } from './Parts';
 import { getFormattedCostPerUnit } from '../../../utils/formatters';
 import { getCustomFieldValuesForDetails } from '../type';
+import RestockPartModal from './RestockPartModal';
 
 interface PartDetailsProps {
   part: Part;
@@ -60,12 +63,15 @@ export default function PartDetails(props: PartDetailsProps) {
   const dispatch = useDispatch();
   const [currentTab, setCurrentTab] = useState<string>('details');
   const [isImageViewerOpen, setIsImageViewerOpen] = useState<boolean>(false);
+  const [openRestock, setOpenRestock] = useState<boolean>(false);
   const theme = useTheme();
   const { assetsByPart } = useSelector((state) => state.assets);
   const { workOrdersByPart } = useSelector((state) => state.workOrders);
   const navigate = useNavigate();
   const assets = assetsByPart[part?.id] ?? [];
   const workOrders = workOrdersByPart[part?.id] ?? [];
+  const [loadingAssets, setLoadingAssets] = useState<boolean>(false);
+  const [loadingWorkOrders, setLoadingWorkOrders] = useState<boolean>(false);
   const tabs = [
     { value: 'details', label: t('details') },
     { value: 'assets', label: t('assets') },
@@ -76,9 +82,11 @@ export default function PartDetails(props: PartDetailsProps) {
   const handleTabsChange = (_event: ChangeEvent<{}>, value: string): void => {
     setCurrentTab(value);
     if (value === 'assets' && !assets.length) {
-      dispatch(getAssetsByPart(part.id));
+      setLoadingAssets(true);
+      dispatch(getAssetsByPart(part.id)).finally(() => setLoadingAssets(false));
     } else if (value === 'workOrders' && !workOrders.length) {
-      dispatch(getWorkOrdersByPart(part.id));
+      setLoadingWorkOrders(true);
+      dispatch(getWorkOrdersByPart(part.id)).finally(() => setLoadingWorkOrders(false));
     }
   };
   const firstFieldsToRender = (part: Part): { label: string; value: any }[] => [
@@ -158,6 +166,14 @@ export default function PartDetails(props: PartDetailsProps) {
               onClick={() => onCopy(part)}
             >
               <ContentCopyIcon color="primary" />
+            </IconButton>
+          )}
+          {hasEditPermission(PermissionEntity.PARTS_AND_MULTIPARTS, part) && (
+            <IconButton
+              style={{ marginRight: 10 }}
+              onClick={() => setOpenRestock(true)}
+            >
+              <AddShoppingCartTwoToneIcon color="primary" />
             </IconButton>
           )}
           {hasDeletePermission(PermissionEntity.PARTS_AND_MULTIPARTS, part) && (
@@ -311,7 +327,11 @@ export default function PartDetails(props: PartDetailsProps) {
         )}
         {currentTab === 'assets' && (
           <Box>
-            {assets.length ? (
+            {loadingAssets ? (
+              <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : assets.length ? (
               <List sx={{ width: '100%' }}>
                 {assets.map((asset) => (
                   <ListItemButton
@@ -382,7 +402,11 @@ export default function PartDetails(props: PartDetailsProps) {
         )}
         {currentTab === 'workOrders' && (
           <Box>
-            {workOrders.length ? (
+            {loadingWorkOrders ? (
+              <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : workOrders.length ? (
               <List sx={{ width: '100%' }}>
                 {workOrders.map((workOrder) => (
                   <ListItemButton
@@ -413,6 +437,11 @@ export default function PartDetails(props: PartDetailsProps) {
           </Box>
         )}
       </Grid>
+      <RestockPartModal
+        open={openRestock}
+        onClose={() => setOpenRestock(false)}
+        part={part}
+      />
       {isImageViewerOpen && (
         <div style={{ zIndex: 100 }}>
           <ImageViewer

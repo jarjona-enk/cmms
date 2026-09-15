@@ -34,7 +34,6 @@ public class GeneralPreferencesController {
 
     @GetMapping("")
     @PreAuthorize("permitAll()")
-
     public Collection<GeneralPreferences> getAll(HttpServletRequest req) {
         User user = userService.whoami(req);
         CompanySettings companySettings = user.getCompany().getCompanySettings();
@@ -43,18 +42,20 @@ public class GeneralPreferencesController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public GeneralPreferences getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<GeneralPreferences> optionalGeneralPreferences = generalPreferencesService.findById(id);
         if (optionalGeneralPreferences.isPresent()) {
-            return generalPreferencesService.findById(id).get();
+            GeneralPreferences savedGeneralPreferences = optionalGeneralPreferences.get();
+            if (!savedGeneralPreferences.getCompanySettings().getCompany().getId().equals(user.getCompany().getId())) {
+                throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+            }
+            return savedGeneralPreferences;
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public GeneralPreferences patch(@Parameter(description = "General preferences fields to update") @Valid @RequestBody GeneralPreferencesPatchDTO generalPreferences,
                                     @Parameter(description = "General preferences ID") @PathVariable("id") Long id,
                                     HttpServletRequest req) {

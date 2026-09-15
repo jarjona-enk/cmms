@@ -1347,6 +1347,7 @@ const esJSON = {
   edit_company: 'Editar Empresa',
   fill_fields_below: 'Rellene los campos que aparecen a continuación',
   IMPORT_CSV_feature: 'Importación de CSV',
+  RESOURCE_PLANNING_feature: 'Planificación de recursos',
   no_import_access:
     'Actualice su plan para importar desde archivos CSV y Excel',
   members: 'Miembros',
@@ -1382,9 +1383,12 @@ const esJSON = {
   switch_account_description: 'Seleccione una cuenta para continuar',
   put_location_in_map: 'Poner ubicación en el mapa',
   confirm_disable_user:
-    '¿Estáa seguro de que desea desactivar {{user}}? Solo podrá habilitarlo después de un mes',
+    '¿Está seguro de que desea desactivar {{user}}?',
   user_disabled_success: 'Usuario deshabilitado exitosamente',
   disable: 'Desactivado',
+  confirm_enable_user:
+    '¿Está seguro de que desea activar {{user}}?',
+  enable: 'Activar',
   manufacturer: 'Fabricante',
   power: 'Potencia',
   import_error: 'La importación no se realizó',
@@ -2019,8 +2023,31 @@ const esJSON = {
    copy_meter_description:
      'Complete los campos para copiar este medidor',
    copy_part: 'Copiar repuesto',
-   copy_part_description:
-     'Complete los campos para copiar este repuesto'
+    copy_part_description:
+      'Complete los campos para copiar este repuesto',
+  customize_report_description: '¿Qué debe incluirse en este PDF?',
+  work_order_information: 'Información de la orden de trabajo',
+  brand_color: 'Color de marca',
+  restock_part: 'Reabastecer pieza',
+   restock: 'Reabastecer',
+  export_part_transactions: 'Exportar transacciones de repuestos',
+  export_parts: 'Exportar repuestos',
+  edit_time: 'Editar tiempo',
+  edit_cost: 'Editar costo',
+  confirm_delete_labor: '¿Está seguro de que desea eliminar esta mano de obra?',
+  confirm_delete_additional_cost: '¿Está seguro de que desea eliminar este costo?',
+  discard_changes: 'Descartar cambios',
+  discard_changes_question:
+    "¿Descartar cambios no guardados?\n Si sales ahora, perderás los cambios no guardados",
+  email_contractors: 'Enviar correo a contratistas',
+  email_contractors_description: 'Configure el informe y agregue un mensaje opcional para enviar a los contratistas.',
+  custom_message_optional: 'Mensaje personalizado (opcional)',
+  send_work_order_as_pdf: 'Enviar orden de trabajo como PDF',
+  report_sent_success: 'Informe enviado con éxito',
+  trigger_work_order: 'Activar orden de trabajo',
+  edit_reading: 'Editar lectura',
+  are_you_sure_delete_reading: '¿Está seguro de que desea eliminar esta lectura?',
+  no_custom_fields_found: 'No se encontraron campos personalizados'
 };
 
 export default esJSON;

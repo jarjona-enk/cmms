@@ -47,7 +47,6 @@ public class WorkflowController {
 
     @GetMapping("")
     @PreAuthorize("permitAll()")
-
     public Collection<WorkflowShowDTO> getAll(HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
@@ -73,9 +72,11 @@ public class WorkflowController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public WorkflowShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         Optional<Workflow> optionalWorkflow = workflowService.findById(id);
         if (optionalWorkflow.isPresent()) {
             Workflow savedWorkflow = optionalWorkflow.get();
@@ -85,11 +86,13 @@ public class WorkflowController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public WorkflowShowDTO patch(@Parameter(description = "Workflow fields to update") @Valid @RequestBody WorkflowPostDTO workflow,
                                  @PathVariable("id") Long id,
                                  HttpServletRequest req) {
         User user = userService.whoami(req);
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         Optional<Workflow> optionalWorkflow = workflowService.findById(id);
 
         if (optionalWorkflow.isPresent()) {
@@ -101,9 +104,11 @@ public class WorkflowController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
 
         Optional<Workflow> optionalWorkflow = workflowService.findById(id);
         if (optionalWorkflow.isPresent()) {

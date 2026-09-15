@@ -38,7 +38,6 @@ public class AssetDowntimeController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public AssetDowntime getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getViewPermissions().contains(PermissionEntity.ASSETS)) {
@@ -62,14 +61,13 @@ public class AssetDowntimeController {
             throw new CustomException("The downtime can't occur before the asset in service date",
                     HttpStatus.NOT_ACCEPTABLE);
         }
-        if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS) || optionalAsset.get().getCreatedBy().equals(user.getId())) {
+        if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS) || user.getId().equals(optionalAsset.get().getCreatedBy())) {
             return assetDowntimeService.create(assetDowntimeReq, true);
         } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
     }
 
     @GetMapping("/asset/{id}")
     @PreAuthorize("permitAll()")
-
     public Collection<AssetDowntime> getByAsset(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<Asset> optionalAsset = assetService.findById(id);
@@ -80,28 +78,24 @@ public class AssetDowntimeController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public AssetDowntime patch(@Parameter(description = "Asset downtime fields to update") @Valid @RequestBody AssetDowntimePatchDTO assetDowntime,
                                @PathVariable("id") Long id,
                                HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<AssetDowntime> optionalAssetDowntime = assetDowntimeService.findById(id);
-        if (user.getRole().getCreatePermissions().contains(PermissionEntity.CATEGORIES)) {
-            if (optionalAssetDowntime.isPresent()) {
-                if (canPatchAsset(optionalAssetDowntime.get().getAsset(), user)) {
-                    return assetDowntimeService.update(id, assetDowntime);
-                } else {
-                    throw new CustomException("Can't patch assetDowntime of someone else", HttpStatus.NOT_ACCEPTABLE);
-                }
+        if (optionalAssetDowntime.isPresent()) {
+            if (canPatchAsset(optionalAssetDowntime.get().getAsset(), user)) {
+                return assetDowntimeService.update(id, assetDowntime);
             } else {
-                throw new CustomException("Category not found", HttpStatus.NOT_FOUND);
+                throw new CustomException("Can't patch assetDowntime of someone else", HttpStatus.NOT_ACCEPTABLE);
             }
-        } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
+        } else {
+            throw new CustomException("Category not found", HttpStatus.NOT_FOUND);
+        }
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
@@ -116,7 +110,9 @@ public class AssetDowntimeController {
     }
 
     private boolean canPatchAsset(Asset asset, User user) {
-        return user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS) || asset.getCreatedBy().equals(user.getId());
+        return user.getRole().getEditOtherPermissions().contains(PermissionEntity.ASSETS)
+                || user.getId().equals(asset.getCreatedBy())
+                || asset.getUsers().stream().anyMatch(u -> u.getId().equals(user.getId()));
     }
 }
 

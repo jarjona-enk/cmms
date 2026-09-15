@@ -6,8 +6,6 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
-  MenuItem,
-  Select,
   Stack,
   Typography
 } from '@mui/material';
@@ -22,11 +20,7 @@ import {
 import { GridEnrichedColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
-import {
-  AssetDTO,
-  AssetStatus,
-  assetStatuses
-} from '../../../../models/owns/asset';
+import { AssetDTO } from '../../../../models/owns/asset';
 import { useDispatch, useSelector } from '../../../../store';
 import { editAsset } from '../../../../slices/asset';
 import useAuth from '../../../../hooks/useAuth';
@@ -38,6 +32,7 @@ import {
 } from '../../../../slices/assetDowntime';
 import { useContext, useEffect, useState } from 'react';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
+import AssetStatusSelect from '../components/AssetStatusSelect';
 import Form from '../../components/form';
 import * as Yup from 'yup';
 import { IField } from '../../type';
@@ -65,9 +60,13 @@ const AssetDowntimes = ({ asset }: PropsType) => {
   const [currentDowntime, setCurrentDowntime] = useState<AssetDowntime>();
   const { showSnackBar } = useContext(CustomSnackBarContext);
   const { getFormattedDate } = useContext(CompanySettingsContext);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (asset) dispatch(getAssetDowntimes(asset.id));
+    if (asset) {
+      setLoading(true);
+      dispatch(getAssetDowntimes(asset.id)).finally(() => setLoading(false));
+    }
   }, [asset]);
   const handleDelete = (id: number) => {
     if (window.confirm(t('confirm_delete_asset_downtime'))) {
@@ -277,26 +276,18 @@ const AssetDowntimes = ({ asset }: PropsType) => {
           <Card sx={{ p: 2 }}>
             <Box sx={{ height: 550, width: '95%' }}>
               <Stack direction="row" justifyContent="space-between" py={3}>
-                <Select
+                <AssetStatusSelect
                   value={asset?.status ?? 'OPERATIONAL'}
-                  onChange={(event) => {
+                  onChange={(status) => {
                     dispatch(
                       editAsset(asset.id, {
                         ...asset,
-                        status: event.target.value as AssetStatus
+                        status
                       })
                     );
                   }}
-                >
-                  {assetStatuses.map((assetStatusConfig) => (
-                    <MenuItem
-                      key={assetStatusConfig.status}
-                      value={assetStatusConfig.status}
-                    >
-                      {t(assetStatusConfig.status)}
-                    </MenuItem>
-                  ))}
-                </Select>
+                  disabled={!hasEditPermission(PermissionEntity.ASSETS, asset)}
+                />
                 {hasEditPermission(PermissionEntity.ASSETS, asset) && (
                   <Button
                     startIcon={<AddTwoToneIcon />}
@@ -319,6 +310,7 @@ const AssetDowntimes = ({ asset }: PropsType) => {
                     columnVisibilityModel: {}
                   }
                 }}
+                loading={loading}
               />
             </Box>
           </Card>

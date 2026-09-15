@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import jakarta.persistence.*;
 
@@ -73,8 +74,11 @@ public class GeneralPreferences {
     @Schema(description = "CSV separator character", requiredMode = Schema.RequiredMode.REQUIRED)
     private String csvSeparator = ",";
 
+    private String color;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JsonIgnore
+    @ToString.Exclude
     private CompanySettings companySettings;
 
     public GeneralPreferences(CompanySettings companySettings) {

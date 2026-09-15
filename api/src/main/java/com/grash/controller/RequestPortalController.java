@@ -1,11 +1,14 @@
 package com.grash.controller;
 
+import com.grash.advancedsearch.SearchCriteria;
 import com.grash.dto.SuccessResponse;
 import com.grash.dto.requestPortal.*;
 import com.grash.exception.CustomException;
 import com.grash.mapper.RequestPortalMapper;
 import com.grash.model.RequestPortal;
 import com.grash.model.User;
+import com.grash.model.enums.PermissionEntity;
+import com.grash.model.enums.RoleType;
 import com.grash.security.CurrentUser;
 import com.grash.service.RequestPortalService;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,9 +33,13 @@ public class RequestPortalController {
 
     @PostMapping("/search")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-    public Page<RequestPortalShowDTO> search(@Parameter(description = "Request portal search criteria") @RequestBody RequestPortalCriteria requestPortalCriteria,
-                                             @Parameter(hidden = true) @CurrentUser User user, Pageable pageable) {
-        return requestPortalService.findByCriteria(requestPortalCriteria, pageable, user).map(requestPortalMapper::toShowDto);
+    public Page<RequestPortalShowDTO> search(@Parameter(description = "Request portal search criteria") @RequestBody SearchCriteria searchCriteria,
+                                             @Parameter(hidden = true) @CurrentUser User user) {
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS))
+            throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
+        searchCriteria.filterCompany(user);
+
+        return requestPortalService.findBySearchCriteria(searchCriteria).map(requestPortalMapper::toShowDto);
     }
 
 
@@ -40,12 +47,18 @@ public class RequestPortalController {
     @PreAuthorize("hasRole('ROLE_CLIENT')")
     public RequestPortalShowDTO create(@Parameter(description = "Request portal to create") @RequestBody @Valid RequestPortalPostDTO requestPortal,
                                        @Parameter(hidden = true) @CurrentUser User user) {
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         return requestPortalMapper.toShowDto(requestPortalService.create(requestPortal, user));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
     public RequestPortalShowDTO getById(@PathVariable Long id, @Parameter(hidden = true) @CurrentUser User user) {
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         return requestPortalMapper.toShowDto(requestPortalService.findById(id).orElseThrow(() -> new CustomException(
                 "Not found",
                 HttpStatus.NOT_FOUND)));
@@ -64,6 +77,9 @@ public class RequestPortalController {
     public RequestPortalShowDTO update(@PathVariable Long id,
                                        @Parameter(description = "Request portal fields to update") @RequestBody @Valid RequestPortalPatchDTO requestPortal,
                                        @Parameter(hidden = true) @CurrentUser User user) {
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         return requestPortalMapper.toShowDto(requestPortalService.update(id, requestPortal, user));
     }
 
@@ -71,7 +87,9 @@ public class RequestPortalController {
     @PreAuthorize("hasRole('ROLE_CLIENT')")
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id,
                                                   @Parameter(hidden = true) @CurrentUser User user) {
-
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.SETTINGS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         RequestPortal savedRequestPortal =
                 requestPortalService.findById(id).orElseThrow(() -> new CustomException("Not found",
                         HttpStatus.NOT_FOUND));

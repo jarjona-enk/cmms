@@ -225,7 +225,7 @@ const plJSON = {
   feedback_description: "Przekaż swoją opinię",
   required_feedback: "Opinie są wymagane",
   signature: "Podpis",
-  required_signature: "Obraz podpisu jest wymagany",
+  required_signature: "Podpis jest wymagany",
   close_wo: "Zamknij zlecenie pracy",
   close: "Zamknij",
   task_update_success: "Zadanie zostało pomyślnie zaktualizowane",
@@ -1652,6 +1652,7 @@ const plJSON = {
     keywords:
       "CMMS, komputerowy system zarządzania konserwacją, EAM, zarządzanie majątkiem przedsiębiorstwa, cmms open source, darmowe oprogramowanie do konserwacji, zarządzanie zleceniami pracy, konserwacja zapobiegawcza, śledzenie zasobów, zarządzanie obiektami, oprogramowanie do śledzenia konserwacji, konserwacja sprzętu, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Wolisz jednorazowy zakup? Licencje wieczyste są dostępne za 36× stawki miesięcznej.",
 };
 
 export default plJSON;

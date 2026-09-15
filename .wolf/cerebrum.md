@@ -21,6 +21,36 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Upstream merges (2026-09-15): merged up to v1.8.0 via v1.7.0.** An
+  in-progress merge of `upstream/main` was found on `main` and aborted — always
+  check `.git/MERGE_HEAD` against the tag you were asked for before resolving
+  anything. Path: `merge/upstream-vX` branch, `git merge vX --no-commit`,
+  resolve, bump UPSTREAM_VERSION in the same commit, build, smoke, `--no-ff` into
+  main. Owner's standing choice for the SSO role lookup: upstream's typed API +
+  our `orElseThrow`.
+- **`unaccent` is required since v1.8.0** and must be allow-listed in
+  `azure.extensions` on any Azure Flexible Server before first start.
+- **Local run recipe** (`scratchpad/run-local.sh` pattern): JDK 17, port 8085
+  (8080 is often taken by another project), `MAIL_RECIPIENTS` and
+  `ENABLE_EMAIL_NOTIFICATIONS=false` must be passed, MinIO container
+  `cmms-minio` for `STORAGE_TYPE=minio`, `PUBLIC_API_URL`/`PUBLIC_FRONT_URL`
+  overridden to the port. `atlas` local role cannot CREATE DATABASE — wipe the
+  `public` schema instead and keep a `pg_dump -Fc` to restore.
+- **Git Bash + native curl.exe mangles UTF-8 arguments** (ANSI codepage). Send
+  JSON bodies from files with `--data-binary @file`; write them with `printf`
+  `\xNN` escapes.
+- **Stale SPA copy trap:** `api/src/main/resources/static/` may hold a
+  gitignored old build. `-DskipFrontend=true` skips the copy that would
+  overwrite it. Clean it (`git clean -fdX api/src/main/resources/static`, keep
+  `source/`) before trusting a local jar; check the `main.<hash>.js` the served
+  `index.html` references against `frontend/build/index.html`.
+- **Do not pipe `docker run` into `head`** — SIGPIPE kills the pull before the
+  container exists. Redirect to a file instead.
+- **Maven wrapper:** run from `api/`; the PowerShell tool is the reliable way
+  (`& $mvn -f ..\pom.xml ...`); `cmd //c` quoting of `mvnw.cmd` paths fails.
+  The wrapper's own Maven lives under `~/.m2/wrapper/dists/`.
+- **Parallel Python edits to the same file race** — the last writer wins and
+  silently drops the other edit. Serialize edits to one file.
 - **The pipeline runs NO tests.** Decided 2026-09-15: "remove all the tests you
   do during the build... If it doesn't work we will fix it." Build, push,
   deploy. Do not reintroduce a smoke test, and do not make the post-deploy
