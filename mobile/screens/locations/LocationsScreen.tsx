@@ -47,7 +47,9 @@ export default function LocationsScreen({
     locationsHierarchy,
     loadingGet,
     currentPageNum,
-    lastPage
+    lastPage,
+    locationChildrenPageNum,
+    locationChildrenLastPage
   } = useSelector((state) => state.locations);
   const theme = useAppTheme();
   const [view, setView] = useState<'hierarchy' | 'list'>('hierarchy');
@@ -116,7 +118,7 @@ export default function LocationsScreen({
       criteria,
       setCriteria,
       setSearchQuery,
-      ['name', 'address']
+      ['name', 'address', 'customId', 'customFieldValues.value']
     );
     setView('list');
   };
@@ -269,6 +271,23 @@ export default function LocationsScreen({
       ) : (
         <ScrollView
           style={styles.scrollView}
+          onScroll={({ nativeEvent }) => {
+            if (isCloseToBottom(nativeEvent)) {
+              if (
+                !loadingGet &&
+                !locationChildrenLastPage[route.params?.id ?? 0]
+              ) {
+                dispatch(
+                  getLocationChildren(
+                    route.params?.id ?? 0,
+                    route.params?.hierarchy ?? [],
+                    (locationChildrenPageNum[route.params?.id ?? 0] ?? 0) + 1
+                  )
+                );
+              }
+            }
+          }}
+          scrollEventThrottle={400}
           refreshControl={
             <RefreshControl
               refreshing={loadingGet}

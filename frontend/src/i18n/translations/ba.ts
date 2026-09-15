@@ -226,7 +226,7 @@ const locale = {
   feedback_description: 'Dajte svoju povratnu informaciju',
   required_feedback: 'Povratna informacija je obavezna',
   signature: 'Potpis',
-  required_signature: 'Slika je obavezna',
+  required_signature: 'Potpis je obavezan',
   close_wo: 'Zatvori radni nalog',
   close: 'Zatvori',
   task_update_success: 'Zadatak uspješno ažuriran',
@@ -1316,6 +1316,7 @@ const locale = {
   edit_company: 'Uredi kompaniju',
   fill_fields_below: 'Popunite polja ispod',
   IMPORT_CSV_feature: 'CSV uvoz',
+  RESOURCE_PLANNING_feature: 'Planiranje resursa',
   no_import_access: 'Nadogradite svoj plan za uvoz iz CSV, Excel datoteka',
   members: 'Članovi',
   assign_user: 'Dodijeli korisnika',
@@ -1349,9 +1350,12 @@ const locale = {
   switch_account_description: 'Molimo odaberite nalog za nastavak',
   put_location_in_map: 'Postavi lokaciju na mapu',
   confirm_disable_user:
-    'Jeste li sigurni da želite onemogućiti {{user}}? Moći ćete ga ponovo omogućiti tek nakon mjesec dana.',
+    'Jeste li sigurni da želite onemogućiti {{user}}?',
   user_disabled_success: 'Korisnik uspješno onemogućen',
   disable: 'Onemogući',
+  confirm_enable_user:
+    'Jeste li sigurni da želite omogućiti {{user}}?',
+  enable: 'Omogući',
   manufacturer: 'Proizvođač',
   power: 'Snaga',
   import_error: 'Uvoz nije uspio',
@@ -1929,8 +1933,31 @@ const locale = {
    copy_meter_description:
      'Popunite polja ispod da kopirate ovo brojilo',
    copy_part: 'Kopiraj dio',
-   copy_part_description:
-     'Popunite polja ispod da kopirate ovaj dio'
+    copy_part_description:
+      'Popunite polja ispod da kopirate ovaj dio',
+  customize_report_description: 'Šta treba biti uključeno u ovaj PDF?',
+  work_order_information: 'Informacije radnog naloga',
+  brand_color: 'Boja brenda',
+  restock_part: 'Dopuni dio',
+   restock: 'Dopuni',
+  export_part_transactions: 'Izvoz transakcija dijelova',
+  export_parts: 'Izvoz dijelova',
+  edit_time: 'Uredi vrijeme',
+  edit_cost: 'Uredi trošak',
+  confirm_delete_labor: 'Jeste li sigurni da želite izbrisati ovaj rad?',
+  confirm_delete_additional_cost: 'Jeste li sigurni da želite izbrisati ovaj trošak?',
+  discard_changes: 'Odbaci promjene',
+  discard_changes_question:
+    "Odbaci nesačuvane izmjene?\n Ako odete sada, izgubit ćete nesačuvane izmjene",
+  email_contractors: 'Emailuj izvođače',
+  email_contractors_description: 'Konfigurišite izvještaj i dodajte opcionalnu poruku za slanje izvođačima.',
+  custom_message_optional: 'Prilagođena poruka (opcionalno)',
+  send_work_order_as_pdf: 'Pošalji radni nalog kao PDF',
+  report_sent_success: 'Izvještaj uspješno poslan',
+  trigger_work_order: 'Aktiviraj radni nalog',
+  edit_reading: 'Uredi očitanje',
+  are_you_sure_delete_reading: 'Jeste li sigurni da želite izbrisati ovo očitanje?',
+  no_custom_fields_found: 'Nema prilagođenih polja'
 };
 
 export default locale;

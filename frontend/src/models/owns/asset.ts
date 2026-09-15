@@ -25,7 +25,7 @@ export const assetStatuses = [
     status: 'INSPECTION_SCHEDULED',
     color: (theme) => theme.palette.warning.main
   },
-  { status: 'COMMISSIONING', color: (theme) => 'grey' },
+  { status: 'COMMISSIONING', color: (theme) => '#808080' },
   { status: 'EMERGENCY_SHUTDOWN', color: (theme) => theme.palette.error.dark }
 ] as const;
 
@@ -59,7 +59,7 @@ export interface AssetDTO extends Audit {
   power: string;
   manufacturer: string;
   customId: string;
-  customFieldValues?: CustomFieldValue[];
+  customFieldValues: CustomFieldValue[];
 }
 export interface AssetRow extends AssetDTO {
   childrenFetched?: boolean;

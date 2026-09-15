@@ -225,7 +225,7 @@ const locale = {
   feedback_description: "Add meg a visszajelzésedet",
   required_feedback: "Visszajelzés kötelező",
   signature: "Aláírás",
-  required_signature: "Kép kötelező",
+  required_signature: "Az aláírás kötelező",
   close_wo: "Munkarendelés Lezárása",
   close: "Lezárás",
   task_update_success: "Feladat sikeresen frissítve",
@@ -1489,6 +1489,7 @@ const locale = {
     keywords:
       "GMAO, számítógépes karbantartás-kezelő rendszer, EAM, vállalati eszközkezelés, nyílt forráskódú GMAO, ingyenes karbantartási szoftver, munkarendelés-kezelés, megelőző karbantartás, eszköz-követés, létesítménykezelés, karbantartás-követő szoftver, berendezés-karbantartás, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Inkább egyszeri vásárlást szeretne? Örökös licencek elérhetők a havi díj 36-szorosáért.",
 };
 
 export default locale;

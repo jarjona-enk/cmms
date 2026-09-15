@@ -230,7 +230,7 @@ const deJSON = {
   feedback_description: 'Geben Sie Ihr Feedback',
   required_feedback: 'Feedback ist erforderlich',
   signature: 'Unterschrift',
-  required_signature: 'Bild ist erforderlich',
+  required_signature: 'Unterschrift ist erforderlich',
   close_wo: 'Arbeitsauftrag schließen',
   close: 'Schließen',
   task_update_success: 'Aufgabe erfolgreich aktualisiert',
@@ -1383,6 +1383,7 @@ const deJSON = {
   edit_company: 'Unternehmen bearbeiten',
   fill_fields_below: 'Füllen Sie die untenstehenden Felder aus',
   IMPORT_CSV_feature: 'CSV-Import',
+  RESOURCE_PLANNING_feature: 'Ressourcenplanung',
   no_import_access:
     'Upgraden Sie Ihren Plan, um aus CSV- und Excel-Dateien zu importieren',
   members: 'Mitglieder',
@@ -1418,9 +1419,12 @@ const deJSON = {
   switch_account_description: 'Bitte wählen Sie ein Konto, um fortzufahren',
   put_location_in_map: 'Standort in Karte einfügen',
   confirm_disable_user:
-    'Sind Sie sicher, dass Sie {{user}} deaktivieren möchten? Sie können es erst nach einem Monat wieder aktivieren',
+    'Sind Sie sicher, dass Sie {{user}} deaktivieren möchten?',
   user_disabled_success: 'Benutzer erfolgreich deaktiviert',
   disable: 'Deaktivieren',
+  confirm_enable_user:
+    'Sind Sie sicher, dass Sie {{user}} aktivieren möchten?',
+  enable: 'Aktivieren',
   manufacturer: 'Hersteller',
   power: 'Leistung',
   import_error: 'Der Import war nicht erfolgreich',
@@ -2028,8 +2032,31 @@ const deJSON = {
    copy_meter_description:
      'Füllen Sie die Felder aus, um diesen Zähler zu kopieren',
    copy_part: 'Teil kopieren',
-   copy_part_description:
-     'Füllen Sie die Felder aus, um dieses Teil zu kopieren'
+    copy_part_description:
+      'Füllen Sie die Felder aus, um dieses Teil zu kopieren',
+  customize_report_description: 'Was soll dieses PDF enthalten?',
+  work_order_information: 'Auftragsinformationen',
+  brand_color: 'Markenfarbe',
+  restock_part: 'Teil nachfüllen',
+   restock: 'Nachfüllen',
+  export_part_transactions: 'Teiletransaktionen exportieren',
+  export_parts: 'Teile exportieren',
+  edit_time: 'Zeit bearbeiten',
+  edit_cost: 'Kosten bearbeiten',
+  confirm_delete_labor: 'Sind Sie sicher, dass Sie diese Arbeitszeit löschen möchten?',
+  confirm_delete_additional_cost: 'Sind Sie sicher, dass Sie diese Kosten löschen möchten?',
+  discard_changes: 'Änderungen verwerfen',
+  discard_changes_question:
+    "Nicht gespeicherte Änderungen verwerfen?\n Wenn Sie jetzt gehen, verlieren Sie nicht gespeicherte Änderungen",
+  email_contractors: 'Auftragnehmer per E-Mail benachrichtigen',
+  email_contractors_description: 'Konfigurieren Sie den Bericht und fügen Sie eine optionale Nachricht hinzu, die an die Auftragnehmer gesendet wird.',
+  custom_message_optional: 'Benutzerdefinierte Nachricht (optional)',
+  send_work_order_as_pdf: 'Arbeitsauftrag als PDF senden',
+  report_sent_success: 'Bericht erfolgreich gesendet',
+  trigger_work_order: 'Arbeitsauftrag auslösen',
+  edit_reading: 'Lesung bearbeiten',
+  are_you_sure_delete_reading: 'Sind Sie sicher, dass Sie diese Lesung löschen möchten?',
+  no_custom_fields_found: 'Keine benutzerdefinierten Felder gefunden'
 };
 
 export default deJSON;

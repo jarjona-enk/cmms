@@ -34,7 +34,6 @@ public class PurchaseOrderCategoryController {
 
     @GetMapping("")
     @PreAuthorize("permitAll()")
-
     public Collection<PurchaseOrderCategory> getAll(HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
@@ -46,7 +45,6 @@ public class PurchaseOrderCategoryController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public PurchaseOrderCategory getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getViewPermissions().contains(PermissionEntity.CATEGORIES)) {
@@ -71,7 +69,6 @@ public class PurchaseOrderCategoryController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public PurchaseOrderCategory patch(@Parameter(description = "Purchase order category fields to update") @Valid @RequestBody CategoryPatchDTO categoryPatchDTO,
                                        @PathVariable("id") Long id,
                                        HttpServletRequest req) {
@@ -88,14 +85,13 @@ public class PurchaseOrderCategoryController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
         Optional<PurchaseOrderCategory> optionalPurchaseOrderCategory = PurchaseOrderCategoryService.findById(id);
         if (optionalPurchaseOrderCategory.isPresent()) {
             PurchaseOrderCategory savedPurchaseOrderCategory = optionalPurchaseOrderCategory.get();
-            if (savedPurchaseOrderCategory.getCreatedBy().equals(user.getId()) || user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.CATEGORIES)) {
+            if (user.getId().equals(savedPurchaseOrderCategory.getCreatedBy()) || user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.CATEGORIES)) {
                 PurchaseOrderCategoryService.delete(id);
                 return new ResponseEntity<>(new SuccessResponse(true, "Deleted successfully"),
                         HttpStatus.OK);

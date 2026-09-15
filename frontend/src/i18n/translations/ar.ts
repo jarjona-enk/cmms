@@ -214,7 +214,7 @@ const locale = {
   feedback_description: 'أعط تعليقك',
   required_feedback: 'مطلوب ردود الفعل',
   signature: 'إمضاء',
-  required_signature: 'الصورة مطلوبة',
+  required_signature: 'التوقيع مطلوب',
   close_wo: 'إغلاق أمر العمل',
   close: 'يغلق',
   task_update_success: 'تم تحديث المهمة بنجاح',
@@ -1262,6 +1262,7 @@ const locale = {
   edit_company: 'تحرير الشركة',
   fill_fields_below: 'إملأ الحقول أدناه',
   IMPORT_CSV_feature: 'استيراد CSV',
+  RESOURCE_PLANNING_feature: 'تخطيط الموارد',
   no_import_access: 'قم بترقية خطتك لاستيراد ملفات CSV وExcel',
   members: 'أعضاء',
   assign_user: 'تعيين المستخدم',
@@ -1294,9 +1295,12 @@ const locale = {
   switch_account_description: 'الرجاء اختيار حساب للمتابعة',
   put_location_in_map: 'ضع الموقع على الخريطة',
   confirm_disable_user:
-    'هل أنت متأكد من رغبتك في تعطيل {{user}}؟ لن تتمكن من تفعيله إلا بعد شهر واحد.',
+    'هل أنت متأكد من رغبتك في تعطيل {{user}}؟',
   user_disabled_success: 'تم تعطيل المستخدم بنجاح',
   disable: 'إبطال',
+  confirm_enable_user:
+    'هل أنت متأكد من رغبتك في تفعيل {{user}}؟',
+  enable: 'تمكين',
   manufacturer: 'الشركة المصنعة',
   power: 'قوة',
   import_error: 'لم ينجح الاستيراد',
@@ -1882,7 +1886,30 @@ const locale = {
      'املأ الحقول أدناه لنسخ هذا العداد',
    copy_part: 'نسخ الجزء',
    copy_part_description:
-     'املأ الحقول أدناه لنسخ هذا الجزء'
+     'املأ الحقول أدناه لنسخ هذا الجزء',
+  customize_report_description: 'ما الذي يجب تضمينه في ملف PDF هذا؟',
+  work_order_information: 'معلومات أمر العمل',
+  brand_color: 'لون العلامة التجارية',
+  restock_part: 'إعادة تخزين القطعة',
+   restock: 'إعادة تخزين',
+  export_part_transactions: 'تصدير معاملات الأجزاء',
+  export_parts: 'تصدير الأجزاء',
+  edit_time: 'تعديل الوقت',
+  edit_cost: 'تعديل التكلفة',
+  confirm_delete_labor: 'هل أنت متأكد أنك تريد حذف هذه العمالة؟',
+  confirm_delete_additional_cost: 'هل أنت متأكد أنك تريد حذف هذه التكلفة؟',
+  discard_changes: 'تجاهل التغييرات',
+  discard_changes_question:
+    "تجاهل التغييرات غير المحفوظة؟\n إذا غادرت الآن، ستفقد التغييرات غير المحفوظة",
+  email_contractors: 'البريد الإلكتروني للمقاولين',
+  email_contractors_description: 'قم بتكوين التقرير وإضافة رسالة اختيارية لإرسالها إلى المقاولين.',
+  custom_message_optional: 'رسالة مخصصة (اختياري)',
+  send_work_order_as_pdf: 'إرسال أمر العمل كملف PDF',
+  report_sent_success: 'تم إرسال التقرير بنجاح',
+  trigger_work_order: 'تنبيء أمر العمل',
+  edit_reading: 'تعديل القراءة',
+  are_you_sure_delete_reading: 'هل أنت متأكد أنك تريد حذف هذه القراءة؟',
+  no_custom_fields_found: 'لم يتم العثور على حقول مخصصة'
 };
 
 export default locale;

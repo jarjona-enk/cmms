@@ -217,7 +217,7 @@ const locale = {
   feedback_description: 'Give your feedback',
   required_feedback: 'Feedback is required',
   signature: 'Signature',
-  required_signature: 'Image is required',
+  required_signature: 'Signature is required',
   close_wo: 'Close Work Order',
   close: 'Close',
   task_update_success: 'Task updated successfully',
@@ -1325,10 +1325,11 @@ const locale = {
   switch_to_super_user: 'Switch to super admin',
   switch_account_description: 'Please choose an account to proceed',
   put_location_in_map: 'Put location in map',
-  confirm_disable_user:
-    'Are you sure you want to disable {{user}}? You will only be able to enable it after one month',
+  confirm_disable_user: 'Are you sure you want to disable {{user}}?',
+  confirm_enable_user: 'Are you sure you want to enable {{user}}?',
   user_disabled_success: 'User disabled successfully',
   disable: 'Disable',
+  enable: 'Enable',
   manufacturer: 'Manufacturer',
   power: 'Power',
   import_error: "The import didn't succeed",
@@ -1878,6 +1879,7 @@ const locale = {
   overdue: 'Overdue',
   due_soon: 'Due Soon',
   all_users: 'All Users',
+  all_companies: 'All Companies',
   team_member: 'Team Member',
   no_data: 'No data',
   hours_left: 'left',
@@ -1890,17 +1892,38 @@ const locale = {
   copy_pm_description:
     'Fill in the fields below to copy a Preventive Maintenance',
   copy_asset: 'Copy Asset',
-  copy_asset_description:
-    'Fill in the fields below to copy this asset',
+  copy_asset_description: 'Fill in the fields below to copy this asset',
   copy_location: 'Copy location',
-  copy_location_description:
-    'Fill in the fields below to copy this location',
+  copy_location_description: 'Fill in the fields below to copy this location',
   copy_meter: 'Copy Meter',
-  copy_meter_description:
-    'Fill in the fields below to copy this Meter',
+  copy_meter_description: 'Fill in the fields below to copy this Meter',
   copy_part: 'Copy Part',
-  copy_part_description:
-    'Fill in the fields below to copy this Part'
+  copy_part_description: 'Fill in the fields below to copy this Part',
+  customize_report_description: 'What should be included on this PDF?',
+  work_order_information: 'Work order information',
+  brand_color: 'Brand color',
+  restock_part: 'Restock part',
+  restock: 'Restock',
+  export_part_transactions: 'Export Part Transactions',
+  export_parts: 'Export parts',
+  RESOURCE_PLANNING_feature: 'Resource Planning',
+  edit_time: 'Edit time',
+  edit_cost: 'Edit cost',
+  confirm_delete_labor: 'Are you sure you want to delete this labor?',
+  confirm_delete_additional_cost: 'Are you sure you want to delete this cost?',
+  discard_changes: 'Discard changes',
+  discard_changes_question:
+    "Discard unsaved changes?\n If you leave now, you'll lose unsaved changes",
+  email_contractors: 'Email Contractors',
+  email_contractors_description:
+    'Configure the report and add an optional message to send to the contractors.',
+  custom_message_optional: 'Custom message (optional)',
+  send_work_order_as_pdf: 'Send Work Order as PDF',
+  report_sent_success: 'Report sent successfully',
+  trigger_work_order: 'Trigger Work Order',
+  edit_reading: 'Edit reading',
+  are_you_sure_delete_reading: 'Are you sure to delete this reading?',
+  no_custom_fields_found: 'No custom fields found'
 };
 
 export default locale;

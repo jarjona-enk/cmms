@@ -234,7 +234,7 @@ const deJSON = {
   feedback_description: 'Geben Sie Ihr Feedback ',
   required_feedback: 'Feedback ist erforderlich ',
   signature: 'Unterschrift ',
-  required_signature: 'Bild ist erforderlich ',
+  required_signature: 'Unterschrift ist erforderlich',
   close_wo: 'Arbeitsauftrag schließen ',
   close: 'Schließen ',
   task_update_success: 'Aufgabe erfolgreich aktualisiert ',
@@ -265,6 +265,8 @@ const deJSON = {
   column_view: 'Spaltenansicht ',
   wo_create_success: 'Der Arbeitsauftrag wurde erfolgreich erstellt ',
   wo_create_failure: 'Der Arbeitsauftrag konnte nicht erstellt werden ',
+  discard_changes: 'Änderungen verwerfen',
+  discard_changes_question: 'Nicht gespeicherte Änderungen verwerfen?\nWenn Sie jetzt gehen, verlieren Sie nicht gespeicherte Änderungen',
   changes_saved_success: 'Die Änderungen wurden gespeichert ',
   wo_update_failure: 'Der Arbeitsauftrag konnte nicht bearbeitet werden ',
   wo_delete_success: 'Der Arbeitsauftrag wurde erfolgreich gelöscht ',
@@ -1565,6 +1567,16 @@ const deJSON = {
   feedback_description1:
     'Das tut uns leid. Ihr Feedback hilft uns, Atlas zu verbessern.',
   feedback_placeholder: 'Teilen Sie uns mit, was nicht funktioniert hat oder wie wir uns verbessern können…',
-  send: 'Senden'
+  send: 'Senden',
+  edit_additional_cost: 'Kosten bearbeiten',
+  delete_additional_cost: 'Kosten löschen',
+  confirm_delete_additional_cost: 'Sind Sie sicher, dass Sie diese Kosten löschen möchten?',
+  edit_additional_time: 'Zeit bearbeiten',
+  delete_additional_time: 'Zeit löschen',
+  confirm_delete_additional_time: 'Sind Sie sicher, dass Sie diese Zeit löschen möchten?',
+  reset: 'Zurücksetzen',
+  operation_success: 'Der Vorgang war erfolgreich',
+  edit_reading: 'Zählerstand bearbeiten',
+  are_you_sure_delete_reading: 'Sind Sie sicher, dass Sie diesen Zählerstand löschen möchten?'
 };
 export default deJSON;

@@ -214,7 +214,7 @@ const locale = {
   feedback_description: 'フィードバックを送信してください',
   required_feedback: 'フィードバックは必須です',
   signature: '署名',
-  required_signature: '画像は必須です',
+  required_signature: '署名は必須です',
   close_wo: '作業指示書を閉じる',
   close: '閉じる',
   task_update_success: 'タスクが正常に更新されました',
@@ -1295,6 +1295,7 @@ const locale = {
   edit_company: '会社を編集',
   fill_fields_below: '以下のフィールドに入力してください',
   IMPORT_CSV_feature: 'CSVインポート',
+  RESOURCE_PLANNING_feature: 'リソース計画',
   no_import_access:
     'CSV、Excelファイルからインポートするにはプランをアップグレードしてください',
   members: 'メンバー',
@@ -1327,9 +1328,12 @@ const locale = {
   switch_account_description: '続行するアカウントを選択してください',
   put_location_in_map: '地図に場所を配置',
   confirm_disable_user:
-    '{{user}} を無効にしますか？1ヶ月後にのみ有効にできます',
+    '{{user}} を無効にしますか？',
   user_disabled_success: 'ユーザーを無効にしました',
   disable: '無効にする',
+  confirm_enable_user:
+    '{{user}} を有効にしますか？',
+  enable: '有効にする',
   manufacturer: 'メーカー',
   power: '電力',
   import_error: 'インポートに失敗しました',
@@ -1899,8 +1903,31 @@ const locale = {
    copy_meter_description:
      '以下のフィールドに入力してこのメーターをコピーします',
    copy_part: '部品をコピー',
-   copy_part_description:
-     '以下のフィールドに入力してこの部品をコピーします'
+    copy_part_description:
+      '以下のフィールドに入力してこの部品をコピーします',
+  customize_report_description: 'このPDFに含める項目を選択してください',
+  work_order_information: '作業指示情報',
+  brand_color: 'ブランドカラー',
+  restock_part: '部品を補充',
+   restock: '補充',
+  export_part_transactions: '部品取引をエクスポート',
+  export_parts: '部品をエクスポート',
+  edit_time: '時間を編集',
+  edit_cost: 'コストを編集',
+  confirm_delete_labor: 'この労務を削除してもよろしいですか？',
+  confirm_delete_additional_cost: 'このコストを削除してもよろしいですか？',
+  discard_changes: '変更を破棄',
+  discard_changes_question:
+    "保存されていない変更を破棄しますか？\n 今すぐ離れると、保存されていない変更が失われます",
+  email_contractors: '請負業者にメール',
+  email_contractors_description: 'レポートを設定し、請負業者に送信するオプションメッセージを追加します。',
+  custom_message_optional: 'カスタムメッセージ（オプション）',
+  send_work_order_as_pdf: '作業指示書をPDFとして送信',
+  report_sent_success: 'レポートが正常に送信されました',
+  trigger_work_order: '作業指示書をトリガー',
+  edit_reading: '読み取りを編集',
+  are_you_sure_delete_reading: 'この読み取りを削除してもよろしいですか？',
+  no_custom_fields_found: 'カスタムフィールドが見つかりません'
 };
 
 export default locale;

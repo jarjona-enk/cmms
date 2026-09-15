@@ -39,27 +39,44 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class Helper {
 
+    private static final Random RANDOM = new SecureRandom();
+
     public String generateString() {
         return UUID.randomUUID().toString();
     }
 
-    public HttpHeaders getPagingHeaders(Page<?> page, int size, String name) {
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("Content-Range", name + (page.getNumber() - 1) * size + "-" + page.getNumber() * size +
-                "/" + page.getTotalElements());
-        responseHeaders.set("Access-Control-Expose-Headers", "Content-Range");
-        return responseHeaders;
+    public static String generateStringId() {
+        StringBuilder returnValue = new StringBuilder(8);
+        for (int i = 0; i < 8; i++) {
+            String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            returnValue.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+        }
+        return returnValue.toString();
+    }
+
+    public static String getFormattedDate(Object date, com.grash.model.enums.DateFormat dateFormat, String timeZone) {
+        if (date == null) return null;
+        String pattern = dateFormat == com.grash.model.enums.DateFormat.MMDDYY ? "MM/dd/yy" : "dd/MM/yy";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern)
+                .withZone(ZoneId.of(timeZone));
+        if (date instanceof Date) return formatter.format(((Date) date).toInstant());
+        if (date instanceof Instant) return formatter.format((Instant) date);
+        if (date instanceof LocalDateTime) return formatter.format(((LocalDateTime) date).atZone(ZoneId.of(timeZone)));
+        return date.toString();
     }
 
     /**
@@ -91,20 +108,6 @@ public class Helper {
         c.setTime(date);
         c.add(Calendar.DATE, days);
         return c.getTime();
-    }
-
-    public static Date getNextOccurrence(Date date, int days) {
-        if (days == 0)
-            throw new CustomException("getNextOccurence should not have 0 as parameter",
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        Date result = date;
-        Date now = new Date();
-
-        while (!result.after(now)) {
-            result = incrementDays(result, days);
-        }
-
-        return result;
     }
 
     public static Date localDateToDate(LocalDate localDate) {
@@ -205,6 +208,7 @@ public class Helper {
             if (index < size - 1) {
                 stringBuilder.append(",");
             }
+            index++;
         }
         return stringBuilder.toString();
     }
@@ -225,21 +229,6 @@ public class Helper {
         } catch (NumberFormatException e) {
             return false;
         }
-    }
-
-    public static <T> ResponseEntity<T> withCache(T entity) {
-        CacheControl cacheControl = CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic();
-        return ResponseEntity.ok()
-                .cacheControl(cacheControl).body(entity);
-    }
-
-    public static Date minusDays(Date date, int days) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.add(Calendar.DAY_OF_MONTH, -days);
-
-        // Get the resulting date after subtracting days
-        return calendar.getTime();
     }
 
     public static List<Role> getDefaultRoles() {
@@ -356,16 +345,17 @@ public class Helper {
             WorkOrderCategoryService workOrderCategoryService
     ) {
         Long companyId = company.getId();
-        Long companySettingsId = company.getCompanySettings().getId();
 
         workOrderBase.setTitle(dto.getTitle());
         workOrderBase.setDescription(dto.getDescription());
         workOrderBase.setPriority(Priority.getPriorityFromString(dto.getPriority()));
         workOrderBase.setEstimatedDuration(dto.getEstimatedDuration());
 
-        Optional<WorkOrderCategory> optionalWorkOrderCategory =
-                workOrderCategoryService.findByNameIgnoreCaseAndCompanySettings(dto.getCategory(), companySettingsId);
-        optionalWorkOrderCategory.ifPresent(workOrderBase::setCategory);
+        if (dto.getCategory() != null && !dto.getCategory().isBlank()) {
+            WorkOrderCategory category = workOrderCategoryService.getOrCreate(dto.getCategory(),
+                    company.getCompanySettings());
+            workOrderBase.setCategory(category);
+        }
 
         Optional<Location> optionalLocation = locationService.findByNameIgnoreCaseAndCompany(dto.getLocationName(),
                 companyId).stream().findFirst();
@@ -425,5 +415,17 @@ public class Helper {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(hash);
+    }
+
+    public static Long resolveCompanyId(User user, Long companyId) {
+        if (companyId == null || companyId.equals(user.getCompany().getId())) {
+            return user.getCompany().getId();
+        }
+        boolean hasAccess = user.getSuperAccountRelations().stream()
+                .anyMatch(rel -> rel.getChildUser().getCompany().getId().equals(companyId));
+        if (!hasAccess) {
+            throw new CustomException("Access denied to company", HttpStatus.FORBIDDEN);
+        }
+        return companyId;
     }
 }

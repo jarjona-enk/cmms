@@ -232,7 +232,7 @@ const locale = {
   feedback_description: 'Add meg a visszajelzésedet',
   required_feedback: 'Visszajelzés kötelező',
   signature: 'Aláírás',
-  required_signature: 'Kép kötelező',
+  required_signature: 'Az aláírás kötelező',
   close_wo: 'Munkarendelés Lezárása',
   close: 'Lezárás',
   task_update_success: 'Feladat sikeresen frissítve',
@@ -1139,6 +1139,7 @@ const locale = {
   edit_company: 'Cég szerkesztése',
   fill_fields_below: 'Töltsd ki az alábbi mezőket',
   IMPORT_CSV_feature: 'CSV importálás',
+  RESOURCE_PLANNING_feature: 'Erőforrás-tervezés',
   no_import_access:
     'Frissítsd a csomagodat CSV, Excel fájlokból való importáláshoz',
   register_here: 'Regisztrálj itt',
@@ -1334,6 +1335,13 @@ const locale = {
   teams: 'Csapatok',
   vendors: 'Beszállítók',
   csv_separator: 'CSV elválasztó',
+  confirm_disable_user:
+    'Are you sure you want to disable {{user}}?',
+  confirm_enable_user:
+    'Biztosan engedélyezni szeretné a(z) {{user}} felhasználót?',
+  user_disabled_success: 'User disabled successfully',
+  disable: 'Disable',
+  enable: 'Engedélyezés',
   open_source_cmms: 'Nyílt forráskódú CMMS',
   'main.title': 'Ingyenes nyílt forráskódú CMMS (karbantartáskezelő szoftver)',
   'home.h1':
@@ -1802,8 +1810,31 @@ const locale = {
    copy_meter_description:
      'Töltse ki az alábbi mezőket a mérő másolásához',
    copy_part: 'Alkatrész másolása',
-   copy_part_description:
-     'Töltse ki az alábbi mezőket az alkatrész másolásához'
+    copy_part_description:
+      'Töltse ki az alábbi mezőket az alkatrész másolásához',
+  customize_report_description: 'Mit tartalmazzon ez a PDF?',
+  work_order_information: 'Munkautasítás információk',
+  brand_color: 'Márkaszín',
+  restock_part: 'Alkatrész feltöltése',
+   restock: 'Feltöltés',
+  export_part_transactions: 'Alkatrész-tranzakciók exportálása',
+  export_parts: 'Alkatrészek exportálása',
+  edit_time: 'Idő szerkesztése',
+  edit_cost: 'Költség szerkesztése',
+  confirm_delete_labor: 'Biztosan törli ezt a munkaórát?',
+  confirm_delete_additional_cost: 'Biztosan törli ezt a költséget?',
+  discard_changes: 'Változtatások elvetése',
+  discard_changes_question:
+    "Elveti a nem mentett módosításokat?\n Ha most elmegy, elveszíti a nem mentett módosításokat",
+  email_contractors: 'Vállalkozók e-mailben',
+  email_contractors_description: 'Állítsa be a jelentést, és adjon hozzá egy opcionális üzenetet a vállalkozóknak.',
+  custom_message_optional: 'Egyéni üzenet (opcionális)',
+  send_work_order_as_pdf: 'Munkautasítás küldése PDF-ként',
+  report_sent_success: 'Jelentés sikeresen elküldve',
+  trigger_work_order: 'Munkautasítás indítása',
+  edit_reading: 'Olvasás szerkesztése',
+  are_you_sure_delete_reading: 'Biztosan törli ezt az olvasást?',
+  no_custom_fields_found: 'Nem találhatók egyéni mezők'
 };
 
 export default locale;

@@ -6,8 +6,10 @@ import com.grash.exception.CustomException;
 import com.grash.mapper.LocationMapper;
 import com.grash.model.Asset;
 import com.grash.model.Location;
+import com.grash.model.RequestPortal;
 import com.grash.model.User;
 import com.grash.model.enums.PermissionEntity;
+import com.grash.model.enums.PortalFieldType;
 import com.grash.model.enums.RoleType;
 import com.grash.service.LocationService;
 import com.grash.service.RateLimiterService;
@@ -68,19 +70,19 @@ public class LocationController {
     //TODO remove. Waiting for mobile app to switch to paginated version.
     @GetMapping("/children/{id}")
     @PreAuthorize("permitAll()")
+    @Deprecated
     public Collection<LocationShowDTO> getChildrenById(@Parameter(description = "Location ID") @PathVariable("id") Long id,
-                                                       Pageable pageable,
                                                        HttpServletRequest req) {
         //only sort is used
         User user = userService.whoami(req);
         if (id.equals(0L) && user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
-            return locationService.findByCompany(user.getCompany().getId(), pageable).stream().filter(location -> location.getParentLocation() == null).map(location -> locationMapper.toShowDto(location, locationService)).collect(Collectors.toList());
+            return locationService.findByCompany(user.getCompany().getId(), Pageable.unpaged()).stream().filter(location -> location.getParentLocation() == null).map(location -> locationMapper.toShowDto(location, locationService)).collect(Collectors.toList());
         }
         Optional<Location> optionalLocation = locationService.findById(id);
         if (optionalLocation.isPresent()) {
             Location savedLocation = optionalLocation.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.LOCATIONS)) {
-                return locationService.findLocationChildren(id, pageable).stream().map(location -> locationMapper.toShowDto(location, locationService)).collect(Collectors.toList());
+                return locationService.findLocationChildren(id, Pageable.unpaged()).stream().map(location -> locationMapper.toShowDto(location, locationService)).collect(Collectors.toList());
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
 
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -121,10 +123,14 @@ public class LocationController {
         if (!rateLimiterService.resolvePublicMiniBucket(clientIp).tryConsume(1)) {
             throw new CustomException("Rate limit exceeded. Try again later.", HttpStatus.TOO_MANY_REQUESTS);
         }
-        return locationService.findByCompany(requestPortalService.findByUuidByUser(portalUUID).get().getCompany().getId()).stream().map(locationMapper::toMiniDto).collect(Collectors.toList());
+        RequestPortal requestPortal = requestPortalService.findByUuidByUser(portalUUID).get();
+        if (requestPortal.getFields().stream().anyMatch(requestPortalField -> requestPortalField.getLocation() != null && requestPortalField.getType().equals(PortalFieldType.LOCATION)))
+            throw new CustomException("This portal is not configured to show locations", HttpStatus.FORBIDDEN);
+        return locationService.findByCompany(requestPortal.getCompany().getId()).stream().map(locationMapper::toMiniDto).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("permitAll()")
     public LocationShowDTO getById(@Parameter(description = "Location ID") @PathVariable("id") Long id,
                                    HttpServletRequest req) {
         User user = userService.whoami(req);
@@ -132,7 +138,7 @@ public class LocationController {
         if (optionalLocation.isPresent()) {
             Location savedLocation = optionalLocation.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.LOCATIONS) &&
-                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.LOCATIONS) || savedLocation.getCreatedBy().equals(user.getId()))) {
+                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.LOCATIONS) || user.getId().equals(savedLocation.getCreatedBy()))) {
                 return locationMapper.toShowDto(savedLocation, locationService);
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -152,7 +158,6 @@ public class LocationController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public LocationShowDTO patch(@Parameter(description = "Location fields to update") @Valid @RequestBody LocationPatchDTO location,
                                  @Parameter(description = "Location ID") @PathVariable("id") Long id,
                                  HttpServletRequest req) {
@@ -161,7 +166,7 @@ public class LocationController {
         if (optionalLocation.isPresent()) {
             Location savedLocation = optionalLocation.get();
             em.detach(savedLocation);
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.LOCATIONS) || savedLocation.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.LOCATIONS) || user.getId().equals(savedLocation.getCreatedBy())) {
                 if (location.getParentLocation() != null && location.getParentLocation().getId().equals(id))
                     throw new CustomException("Parent location cannot be the same id", HttpStatus.NOT_ACCEPTABLE);
 
@@ -174,7 +179,6 @@ public class LocationController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity delete(@Parameter(description = "Location ID") @PathVariable("id") Long id,
                                  HttpServletRequest req) {
         User user = userService.whoami(req);

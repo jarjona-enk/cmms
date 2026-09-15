@@ -37,7 +37,6 @@ public class MultiPartsController {
 
     @GetMapping("")
     @PreAuthorize("permitAll()")
-
     public Collection<MultiPartsShowDTO> getAll(HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
@@ -45,7 +44,7 @@ public class MultiPartsController {
                 return multiPartsService.findByCompany(user.getCompany().getId()).stream().filter(multiPart -> {
                     boolean canViewOthers =
                             user.getRole().getViewOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS);
-                    return canViewOthers || multiPart.getCreatedBy().equals(user.getId());
+                    return canViewOthers || user.getId().equals(multiPart.getCreatedBy());
                 }).map(multiPartsMapper::toShowDto).collect(Collectors.toList());
             } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         } else return multiPartsService.getAll().stream().map(multiPartsMapper::toShowDto).collect(Collectors.toList());
@@ -53,14 +52,13 @@ public class MultiPartsController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public MultiPartsShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<MultiParts> optionalMultiParts = multiPartsService.findById(id);
         if (optionalMultiParts.isPresent()) {
             MultiParts savedMultiParts = optionalMultiParts.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS) &&
-                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS) || savedMultiParts.getCreatedBy().equals(user.getId()))) {
+                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS) || user.getId().equals(savedMultiParts.getCreatedBy()))) {
                 return multiPartsMapper.toShowDto(savedMultiParts);
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -78,7 +76,6 @@ public class MultiPartsController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public MultiPartsShowDTO patch(@Parameter(description = "Multi-part fields to update") @Valid @RequestBody MultiPartsPatchDTO multiParts,
                                    @PathVariable("id") Long id,
                                    HttpServletRequest req) {
@@ -87,7 +84,7 @@ public class MultiPartsController {
 
         if (optionalMultiParts.isPresent()) {
             MultiParts savedMultiParts = optionalMultiParts.get();
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS) || savedMultiParts.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS) || user.getId().equals(savedMultiParts.getCreatedBy())) {
                 return multiPartsMapper.toShowDto(multiPartsService.update(id, multiParts));
             } else throw new CustomException("Forbidden", HttpStatus.FORBIDDEN);
         } else throw new CustomException("MultiParts not found", HttpStatus.NOT_FOUND);
@@ -102,14 +99,13 @@ public class MultiPartsController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
         Optional<MultiParts> optionalMultiParts = multiPartsService.findById(id);
         if (optionalMultiParts.isPresent()) {
             MultiParts savedMultiParts = optionalMultiParts.get();
-            if (savedMultiParts.getId().equals(user.getId()) || user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS)) {
+            if (user.getId().equals(savedMultiParts.getCreatedBy()) || user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.PARTS_AND_MULTIPARTS)) {
                 multiPartsService.delete(id);
                 return new ResponseEntity<>(new SuccessResponse(true, "Deleted successfully"),
                         HttpStatus.OK);

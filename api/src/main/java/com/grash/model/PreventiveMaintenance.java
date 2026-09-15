@@ -42,8 +42,12 @@ public class PreventiveMaintenance extends WorkOrderBase {
 
     public boolean canBeEditedBy(User user) {
         return user.getRole().getEditOtherPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES)
-                || this.getCreatedBy().equals(user.getId());
+                || user.getId().equals(this.getCreatedBy());
     }
 
+    public boolean isAccessibleBy(User user) {
+        return (user.getRole().getViewPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES) &&
+                (user.getRole().getViewOtherPermissions().contains(PermissionEntity.PREVENTIVE_MAINTENANCES) || (getCreatedBy() != null && getCreatedBy().equals(user.getId())) || isAssignedTo(user)));
+    }
 }
 

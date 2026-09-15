@@ -48,10 +48,7 @@ import { PermissionEntity } from '../../models/role';
 import useAuth from '../../hooks/useAuth';
 import { controlTimer, getLabors } from '../../slices/labor';
 import { useDispatch, useSelector } from '../../store';
-import {
-  durationToHours,
-  getHoursAndMinutesAndSeconds
-} from '../../utils/formatters';
+import { durationToHours } from '../../utils/formatters';
 import {
   editWOPartQuantities,
   getPartQuantitiesByWorkOrder
@@ -70,6 +67,8 @@ import {
 } from '../../slices/workOrder';
 import { PlanFeature } from '../../models/subscriptionPlan';
 import PartQuantities from '../../components/PartQuantities';
+import AdditionalCostsCard from './components/AdditionalCostsCard';
+import AdditionalTimesCard from './components/AdditionalTimesCard';
 import { SheetManager } from 'react-native-actions-sheet';
 import LoadingDialog from '../../components/LoadingDialog';
 import WorkOrder from '../../models/workOrder';
@@ -135,9 +134,6 @@ export default function WODetailsScreen({
   );
   const workOrder = workOrderInfos[id]?.workOrder ?? workOrderProp;
   const { t } = useTranslation();
-  const [dropDownValue, setDropdownValue] = useState<string>(
-    workOrder?.status ?? ''
-  );
   const {
     hasEditPermission,
     user,
@@ -428,10 +424,7 @@ export default function WODetailsScreen({
       },
       {
         name: 'completeTime',
-        condition:
-          labors
-            .filter((labor) => labor.logged)
-            .filter((labor) => labor.duration).length === 0,
+        condition: labors.filter((labor) => labor.duration > 0).length === 0,
         message: 'required_labor_on_completion'
       },
       {
@@ -485,7 +478,7 @@ export default function WODetailsScreen({
           generalPreferences.askFeedBackOnWOClosed ||
           workOrder?.requiredSignature
         ) {
-          let error;
+          let error: string;
           if (workOrder?.requiredSignature) {
             if (!hasFeature(PlanFeature.SIGNATURE)) {
               error =
@@ -641,11 +634,6 @@ export default function WODetailsScreen({
   const removeCommentFile = (index: number) => {
     setCommentFiles(commentFiles.filter((_, i) => i !== index));
   };
-
-  useEffect(() => {
-    if (dropDownValue !== workOrder?.status && dropDownValue)
-      onStatusChange(dropDownValue);
-  }, [dropDownValue]);
 
   function ObjectField({
     label,
@@ -877,7 +865,9 @@ export default function WODetailsScreen({
                       payload: {
                         items: statuses,
                         value: workOrder.status,
-                        setValue: setDropdownValue
+                        setValue: (value: string) => {
+                          if (workOrder.status !== value) onStatusChange(value);
+                        }
                       }
                     })
                   }
@@ -1070,83 +1060,15 @@ export default function WODetailsScreen({
                         </Fragment>
                       )}
                     </View>
-                    <View style={styles.shadowedCard}>
-                      <Text
-                        style={{
-                          marginBottom: 10,
-                          color: theme.colors.onSurfaceVariant
-                        }}
-                      >
-                        {t('additional_costs')}
-                      </Text>
-                      {!additionalCosts.length ? (
-                        <Text style={{ fontWeight: 'bold' }}>
-                          {t('no_additional_cost')}
-                        </Text>
-                      ) : (
-                        <View>
-                          {additionalCosts.map((cost) => (
-                            <View
-                              key={cost.id}
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column'
-                              }}
-                            >
-                              <Text
-                                style={{ fontWeight: 'bold' }}
-                                variant="bodyLarge"
-                              >
-                                {cost.description}
-                              </Text>
-                              <Text>{getFormattedCurrency(cost.cost)}</Text>
-                            </View>
-                          ))}
-                          <Text
-                            style={{ fontWeight: 'bold' }}
-                            variant="bodyLarge"
-                          >
-                            {t('total')}
-                          </Text>
-                          <Text>
-                            {getFormattedCurrency(
-                              additionalCosts.reduce(
-                                (acc, additionalCost) =>
-                                  additionalCost.includeToTotalCost
-                                    ? acc + additionalCost.cost
-                                    : acc,
-                                0
-                              )
-                            )}
-                          </Text>
-                        </View>
-                      )}
-                      {hasEditPermission(
-                        PermissionEntity.WORK_ORDERS,
-                        workOrder
-                      ) && (
-                        <Fragment>
-                          <Divider style={{ marginTop: 5 }} />
-                          <Button
-                            disabled={
-                              !(
-                                hasEditPermission(
-                                  PermissionEntity.WORK_ORDERS,
-                                  workOrder
-                                ) && hasFeature(PlanFeature.ADDITIONAL_COST)
-                              )
-                            }
-                            onPress={() =>
-                              navigation.push('AddAdditionalCost', {
-                                workOrderId: workOrder.id
-                              })
-                            }
-                          >
-                            {t('add_additional_cost')}
-                          </Button>
-                        </Fragment>
-                      )}
-                    </View>
+                    <AdditionalCostsCard
+                      additionalCosts={additionalCosts}
+                      workOrder={workOrder}
+                      workOrderId={id}
+                      hasEditPermission={hasEditPermission}
+                      hasFeature={hasFeature}
+                      getFormattedCurrency={getFormattedCurrency}
+                      navigation={navigation}
+                    />
                   </View>
                 )}
                 {!!tasks.length && (
@@ -1251,59 +1173,11 @@ export default function WODetailsScreen({
                         )}
                       </View>
                     )}
-                    <View style={styles.shadowedCard}>
-                      <Text
-                        style={{
-                          marginBottom: 10,
-                          color: theme.colors.onSurfaceVariant
-                        }}
-                      >
-                        {t('labors')}
-                      </Text>
-                      {labors
-                        .filter((labor) => !labor.logged)
-                        .map((labor) => (
-                          <List.Item
-                            key={labor.id}
-                            title={
-                              labor.assignedTo
-                                ? `${labor.assignedTo.firstName} ${labor.assignedTo.lastName}`
-                                : t('not_assigned')
-                            }
-                            description={`${
-                              getHoursAndMinutesAndSeconds(labor.duration)[0]
-                            }h ${
-                              getHoursAndMinutesAndSeconds(labor.duration)[1]
-                            }m`}
-                          />
-                        ))}
-
-                      {hasEditPermission(
-                        PermissionEntity.WORK_ORDERS,
-                        workOrder
-                      ) && (
-                        <Fragment>
-                          <Divider style={{ marginTop: 5 }} />
-                          <Button
-                            disabled={
-                              !(
-                                hasEditPermission(
-                                  PermissionEntity.WORK_ORDERS,
-                                  workOrder
-                                ) && hasFeature(PlanFeature.ADDITIONAL_TIME)
-                              )
-                            }
-                            onPress={() =>
-                              navigation.push('AddAdditionalTime', {
-                                workOrderId: workOrder.id
-                              })
-                            }
-                          >
-                            {t('add_time')}
-                          </Button>
-                        </Fragment>
-                      )}
-                    </View>
+                    <AdditionalTimesCard
+                      labors={labors}
+                      workOrder={workOrder}
+                      navigation={navigation}
+                    />
                     <View style={styles.shadowedCard}>
                       <Text
                         style={{

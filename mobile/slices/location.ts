@@ -17,6 +17,8 @@ interface LocationState {
   locationsMini: LocationMiniDTO[];
   currentPageNum: number;
   lastPage: boolean;
+  locationChildrenPageNum: { [key: number]: number };
+  locationChildrenLastPage: { [key: number]: boolean };
   loadingGet: boolean;
 }
 
@@ -27,6 +29,8 @@ const initialState: LocationState = {
   locationsMini: [],
   currentPageNum: 0,
   lastPage: true,
+  locationChildrenPageNum: {},
+  locationChildrenLastPage: {},
   loadingGet: false
 };
 
@@ -109,14 +113,28 @@ const slice = createSlice({
     },
     getLocationChildren(
       state: LocationState,
-      action: PayloadAction<{ locations: LocationRow[]; id: number }>
+      action: PayloadAction<{
+        locations: LocationRow[];
+        id: number;
+        pageNum: number;
+        lastPage: boolean;
+      }>
     ) {
-      const { locations, id } = action.payload;
+      const { locations, id, pageNum, lastPage } = action.payload;
       const parent = state.locationsHierarchy.findIndex(
         (location) => location.id === id
       );
       if (parent !== -1)
         state.locationsHierarchy[parent].childrenFetched = true;
+
+      if (pageNum === 0) {
+        state.locationsHierarchy = state.locationsHierarchy.filter(
+          (location) => {
+            if (id === 0) return location.hierarchy.length !== 1;
+            return location.hierarchy[location.hierarchy.length - 2] !== id;
+          }
+        );
+      }
 
       state.locationsHierarchy = locations.reduce((acc, location) => {
         //check if location already exists in state
@@ -129,6 +147,9 @@ const slice = createSlice({
         acc[locationInState] = location;
         return acc;
       }, state.locationsHierarchy);
+
+      state.locationChildrenPageNum[id] = pageNum;
+      state.locationChildrenLastPage[id] = lastPage;
     },
     setLoadingGet(
       state: LocationState,
@@ -238,18 +259,27 @@ export const deleteLocation =
   };
 
 export const getLocationChildren =
-  (id: number, parents: number[]): AppThunk =>
+  (id: number, parents: number[], pageNum = 0, pageSize = 20): AppThunk =>
   async (dispatch) => {
-    dispatch(slice.actions.setLoadingGet({ loading: true }));
-    const locations = await api.get<Location[]>(`locations/children/${id}`);
-    dispatch(
-      slice.actions.getLocationChildren({
-        id,
-        locations: locations.map((location) => {
-          return { ...location, hierarchy: [...parents, location.id] };
+    try {
+      dispatch(slice.actions.setLoadingGet({ loading: true }));
+      const page = await api.get<Page<Location>>(
+        `locations/children/${id}/paginated?page=${pageNum}&size=${pageSize}`
+      );
+      dispatch(
+        slice.actions.getLocationChildren({
+          id,
+          pageNum,
+          lastPage: page.last,
+          locations: page.content.map((location) => {
+            return { ...location, hierarchy: [...parents, location.id] };
+          })
         })
-      })
-    );
-    dispatch(slice.actions.setLoadingGet({ loading: false }));
+      );
+    } catch (e) {
+      console.error(e);
+    } finally {
+      dispatch(slice.actions.setLoadingGet({ loading: false }));
+    }
   };
 export default slice;

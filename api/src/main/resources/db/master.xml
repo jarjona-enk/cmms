@@ -219,4 +219,10 @@
              relativeToChangelogFile="true"/>
     <include file="changelog/2026_06_11_00000000001_create_shift_configuration.xml"
              relativeToChangelogFile="true"/>
+    <include file="changelog/2026_06_24_1782321573_company_color.xml"
+             relativeToChangelogFile="true"/>
+    <include file="changelog/2026_06_25_1782400207_part_transaction.xml"
+             relativeToChangelogFile="true"/>
+    <include file="changelog/2026_07_16_00000000001_create_unaccent.xml"
+             relativeToChangelogFile="true"/>
 </databaseChangeLog>

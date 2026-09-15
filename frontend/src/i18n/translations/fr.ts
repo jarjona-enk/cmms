@@ -332,7 +332,7 @@ const frJSON = {
   feedback_description: 'Donnez votre avis',
   required_feedback: "L'avis est requis",
   signature: 'Signature',
-  required_signature: "L'image est requise",
+  required_signature: 'La signature est requise',
   close_wo: 'Terminer le bon de travail',
   close: 'Fermer',
   task_update_success: 'Tâche mise à jour avec succès',
@@ -1462,6 +1462,7 @@ const frJSON = {
   edit_company: "Modifier les informations sur l'entreprise",
   fill_fields_below: 'Remplissez les champs ci-dessous',
   IMPORT_CSV_feature: 'Importation CSV',
+  RESOURCE_PLANNING_feature: 'Planification des ressources',
   no_import_access:
     'Mettez à jour votre plan pour importer depuis des fichiers CSV ou Excel',
   members: 'Membres',
@@ -1498,10 +1499,11 @@ const frJSON = {
   switch_to_super_user: 'Passer en super administrateur',
   switch_account_description: 'Veuillez choisir un compte pour continuer',
   put_location_in_map: "Placer l'emplacement sur une carte",
-  confirm_disable_user:
-    "Etes-vous sûr de désactiver {{user}}? Vous ne pourrez l'activer que dans un mois",
+  confirm_disable_user: 'Etes-vous sûr de désactiver {{user}}?',
   user_disabled_success: 'Utilisateur désactivé',
   disable: 'Désactiver',
+  confirm_enable_user: "Etes-vous sûr d'activer {{user}}?",
+  enable: 'Activer',
   manufacturer: 'Fabriquant',
   power: 'Puissance',
   import_error: "L'importation a échoué",
@@ -2103,23 +2105,49 @@ const frJSON = {
   no_data: 'Aucune donnée',
   hours_left: 'restantes',
   export_cost_and_time: 'Exporter les coûts et le temps',
-   export_work_orders: 'Exporter les ordres de travail',
-   copy_wo: "Copier l'ordre de travail",
-   copy_pm: "Copier la maintenance préventive",
-   copy_pm_description:
-     "Remplissez les champs ci-dessous pour copier une maintenance préventive",
-   copy_asset: "Copier l'équipement",
-   copy_asset_description:
-     "Remplissez les champs ci-dessous pour copier cet équipement",
-   copy_location: "Copier l'emplacement",
-   copy_location_description:
-     "Remplissez les champs ci-dessous pour copier cet emplacement",
-   copy_meter: "Copier le compteur",
-   copy_meter_description:
-     "Remplissez les champs ci-dessous pour copier ce compteur",
-   copy_part: "Copier la pièce",
-   copy_part_description:
-     "Remplissez les champs ci-dessous pour copier cette pièce"
+  export_work_orders: 'Exporter les ordres de travail',
+  copy_wo: "Copier l'ordre de travail",
+  copy_pm: 'Copier la maintenance préventive',
+  copy_pm_description:
+    'Remplissez les champs ci-dessous pour copier une maintenance préventive',
+  copy_asset: "Copier l'équipement",
+  copy_asset_description:
+    'Remplissez les champs ci-dessous pour copier cet équipement',
+  copy_location: "Copier l'emplacement",
+  copy_location_description:
+    'Remplissez les champs ci-dessous pour copier cet emplacement',
+  copy_meter: 'Copier le compteur',
+  copy_meter_description:
+    'Remplissez les champs ci-dessous pour copier ce compteur',
+  copy_part: 'Copier la pièce',
+  copy_part_description:
+    'Remplissez les champs ci-dessous pour copier cette pièce',
+  customize_report_description: 'Que doit contenir ce PDF ?',
+  work_order_information: "Informations de l'ordre de travail",
+  brand_color: 'Couleur de marque',
+  restock_part: 'Réapprovisionner la pièce',
+  restock: 'Réapprovisionner',
+  export_part_transactions: 'Exporter les transactions de pièces',
+  export_parts: 'Exporter les pièces',
+  edit_time: 'Modifier le temps',
+  edit_cost: 'Modifier le coût',
+  confirm_delete_labor:
+    "Êtes-vous sûr de vouloir supprimer cette main-d'œuvre ?",
+  confirm_delete_additional_cost:
+    'Êtes-vous sûr de vouloir supprimer ce coût ?',
+  discard_changes: 'Annuler les modifications',
+  discard_changes_question:
+    'Annuler les modifications non enregistrées ?\n Si vous quittez maintenant, vous perdrez les modifications non enregistrées',
+  email_contractors: 'Envoyer un email aux prestataires',
+  email_contractors_description:
+    'Configurez le rapport et ajoutez un message optionnel à envoyer aux prestataires.',
+  custom_message_optional: 'Message personnalisé (optionnel)',
+  send_work_order_as_pdf: "Envoyer l'ordre de travail en PDF",
+  report_sent_success: 'Rapport envoyé avec succès',
+  trigger_work_order: 'Déclencher l\'ordre de travail',
+  edit_reading: 'Modifier la lecture',
+  are_you_sure_delete_reading: 'Êtes-vous sûr de vouloir supprimer cette lecture ?',
+  no_custom_fields_found: 'Aucun champ personnalisé trouvé'
 };
 
 export default frJSON;

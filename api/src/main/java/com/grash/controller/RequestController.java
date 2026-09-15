@@ -1,7 +1,11 @@
 package com.grash.controller;
 
+import com.grash.advancedsearch.FilterField;
 import com.grash.advancedsearch.SearchCriteria;
 import com.grash.dto.*;
+import com.grash.utils.TenantAspectUtils;
+
+import jakarta.persistence.criteria.JoinType;
 import com.grash.dto.workOrder.WorkOrderShowDTO;
 import com.grash.exception.CustomException;
 import com.grash.mapper.RequestMapper;
@@ -86,19 +90,35 @@ public class RequestController {
     @PostMapping("/search")
     @PreAuthorize("permitAll()")
     public ResponseEntity<Page<RequestShowDTO>> search(@Parameter(description = "Search criteria for filtering " +
-                                                               "requests") @RequestBody SearchCriteria searchCriteria,
-                                                       HttpServletRequest req) {
+                                                                "requests") @RequestBody SearchCriteria searchCriteria,
+                                                        HttpServletRequest req) {
         User user = userService.whoami(req);
         if (user.getRole().getRoleType().equals(RoleType.ROLE_CLIENT)) {
             if (user.getRole().getViewPermissions().contains(PermissionEntity.REQUESTS)) {
-                searchCriteria.filterCompany(user);
+                if (!user.getSuperAccountRelations().isEmpty()) {
+                    List<Long> childCompanyIds = user.getSuperAccountRelations().stream()
+                            .map(rel -> rel.getChildUser().getCompany().getId())
+                            .distinct()
+                            .toList();
+                    searchCriteria.getFilterFields().add(FilterField.builder()
+                            .field("company")
+                            .operation("inm")
+                            .joinType(JoinType.LEFT)
+                            .value("")
+                            .values(new ArrayList<>(childCompanyIds))
+                            .build());
+                } else {
+                    searchCriteria.filterCompany(user);
+                }
                 boolean canViewOthers = user.getRole().getViewOtherPermissions().contains(PermissionEntity.REQUESTS);
                 if (!canViewOthers) {
                     searchCriteria.filterCreatedBy(user);
                 }
             } else throw new CustomException("Access Denied", HttpStatus.FORBIDDEN);
         }
-        return ResponseEntity.ok(requestService.findBySearchCriteria(searchCriteria));
+        return ResponseEntity.ok(TenantAspectUtils.executeWithDisabledCompanyCheck(() ->
+                requestService.findBySearchCriteria(searchCriteria)
+        ));
     }
 
     @GetMapping("/pending")
@@ -112,14 +132,13 @@ public class RequestController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public RequestShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<Request> optionalRequest = requestService.findById(id);
         if (optionalRequest.isPresent()) {
             Request savedRequest = optionalRequest.get();
             if (user.getRole().getViewPermissions().contains(PermissionEntity.REQUESTS) &&
-                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.REQUESTS) || savedRequest.getCreatedBy().equals(user.getId()))) {
+                    (user.getRole().getViewOtherPermissions().contains(PermissionEntity.REQUESTS) || user.getId().equals(savedRequest.getCreatedBy()))) {
                 return requestMapper.toShowDto(savedRequest);
             } else throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
@@ -188,7 +207,6 @@ public class RequestController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public RequestShowDTO patch(@Parameter(description = "Request fields to update") @Valid @RequestBody RequestPatchDTO request,
                                 @PathVariable("id") Long id,
                                 HttpServletRequest req) {
@@ -200,7 +218,7 @@ public class RequestController {
             if (savedRequest.getWorkOrder() != null) {
                 throw new CustomException("Can't patch an approved request", HttpStatus.NOT_ACCEPTABLE);
             }
-            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.REQUESTS) || savedRequest.getCreatedBy().equals(user.getId())) {
+            if (user.getRole().getEditOtherPermissions().contains(PermissionEntity.REQUESTS) || user.getId().equals(savedRequest.getCreatedBy())) {
                 Request patchedRequest = requestService.update(id, request, user.getCompany());
                 return requestMapper.toShowDto(patchedRequest);
             } else throw new CustomException("Forbidden", HttpStatus.FORBIDDEN);
@@ -209,7 +227,6 @@ public class RequestController {
 
     @PatchMapping("/{id}/approve")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public WorkOrderShowDTO approve(@PathVariable("id") Long id,
                                     @Parameter(description = "Request approval data") @RequestBody RequestApproveDTO requestApproveDTO,
                                     HttpServletRequest req) {
@@ -279,7 +296,6 @@ public class RequestController {
 
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public RequestShowDTO cancel(@PathVariable("id") Long id,
                                  @RequestParam @Parameter(description = "Reason of the request") String reason,
                                  HttpServletRequest req) {
@@ -347,14 +363,13 @@ public class RequestController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
         Optional<Request> optionalRequest = requestService.findById(id);
         if (optionalRequest.isPresent()) {
             Request savedRequest = optionalRequest.get();
-            if (user.getId().equals(savedRequest.getId()) ||
+            if (user.getId().equals(savedRequest.getCreatedBy()) ||
                     user.getRole().getDeleteOtherPermissions().contains(PermissionEntity.REQUESTS)) {
                 requestService.delete(id);
                 return new ResponseEntity<>(new SuccessResponse(true, "Deleted successfully"),

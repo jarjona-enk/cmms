@@ -225,7 +225,7 @@ const locale = {
   feedback_description: "أعط تعليقك",
   required_feedback: "مطلوب ردود الفعل",
   signature: "إمضاء",
-  required_signature: "الصورة مطلوبة",
+  required_signature: "التوقيع مطلوب",
   close_wo: "إغلاق أمر العمل",
   close: "يغلق",
   task_update_success: "تم تحديث المهمة بنجاح",
@@ -1618,6 +1618,7 @@ const locale = {
     keywords:
       "CMMS, نظام إدارة الصيانة المحوسب, EAM, إدارة أصول المؤسسات, cmms مفتوح المصدر, برنامج صيانة مجاني, إدارة أوامر العمل, صيانة وقائية, تتبع الأصول, إدارة المرافق, برنامج تتبع الصيانة, صيانة المعدات, أطلس CMMS",
   },
+  prefer_one_time_purchase: "هل تفضل الشراء لمرة واحدة؟ التراخيص الدائمة متاحة بسعر 36 ضعف السعر الشهري.",
 };
 
 export default locale;

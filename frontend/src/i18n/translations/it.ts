@@ -226,7 +226,7 @@ const locale = {
   feedback_description: 'Dai il tuo feedback',
   required_feedback: 'È richiesto un feedback',
   signature: 'Firma',
-  required_signature: "L'immagine è obbligatoria",
+  required_signature: "La firma è obbligatoria",
   close_wo: 'Chiudi ordine di lavoro',
   close: 'Vicino',
   task_update_success: 'Attività aggiornata con successo',
@@ -1338,6 +1338,7 @@ const locale = {
   edit_company: 'Modifica azienda',
   fill_fields_below: 'Compila i campi sottostanti',
   IMPORT_CSV_feature: 'Importazione CSV',
+  RESOURCE_PLANNING_feature: 'Pianificazione delle risorse',
   no_import_access: 'Aggiorna il tuo piano per importare da file CSV ed Excel',
   members: 'Membri',
   assign_user: 'Assegna utente',
@@ -1373,9 +1374,12 @@ const locale = {
   switch_account_description: 'Si prega di scegliere un account per procedere',
   put_location_in_map: 'Inserisci la posizione sulla mappa',
   confirm_disable_user:
-    'Sei sicuro di voler disattivare {{user}}? Potrai abilitarlo solo dopo un mese.',
+    'Sei sicuro di voler disattivare {{user}}?',
   user_disabled_success: 'Utente disabilitato con successo',
   disable: 'Disabilitare',
+  confirm_enable_user:
+    'Sei sicuro di voler abilitare {{user}}?',
+  enable: 'Abilita',
   manufacturer: 'Produttore',
   power: 'Energia',
   import_error: "L'importazione non è riuscita",
@@ -1947,8 +1951,31 @@ const locale = {
    copy_meter_description:
      'Compila i campi sottostanti per copiare questo contatore',
    copy_part: 'Copia parte',
-   copy_part_description:
-     'Compila i campi sottostanti per copiare questa parte'
+    copy_part_description:
+      'Compila i campi sottostanti per copiare questa parte',
+  customize_report_description: 'Cosa dovrebbe essere incluso in questo PDF?',
+  work_order_information: 'Informazioni sull\'ordine di lavoro',
+  brand_color: 'Colore del marchio',
+  restock_part: 'Rifornisci parte',
+   restock: 'Rifornisci',
+  export_part_transactions: 'Esporta transazioni di parti',
+  export_parts: 'Esporta parti',
+  edit_time: 'Modifica tempo',
+  edit_cost: 'Modifica costo',
+  confirm_delete_labor: 'Sei sicuro di voler eliminare questa manodopera?',
+  confirm_delete_additional_cost: 'Sei sicuro di voler eliminare questo costo?',
+  discard_changes: 'Annulla le modifiche',
+  discard_changes_question:
+    "Annullare le modifiche non salvate?\n Se esci ora, perderai le modifiche non salvate",
+  email_contractors: 'Invia email agli appaltatori',
+  email_contractors_description: 'Configura il report e aggiungi un messaggio opzionale da inviare agli appaltatori.',
+  custom_message_optional: 'Messaggio personalizzato (opzionale)',
+  send_work_order_as_pdf: 'Invia ordine di lavoro come PDF',
+  report_sent_success: 'Report inviato con successo',
+  trigger_work_order: 'Attiva ordine di lavoro',
+  edit_reading: 'Modifica lettura',
+  are_you_sure_delete_reading: 'Sei sicuro di voler eliminare questa lettura?',
+  no_custom_fields_found: 'Nessun campo personalizzato trovato'
 };
 
 export default locale;

@@ -363,6 +363,8 @@ const frJSON = {
   column_view: 'Vue colonnes',
   wo_create_success: 'Le bon de travail a été créé avec succès',
   wo_create_failure: "Le bon de travail n'a pas pu être créé",
+  discard_changes: 'Annuler les modifications',
+  discard_changes_question: 'Annuler les modifications non enregistrées ?\nSi vous partez maintenant, vous perdrez les modifications non enregistrées',
   changes_saved_success: 'Les changements ont été enregistrés',
   wo_update_failure: "Le bon de travail n'a pas pu être modifié",
   wo_delete_success: 'Le bon de travail a été supprimé avec succès',
@@ -1633,12 +1635,24 @@ const frJSON = {
   confirm_delete_comment: 'Êtes-vous sûr de vouloir supprimer ce commentaire ?',
   add_comment_placeholder: 'Ajouter un commentaire...',
   create_category: 'Create Category',
-  delete_row_confirm_message: 'Êtes-vous sûr de vouloir supprimer cette ligne ?',
+  delete_row_confirm_message:
+    'Êtes-vous sûr de vouloir supprimer cette ligne ?',
   review_prompt_title: 'Appréciez-vous Atlas CMMS ?',
   feedback_title: 'Aidez-nous à nous améliorer',
   feedback_description1:
-    'Nous sommes désolés d\'apprendre cela. Vos commentaires nous aident à améliorer Atlas.',
-  feedback_placeholder: 'Dites-nous ce qui n\'a pas fonctionné ou comment nous pouvons nous améliorer…',
-  send: 'Envoyer'
+    "Nous sommes désolés d'apprendre cela. Vos commentaires nous aident à améliorer Atlas.",
+  feedback_placeholder:
+    "Dites-nous ce qui n'a pas fonctionné ou comment nous pouvons nous améliorer…",
+  send: 'Envoyer',
+  edit_additional_cost: 'Modifier le coût',
+  delete_additional_cost: 'Supprimer le coût',
+  confirm_delete_additional_cost: 'Êtes-vous sûr de vouloir supprimer ce coût ?',
+  edit_additional_time: 'Modifier le temps',
+  delete_additional_time: 'Supprimer le temps',
+  confirm_delete_additional_time: 'Êtes-vous sûr de vouloir supprimer ce temps ?',
+  reset: 'Réinitialiser',
+  operation_success: "L'opération a réussi",
+  edit_reading: 'Modifier la lecture',
+  are_you_sure_delete_reading: 'Êtes-vous sûr de vouloir supprimer cette lecture ?'
 };
 export default frJSON;

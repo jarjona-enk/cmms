@@ -8,6 +8,7 @@ import com.grash.model.enums.RoleType;
 import com.grash.security.CustomUserDetail;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +35,7 @@ public abstract class CategoryAbstract extends Audit {
     @ManyToOne
     @JoinColumn(nullable = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @ToString.Exclude
     private CompanySettings companySettings;
 
     @PrePersist
@@ -59,10 +61,19 @@ public abstract class CategoryAbstract extends Audit {
         User user = ((CustomUserDetail) principal).getUser();
         // Super admins can access all categories
         if (!user.getRole().getRoleType().equals(RoleType.ROLE_SUPER_ADMIN) &&
-                !user.getCompany().getId().equals(this.getCompanySettings().getCompany().getId())) {
+                !user.getCompany().getId().equals(this.getCompanySettings().getCompany().getId()) && !makesException(user)) {
             throw new CustomException("afterLoad: the user (id=" + user.getId() + ") is not authorized to load " +
                     "category", HttpStatus.FORBIDDEN);
         }
+    }
+
+    private boolean makesException(User user) {
+        return user.getSuperAccountRelations().stream()
+                .anyMatch(relation -> relation.getChildUser().getCompany().getId().equals(this.companySettings.getCompany().getId()));
+//                    || (user.getParentSuperAccount() !=null && user.getParentSuperAccount().getSuperUser()
+//                    .getSuperAccountRelations().stream().anyMatch(sar->sar.getChildUser().getCompany().getId()
+//                    .equals(this.company.getId())))
+
     }
 
 }

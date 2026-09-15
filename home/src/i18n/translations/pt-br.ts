@@ -224,7 +224,7 @@ const ptBRJSON = {
   feedback_description: "Dê seu feedback",
   required_feedback: "O feedback é obrigatório",
   signature: "Assinatura",
-  required_signature: "A imagem é obrigatória",
+  required_signature: "A assinatura é obrigatória",
   close_wo: "Fechar Ordem de Serviço",
   close: "Fechar",
   task_update_success: "Tarefa atualizada com sucesso",
@@ -1658,6 +1658,7 @@ const ptBRJSON = {
     keywords:
       "CMMS, sistema informatizado de gestão de manutenção, EAM, gestão de ativos empresariais, cmms de código aberto, software de manutenção gratuito, gestão de ordens de serviço, manutenção preventiva, rastreamento de ativos, gestão de instalações, software de rastreamento de manutenção, manutenção de equipamentos, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Prefere uma compra única? Licenças perpétuas estão disponíveis por 36× a taxa mensal.",
 };
 
 export default ptBRJSON;

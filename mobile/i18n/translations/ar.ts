@@ -214,7 +214,7 @@ const locale = {
   feedback_description: 'أعط تعليقك',
   required_feedback: 'ردود الفعل مطلوبة',
   signature: 'إمضاء',
-  required_signature: 'الصورة مطلوبة',
+  required_signature: 'التوقيع مطلوب',
   close_wo: 'إغلاق أمر العمل',
   close: 'يغلق',
   task_update_success: 'تم تحديث المهمة بنجاح',
@@ -244,6 +244,8 @@ const locale = {
   column_view: 'عرض العمود',
   wo_create_success: 'تم إنشاء أمر العمل بنجاح',
   wo_create_failure: 'لم يتم إنشاء أمر العمل',
+  discard_changes: 'تجاهل التغييرات',
+  discard_changes_question: 'تجاهل التغييرات غير المحفوظة؟\nإذا غادرت الآن، ستفقد التغييرات غير المحفوظة',
   changes_saved_success: 'تم حفظ التغييرات',
   wo_update_failure: 'لم يتمكن من تعديل أمر العمل',
   wo_delete_success: 'تم حذف أمر العمل بنجاح',
@@ -1427,6 +1429,16 @@ const locale = {
   feedback_description1:
     'نأسف لسماع ذلك. ملاحظاتك تساعدنا في جعل Atlas أفضل.',
   feedback_placeholder: 'أخبرنا ما الخطأ الذي حدث أو كيف يمكننا التحسين…',
-  send: 'إرسال'
+  send: 'إرسال',
+  edit_additional_cost: 'تعديل التكلفة',
+  delete_additional_cost: 'حذف التكلفة',
+  confirm_delete_additional_cost: 'هل أنت متأكد أنك تريد حذف هذه التكلفة؟',
+  edit_additional_time: 'تعديل الوقت',
+  delete_additional_time: 'حذف الوقت',
+  confirm_delete_additional_time: 'هل أنت متأكد أنك تريد حذف هذا الوقت؟',
+  reset: 'إعادة تعيين',
+  operation_success: 'تمت العملية بنجاح',
+  edit_reading: 'تحرير القراءة',
+  are_you_sure_delete_reading: 'هل أنت متأكد من حذف هذه القراءة؟'
 };
 export default locale;

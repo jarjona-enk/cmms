@@ -30,20 +30,21 @@ public class UserSettingsController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public UserSettings getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 
         Optional<UserSettings> optionalUserSettings = userSettingsService.findById(id);
         if (optionalUserSettings.isPresent()) {
-            UserSettings userSettings = optionalUserSettings.get();
-            return userSettings;
+            UserSettings savedUserSettings = optionalUserSettings.get();
+            if (!savedUserSettings.getId().equals(user.getUserSettings().getId())) {
+                throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+            }
+            return savedUserSettings;
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public UserSettings patch(@Parameter(description = "User settings to update") @Valid @RequestBody UserSettings userSettings,
                               @PathVariable("id") Long id,
                               HttpServletRequest req) {

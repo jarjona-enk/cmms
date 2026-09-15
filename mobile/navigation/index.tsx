@@ -52,7 +52,7 @@ import CompleteWorkOrderModal from '../screens/workOrders/CompleteWorkOrderModal
 import SelectPartsModal from '../screens/modals/SelectPartsModal';
 import TasksScreen from '../screens/workOrders/TasksScreen';
 import SelectCustomersModal from '../screens/modals/SelectCustomersModal';
-import SelectVendorsModal from '../screens/modals/SelectCustomersModal';
+import SelectVendorsModal from '../screens/modals/SelectVendorsModal';
 import SelectUsersModal from '../screens/modals/SelectUsersModal';
 import SelectTeamsModal from '../screens/modals/SelectTeamsModal';
 import SelectLocationsModal from '../screens/modals/SelectLocationsModal';
@@ -90,7 +90,9 @@ import { navigationRef } from './RootNavigation';
 import SettingsScreen from '../screens/SettingsScreen';
 import WorkOrderFilters from '../screens/workOrders/WorkOrderFilters';
 import CreateAdditionalCost from '../screens/workOrders/CreateAdditionalCost';
+import EditAdditionalCost from '../screens/workOrders/EditAdditionalCost';
 import CreateAdditionalTime from '../screens/workOrders/CreateAdditionalTime';
+import EditAdditionalTime from '../screens/workOrders/EditAdditionalTime';
 import SelectNfcModal from '../screens/modals/SelectNfcModal';
 import SelectBarcodeModal from '../screens/modals/SelectBarcodeModal';
 import ScanAssetScreen from '../screens/ScanAssetScreen';
@@ -184,17 +186,26 @@ function RootNavigator() {
       <Stack.Screen
         name="AddAsset"
         component={CreateAssetScreen}
-        options={{ title: t('create_asset') }}
+        options={({ route }) => ({
+          title: t('create_asset'),
+          presentation: route.params?.openedFromSelector ? 'modal' : 'card'
+        })}
       />
       <Stack.Screen
         name="AddLocation"
         component={CreateLocationScreen}
-        options={{ title: t('create_location') }}
+        options={({ route }) => ({
+          title: t('create_location'),
+          presentation: route.params?.openedFromSelector ? 'modal' : 'card'
+        })}
       />
       <Stack.Screen
         name="AddPart"
         component={CreatePartScreen}
-        options={{ title: t('create_part') }}
+        options={({ route }) => ({
+          title: t('create_part'),
+          presentation: route.params?.openedFromSelector ? 'modal' : 'card'
+        })}
       />
       <Stack.Screen
         name="AddMeter"
@@ -204,7 +215,10 @@ function RootNavigator() {
       <Stack.Screen
         name="AddUser"
         component={InviteUserScreen}
-        options={{ title: t('invite_users') }}
+        options={({ route }) => ({
+          title: t('invite_users'),
+          presentation: route.params?.openedFromSelector ? 'modal' : 'card'
+        })}
       />
       <Stack.Screen
         name="WorkOrderStats"
@@ -254,7 +268,10 @@ function RootNavigator() {
       <Stack.Screen
         name="VendorsCustomers"
         component={VendorsAndCustomersScreen}
-        options={{ title: t('vendors_and_customers'), contentStyle: Platform.OS === 'ios' ? { paddingTop: 10 } : undefined }}
+        options={{
+          title: t('vendors_and_customers'),
+          contentStyle: Platform.OS === 'ios' ? { paddingTop: 10 } : undefined
+        }}
       />
       <Stack.Screen
         name="CustomerDetails"
@@ -309,7 +326,10 @@ function RootNavigator() {
       <Stack.Screen
         name="PeopleTeams"
         component={PeopleAndTeamsScreen}
-        options={{ title: t('people_teams'), contentStyle: Platform.OS === 'ios' ? { paddingTop: 10 } : undefined }}
+        options={{
+          title: t('people_teams'),
+          contentStyle: Platform.OS === 'ios' ? { paddingTop: 10 } : undefined
+        }}
       />
       <Stack.Screen
         name="TeamDetails"
@@ -444,9 +464,19 @@ function RootNavigator() {
           options={{ title: t('add_cost') }}
         />
         <Stack.Screen
+          name="EditAdditionalCost"
+          component={EditAdditionalCost}
+          options={{ title: t('edit_additional_cost') }}
+        />
+        <Stack.Screen
           name="AddAdditionalTime"
           component={CreateAdditionalTime}
           options={{ title: t('add_time') }}
+        />
+        <Stack.Screen
+          name="EditAdditionalTime"
+          component={EditAdditionalTime}
+          options={{ title: t('edit_additional_time') }}
         />
       </Stack.Group>
     </Stack.Navigator>
@@ -465,13 +495,11 @@ function AuthNavigator() {
         component={LoginScreen}
         options={{ title: t('login') }}
       />
-      {Platform.OS !== 'ios' && (
-        <AuthStack.Screen
-          name="Register"
-          component={RegisterScreen}
-          options={{ title: t('register') }}
-        />
-      )}
+      <AuthStack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ title: t('register') }}
+      />
       <AuthStack.Screen
         name="Verify"
         component={VerifyScreen}

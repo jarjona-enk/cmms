@@ -262,6 +262,8 @@ const locale = {
   column_view: 'Kolone',
   wo_create_success: 'Radni nalog je uspješno kreiran',
   wo_create_failure: 'Kreiranje radnog naloga nije uspjelo',
+  discard_changes: 'Odbaci promjene',
+  discard_changes_question: 'Odbaci nesačuvane promjene?\nAko odete sada, izgubit ćete nesačuvane promjene',
   changes_saved_success: 'Promjene su sačuvane',
   wo_update_failure: 'Uređivanje radnog naloga nije uspjelo',
   wo_delete_success: 'Radni nalog je uspješno obrisan',
@@ -1488,6 +1490,16 @@ const locale = {
   feedback_description1:
     'Žao nam je što to čujemo. Vaše povratne informacije nam pomažu da Atlas bude bolji.',
   feedback_placeholder: 'Recite nam šta nije u redu ili kako možemo da se poboljšamo…',
-  send: 'Pošalji'
+  send: 'Pošalji',
+  edit_additional_cost: 'Uredi trošak',
+  delete_additional_cost: 'Obriši trošak',
+  confirm_delete_additional_cost: 'Jeste li sigurni da želite obrisati ovaj trošak?',
+  edit_additional_time: 'Uredi vrijeme',
+  delete_additional_time: 'Obriši vrijeme',
+  confirm_delete_additional_time: 'Jeste li sigurni da želite obrisati ovo vrijeme?',
+  reset: 'Reset',
+  operation_success: 'Operacija je uspjela',
+  edit_reading: 'Uredi očitanje',
+  are_you_sure_delete_reading: 'Jeste li sigurni da želite obrisati ovo očitanje?'
 };
 export default locale;

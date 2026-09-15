@@ -220,7 +220,7 @@ const locale = {
   feedback_description: 'Ge din feedback',
   required_feedback: 'Feedback krävs',
   signature: 'Signatur',
-  required_signature: 'Bild krävs',
+  required_signature: 'Signatur krävs',
   close_wo: 'Stäng arbetsorder',
   close: 'Nära',
   task_update_success: 'Uppgiften har uppdaterats',
@@ -1317,6 +1317,7 @@ const locale = {
   edit_company: 'Redigera företag',
   fill_fields_below: 'Fyll i fälten nedan',
   IMPORT_CSV_feature: 'CSV-import',
+  RESOURCE_PLANNING_feature: 'Resursplanering',
   no_import_access:
     'Uppgradera din plan för att importera från CSV- och Excel-filer',
   members: 'Medlemmar',
@@ -1350,9 +1351,12 @@ const locale = {
   switch_account_description: 'Välj ett konto för att fortsätta',
   put_location_in_map: 'Lägg plats på kartan',
   confirm_disable_user:
-    'Är du säker på att du vill inaktivera {{user}}? Du kommer bara att kunna aktivera det efter en månad.',
+    'Är du säker på att du vill inaktivera {{user}}?',
   user_disabled_success: 'Användaren har inaktiverats',
   disable: 'Inaktivera',
+  confirm_enable_user:
+    'Är du säker på att du vill aktivera {{user}}?',
+  enable: 'Aktivera',
   manufacturer: 'Tillverkare',
   power: 'Driva',
   import_error: 'Importen misslyckades',
@@ -1913,8 +1917,31 @@ const locale = {
    copy_meter_description:
      'Fyll i fälten nedan för att kopiera denna mätare',
    copy_part: 'Kopiera del',
-   copy_part_description:
-     'Fyll i fälten nedan för att kopiera denna del'
+    copy_part_description:
+      'Fyll i fälten nedan för att kopiera denna del',
+  customize_report_description: 'Vad ska ingå i denna PDF?',
+  work_order_information: 'Arbetsorderinformation',
+  brand_color: 'Varumärkesfärg',
+  restock_part: 'Fyll på del',
+   restock: 'Fyll på',
+  export_part_transactions: 'Exportera deltransaktioner',
+  export_parts: 'Exportera delar',
+  edit_time: 'Redigera tid',
+  edit_cost: 'Redigera kostnad',
+  confirm_delete_labor: 'Är du säker på att du vill ta bort denna arbetskraft?',
+  confirm_delete_additional_cost: 'Är du säker på att du vill ta bort denna kostnad?',
+  discard_changes: 'Kasta ändringar',
+  discard_changes_question:
+    "Kasta osparade ändringar?\n Om du lämnar nu förlorar du osparade ändringar",
+  email_contractors: 'E-posta entreprenörer',
+  email_contractors_description: 'Konfigurera rapporten och lägg till ett valfritt meddelande att skicka till entreprenörerna.',
+  custom_message_optional: 'Anpassat meddelande (valfritt)',
+  send_work_order_as_pdf: 'Skicka arbetsorder som PDF',
+  report_sent_success: 'Rapport skickad framgångsrikt',
+  trigger_work_order: 'Aktivera arbetsorder',
+  edit_reading: 'Redigera mätning',
+  are_you_sure_delete_reading: 'Är du säker på att du vill ta bort denna mätning?',
+  no_custom_fields_found: 'Inga anpassade fält hittades'
 };
 
 export default locale;

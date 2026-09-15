@@ -235,7 +235,7 @@ const ptBRJSON = {
   feedback_description: 'Dê seu feedback',
   required_feedback: 'O feedback é obrigatório',
   signature: 'Assinatura',
-  required_signature: 'A imagem é obrigatória',
+  required_signature: 'A assinatura é obrigatória',
   close_wo: 'Fechar Ordem de Serviço',
   close: 'Fechar',
   task_update_success: 'Tarefa atualizada com sucesso',
@@ -1366,6 +1366,7 @@ const ptBRJSON = {
   edit_company: 'Editar empresa',
   fill_fields_below: 'Preencha os campos abaixo',
   IMPORT_CSV_feature: 'Importação de CSV',
+  RESOURCE_PLANNING_feature: 'Planejamento de recursos',
   no_import_access: 'Atualize seu plano para importar de arquivos CSV, Excel',
   members: 'Membros',
   assign_user: 'Atribuir Usuário',
@@ -1399,9 +1400,12 @@ const ptBRJSON = {
   switch_account_description: 'Por favor, escolha uma conta para prosseguir',
   put_location_in_map: 'Colocar localização no mapa',
   confirm_disable_user:
-    'Tem certeza de que deseja desabilitar {{user}}? Você só poderá habilitá-lo após um mês',
+    'Tem certeza de que deseja desabilitar {{user}}?',
   user_disabled_success: 'Usuário desabilitado com sucesso',
   disable: 'Desabilitar',
+  confirm_enable_user:
+    'Tem certeza de que deseja habilitar {{user}}?',
+  enable: 'Habilitar',
   manufacturer: 'Fabricante',
   power: 'Potência',
   import_error: 'A importação não foi bem-sucedida',
@@ -1973,8 +1977,31 @@ const ptBRJSON = {
    copy_meter_description:
      'Preencha os campos abaixo para copiar este medidor',
    copy_part: 'Copiar peça',
-   copy_part_description:
-     'Preencha os campos abaixo para copiar esta peça'
+    copy_part_description:
+      'Preencha os campos abaixo para copiar esta peça',
+  customize_report_description: 'O que deve ser incluído neste PDF?',
+  work_order_information: 'Informações da ordem de serviço',
+  brand_color: 'Cor da marca',
+  restock_part: 'Reabastecer peça',
+   restock: 'Reabastecer',
+  export_part_transactions: 'Exportar transações de peças',
+  export_parts: 'Exportar peças',
+  edit_time: 'Editar tempo',
+  edit_cost: 'Editar custo',
+  confirm_delete_labor: 'Tem certeza de que deseja excluir esta mão de obra?',
+  confirm_delete_additional_cost: 'Tem certeza de que deseja excluir este custo?',
+  discard_changes: 'Descartar alterações',
+  discard_changes_question:
+    "Descartar alterações não salvas?\n Se você sair agora, perderá as alterações não salvas",
+  email_contractors: 'E-mail para contratantes',
+  email_contractors_description: 'Configure o relatório e adicione uma mensagem opcional para enviar aos contratantes.',
+  custom_message_optional: 'Mensagem personalizada (opcional)',
+  send_work_order_as_pdf: 'Enviar ordem de serviço como PDF',
+  report_sent_success: 'Relatório enviado com sucesso',
+  trigger_work_order: 'Acionar ordem de serviço',
+  edit_reading: 'Editar leitura',
+  are_you_sure_delete_reading: 'Tem certeza de que deseja excluir esta leitura?',
+  no_custom_fields_found: 'Nenhum campo personalizado encontrado'
 };
 
 export default ptBRJSON;

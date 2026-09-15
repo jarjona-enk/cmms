@@ -9,6 +9,7 @@ import com.grash.utils.Helper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import jakarta.persistence.*;
 
@@ -38,14 +39,15 @@ public class CompanySettings {
     private UiConfiguration uiConfiguration = new UiConfiguration(this);
     @OneToOne(fetch = FetchType.LAZY)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @ToString.Exclude
     private Company company;
 
 //    @OneToOne
 //   private AssetFieldsConfiguration assetFieldsConfiguration;
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "companySettings", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Role> roleList = new ArrayList<>();
+//    @OneToMany(cascade = CascadeType.ALL, mappedBy = "companySettings", fetch = FetchType.LAZY)
+//    @JsonIgnore
+//    private List<Role> roleList = new ArrayList<>();
 
     public CompanySettings(Company company) {
         this.company = company;

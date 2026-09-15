@@ -213,7 +213,7 @@ const ruJSON = {
   feedback_description: 'Оставьте отзыв',
   required_feedback: 'Отзыв обязателен',
   signature: 'Подпись',
-  required_signature: 'Изображение обязательно',
+  required_signature: 'Подпись обязательна',
 
   close_wo: 'Закрыть наряд',
   close: 'Закрыть',
@@ -257,6 +257,8 @@ const ruJSON = {
 
   wo_create_success: 'Наряд успешно создан',
   wo_create_failure: 'Не удалось создать наряд',
+  discard_changes: 'Отменить изменения',
+  discard_changes_question: 'Отменить несохраненные изменения?\nЕсли вы уйдете сейчас, вы потеряете несохраненные изменения',
   changes_saved_success: 'Изменения сохранены',
   wo_update_failure: 'Не удалось отредактировать наряд',
   wo_delete_success: 'Наряд успешно удалён',
@@ -1541,6 +1543,15 @@ const ruJSON = {
   feedback_description1:
     'Нам жаль это слышать. Ваш отзыв помогает нам улучшать Atlas.',
   feedback_placeholder: 'Расскажите, что пошло не так или как мы можем улучшиться…',
-  send: 'Отправить'
+  send: 'Отправить',
+  edit_additional_cost: 'Редактировать стоимость',
+  delete_additional_cost: 'Удалить стоимость',
+  confirm_delete_additional_cost: 'Вы уверены, что хотите удалить эту стоимость?',
+  edit_additional_time: 'Редактировать время',
+  delete_additional_time: 'Удалить время',
+  confirm_delete_additional_time: 'Вы уверены, что хотите удалить это время?',
+  reset: 'Сбросить',
+  edit_reading: 'Редактировать показание',
+  are_you_sure_delete_reading: 'Вы уверены, что хотите удалить это показание?'
 };
 export default ruJSON;

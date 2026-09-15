@@ -257,6 +257,8 @@ const locale = {
   column_view: 'Oszlop nézet',
   wo_create_success: 'A munkalap sikeresen létrejött',
   wo_create_failure: 'A munkalap nem hozható létre',
+  discard_changes: 'Változtatások elvetése',
+  discard_changes_question: 'Elveti a nem mentett változtatásokat?\nHa most elhagyja az oldalt, elveszíti a nem mentett változtatásokat',
   changes_saved_success: 'A módosítások elmentve',
   wo_update_failure: 'A munkalap nem szerkeszthető',
   wo_delete_success: 'A munkalap sikeresen törölve',
@@ -1490,6 +1492,16 @@ const locale = {
   feedback_description1:
     'Sajnáljuk, hogy ezt halljuk. Visszajelzése segít nekünk az Atlas fejlesztésében.',
   feedback_placeholder: 'Mondja el, mi volt a probléma, vagy hogyan fejlődhetünk…',
-  send: 'Küldés'
+  send: 'Küldés',
+  edit_additional_cost: 'Költség szerkesztése',
+  delete_additional_cost: 'Költség törlése',
+  confirm_delete_additional_cost: 'Biztosan törölni szeretné ezt a költséget?',
+  edit_additional_time: 'Idő szerkesztése',
+  delete_additional_time: 'Idő törlése',
+  confirm_delete_additional_time: 'Biztosan törölni szeretné ezt az időt?',
+  reset: 'Visszaállítás',
+  operation_success: 'A művelet sikeres volt',
+  edit_reading: 'Mérés szerkesztése',
+  are_you_sure_delete_reading: 'Biztosan törölni szeretné ezt a mérést?'
 };
 export default locale;

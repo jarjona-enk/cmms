@@ -226,7 +226,7 @@ const deJSON = {
   feedback_description: "Geben Sie Ihr Feedback",
   required_feedback: "Feedback ist erforderlich",
   signature: "Unterschrift",
-  required_signature: "Bild ist erforderlich",
+  required_signature: "Unterschrift ist erforderlich",
   close_wo: "Arbeitsauftrag schließen",
   close: "Schließen",
   task_update_success: "Aufgabe erfolgreich aktualisiert",
@@ -1660,6 +1660,7 @@ const deJSON = {
     keywords:
       "CMMS, computergestütztes wartungsmanagementsystem, EAM, enterprise asset management, open-source-cmms, kostenlose wartungssoftware, arbeitsauftragsverwaltung, vorbeugende wartung, anlagenverfolgung, facility management, wartungsverfolgungssoftware, gerätewartung, Atlas CMMS",
   },
+  prefer_one_time_purchase: "Bezahlen Sie lieber einmal? Unbefristete Lizenzen sind zum 36-fachen des monatlichen Preises erhältlich.",
 };
 
 export default deJSON;

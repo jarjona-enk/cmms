@@ -203,7 +203,7 @@ const locale = {
   feedback_description: '提供您的反馈',
   required_feedback: '反馈是必需的',
   signature: '签名',
-  required_signature: '图像是必需的',
+  required_signature: '签名是必需的',
   close_wo: '关闭工单',
   close: '关闭',
   task_update_success: '任务更新成功',
@@ -1033,6 +1033,7 @@ const locale = {
   edit_company: '编辑公司',
   fill_fields_below: '填写以下字段',
   IMPORT_CSV_feature: 'CSV导入',
+  RESOURCE_PLANNING_feature: '资源规划',
   no_import_access: '升级您的计划以从CSV、Excel文件导入',
   register_here: '在此注册',
   home: '首页',
@@ -1205,6 +1206,13 @@ const locale = {
   teams: '团队',
   vendors: '供应商',
   csv_separator: 'CSV分隔符',
+  confirm_disable_user:
+    'Are you sure you want to disable {{user}}?',
+  confirm_enable_user:
+    '您确定要启用 {{user}} 吗？',
+  user_disabled_success: 'User disabled successfully',
+  disable: 'Disable',
+  enable: '启用',
   open_source_cmms: '开源 CMMS',
   'main.title': '免费开源 CMMS（维护管理软件）',
   'home.h1': '您可以自托管或在云端使用的免费开源 CMMS',
@@ -1605,8 +1613,31 @@ const locale = {
    copy_meter_description:
      '填写以下字段以复制此仪表',
    copy_part: '复制零件',
-   copy_part_description:
-     '填写以下字段以复制此零件'
+    copy_part_description:
+      '填写以下字段以复制此零件',
+  customize_report_description: '此PDF应包含哪些内容？',
+  work_order_information: '工单信息',
+  brand_color: '品牌颜色',
+  restock_part: '补充零件',
+   restock: '补充',
+  export_part_transactions: '导出零件交易',
+  export_parts: '导出零件',
+  edit_time: '编辑时间',
+  edit_cost: '编辑成本',
+  confirm_delete_labor: '确定要删除此人工吗？',
+  confirm_delete_additional_cost: '确定要删除此成本吗？',
+  discard_changes: '放弃更改',
+  discard_changes_question:
+    "放弃未保存的更改？\n 如果现在离开，您将丢失未保存的更改",
+  email_contractors: '发送邮件给承包商',
+  email_contractors_description: '配置报告并添加可选消息以发送给承包商。',
+  custom_message_optional: '自定义消息（可选）',
+  send_work_order_as_pdf: '以PDF形式发送工作单',
+  report_sent_success: '报告已成功发送',
+  trigger_work_order: '触发工作单',
+  edit_reading: '编辑读数',
+  are_you_sure_delete_reading: '确定要删除此读数吗？',
+  no_custom_fields_found: '未找到自定义字段'
 };
 
 export default locale;

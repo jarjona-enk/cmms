@@ -32,3 +32,7 @@ override.tf.json
 .wolf/hooks/_session.json
 .wolf/hooks/node_modules/
 /prod.env
+
+# upstream v1.8.0
+*.lic
+docker-compose-minio.yml

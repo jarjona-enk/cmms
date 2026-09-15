@@ -43,7 +43,6 @@ public class AuthController {
     private final UserMapper userMapper;
     private final SuperAccountRelationRepository superAccountRelationRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final MailServiceFactory mailServiceFactory;
     private final CompanyService companyService;
     private final UserRepository userRepository;
     private final LdapService ldapService;
@@ -158,7 +157,8 @@ public class AuthController {
     @GetMapping("/refresh")
     @PreAuthorize("permitAll()")
     public AuthResponse refresh(HttpServletRequest req) {
-        return new AuthResponse(userService.refresh(req.getRemoteUser()));
+        User user = userService.whoami(req, false);
+        return new AuthResponse(userService.refresh(user));
     }
 
     @PreAuthorize("permitAll()")

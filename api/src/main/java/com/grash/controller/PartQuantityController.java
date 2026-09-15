@@ -42,22 +42,25 @@ public class PartQuantityController {
 
     @GetMapping("/work-order/{id}")
     @PreAuthorize("permitAll()")
-
     public Collection<PartQuantityShowDTO> getByWorkOrder(HttpServletRequest req,
                                                           @PathVariable("id") Long id) {
         User user = userService.whoami(req);
         Optional<WorkOrder> optionalWorkOrder = workOrderService.findById(id);
         if (optionalWorkOrder.isPresent()) {
+            if (!optionalWorkOrder.get().isAccessibleBy(user))
+                throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
             return partQuantityService.findByWorkOrder(id).stream().map(partQuantityMapper::toShowDto).collect(Collectors.toList());
         } else throw new CustomException("Not found", HttpStatus.NOT_FOUND);
     }
 
     @GetMapping("/purchase-order/{id}")
     @PreAuthorize("permitAll()")
-
     public Collection<PartQuantityShowDTO> getByPurchaseOrder(HttpServletRequest req, @PathVariable(
             "id") Long id) {
         User user = userService.whoami(req);
+        if (!user.getRole().getViewPermissions().contains(PermissionEntity.PURCHASE_ORDERS)) {
+            throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+        }
         Optional<PurchaseOrder> optionalPurchaseOrder = purchaseOrderService.findById(id);
         if (optionalPurchaseOrder.isPresent()) {
             return partQuantityService.findByPurchaseOrder(id).stream().map(partQuantityMapper::toShowDto).collect(Collectors.toList());
@@ -66,7 +69,6 @@ public class PartQuantityController {
 
     @PatchMapping("/work-order/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public Collection<PartQuantityShowDTO> patchWorkOrder(@Parameter(description = "List of part IDs to associate " +
                                                                   "with work order") @Valid @RequestBody List<Long> parts,
                                                           @PathVariable("id") Long id,
@@ -108,7 +110,6 @@ public class PartQuantityController {
 
     @PatchMapping("/purchase-order/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public Collection<PartQuantityShowDTO> patchPurchaseOrder(@Parameter(description = "List of part quantities to " +
                                                                       "update for purchase order") @Valid @RequestBody List<PartQuantityCompletePatchDTO> partQuantitiesReq, @PathVariable("id") Long id,
                                                               HttpServletRequest req) {
@@ -117,6 +118,9 @@ public class PartQuantityController {
 
         if (optionalPurchaseOrder.isPresent()) {
             PurchaseOrder savedPurchaseOrder = optionalPurchaseOrder.get();
+            if (!user.getRole().getEditOtherPermissions().contains(PermissionEntity.PURCHASE_ORDERS) && !user.getId().equals(savedPurchaseOrder.getCreatedBy())) {
+                throw new CustomException("Access denied", HttpStatus.FORBIDDEN);
+            }
             Collection<PartQuantity> savedPartQuantities = partQuantityService.findByPurchaseOrder(id);
 
             Collection<Long> savedPartQuantitiesMappedPartIds = savedPartQuantities.stream().map
@@ -154,7 +158,6 @@ public class PartQuantityController {
 
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
-
     public PartQuantityShowDTO getById(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
         Optional<PartQuantity> optionalPartQuantity = partQuantityService.findById(id);
@@ -169,13 +172,13 @@ public class PartQuantityController {
     PartQuantityShowDTO create(@Parameter(description = "Part quantity to create") @Valid @RequestBody PartQuantity partQuantityReq,
                                HttpServletRequest req) {
         User user = userService.whoami(req);
+        //TODO check access
         PartQuantity savedPartQuantity = partQuantityService.create(partQuantityReq);
         return partQuantityMapper.toShowDto(savedPartQuantity);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public PartQuantityShowDTO patch(@Parameter(description = "Part quantity fields to update") @Valid @RequestBody PartQuantityPatchDTO partQuantity,
                                      @PathVariable("id") Long id,
                                      HttpServletRequest req) {
@@ -198,7 +201,6 @@ public class PartQuantityController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_CLIENT')")
-
     public ResponseEntity<SuccessResponse> delete(@PathVariable("id") Long id, HttpServletRequest req) {
         User user = userService.whoami(req);
 

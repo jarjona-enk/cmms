@@ -272,7 +272,9 @@ function MoreFilters({
       createdAt: getDateValue(filterFields, 'createdAt'),
       updatedAt: getDateValue(filterFields, 'updatedAt'),
       completedOn: getDateValue(filterFields, 'completedOn'),
-      dueDate: getDateValue(filterFields, 'dueDate')
+      dueDate: filterFields.find(
+        (filterField) => filterField.field === 'dueDate'
+      )?.value
     };
   };
   const shape = {};

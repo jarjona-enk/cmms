@@ -9,8 +9,10 @@ import {
   NavigatorScreenParams
 } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AdditionalCost from './models/additionalCost';
 import WorkOrder from './models/workOrder';
 import Part, { PartMiniDTO } from './models/part';
+import Labor from './models/labor';
 import { Task } from './models/tasks';
 import { Customer, CustomerMiniDTO } from './models/customer';
 import { Vendor, VendorMiniDTO } from './models/vendor';
@@ -49,21 +51,25 @@ export type RootStackParamList = {
     parentAsset?: AssetDTO;
     nfcId?: string;
     barCode?: string;
+    openedFromSelector?: boolean;
     onSuccess?: (asset: AssetMiniDTO) => void;
   };
   AddLocation:
     | {
+        openedFromSelector?: boolean;
         onSuccess?: (location: LocationMiniDTO) => void;
       }
     | undefined;
   AddPart:
     | {
+        openedFromSelector?: boolean;
         onSuccess?: (part: PartMiniDTO) => void;
       }
     | undefined;
   AddMeter: undefined;
   AddUser:
     | {
+        openedFromSelector?: boolean;
         onSuccess?: (user: UserMiniDTO) => void; //unused. May be used in the future
       }
     | undefined;
@@ -75,7 +81,11 @@ export type RootStackParamList = {
   UserProfile: undefined;
   TeamDetails: { id: number; teamProp?: Team };
   PartDetails: { id: number; partProp?: Part };
-  MeterDetails: { id: number; meterProp?: Meter };
+  MeterDetails: {
+    id: number;
+    meterProp?: Meter;
+    onNewReading?: (readingValue: number) => void;
+  };
   CustomerDetails: { id: number; customerProp?: Customer };
   VendorDetails: { id: number; vendorProp?: Vendor };
   Modal: undefined;
@@ -153,9 +163,12 @@ export type RootStackParamList = {
   WorkOrderFilters: {
     filterFields: FilterField[];
     onFilterChange: (filterFields: FilterField[]) => void;
+    onReset: () => void;
   };
   AddAdditionalCost: { workOrderId: number };
+  EditAdditionalCost: { workOrderId: number; additionalCost: AdditionalCost };
   AddAdditionalTime: { workOrderId: number };
+  EditAdditionalTime: { workOrderId: number; labor: Labor };
   ScanAsset: {
     onChange?: (asset: AssetMiniDTO) => void;
   };
