@@ -10,12 +10,11 @@
 
 Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
 
-**Where we are (2026-09-15 11:15).** **`release/1.8.0-enerkem.1` is deployed
-and running in production** (pipeline run 5985, §12.20). Our line is the
-`enerkem` branch; `main` mirrors `upstream/main` (§12.19). `cmms.enerkem.com` is
-bound with a valid certificate, but **internal DNS points it at the wrong
-private endpoint** and **blob downloads 403 from browsers** — both DNS, both
-with the owner/network team (§12.21). Container logging is still off (§12.20).
+**Where we are (2026-09-16 17:00).** **`release/1.8.0-enerkem.2` is deployed
+and running** (pipeline run 5998): the invitation/registration mail fix
+(§12.23) is live, `cmms-admins@enerkem.com` now exists as a mailbox, and
+`MMolotkov` registered as user 9. Open: the two DNS problems (§12.21) and
+container logging still off (§12.20).
 
 Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
@@ -1777,4 +1776,24 @@ at ERROR on every registration. Ship with `release/1.8.0-enerkem.2`.
 **Upstream behaviour noted, not changed:** `RegisterJWT` creating a duplicate
 `user_invitation` row on registration; `sendRegistrationMailToSuperAdmins`
 never actually running async.
+
+### 12.24 `release/1.8.0-enerkem.2` deployed; invitations cleaned up (2026-09-16)
+
+- Owner tagged `release/1.8.0-enerkem.2` at `cd0b9ee0` (the §12.23 mail fix +
+  docs). Pipeline run **5998 succeeded**; the app runs
+  `DOCKER|enerkem.azurecr.io/cmms:1.8.0-enerkem.2`, `/health-check` 200.
+- `cmms-admins@enerkem.com` exists in Entra now (resolves as a user/shared
+  mailbox), so the "New registration" admin copy is delivered. Before it
+  existed, six registration attempts rolled back — `own_user` ids 3–8 are the
+  gap; `MMolotkov@enerkem.com` then registered as **user 9** at 18:58 UTC on
+  the old code, once the mailbox existed.
+- Owner asked to delete the pending `tchaves@enerkem.com` invitations; rows
+  #2 and #3 removed. Remaining `user_invitation` rows: the seed
+  `superadmin@test.com` and MMolotkov's fulfilled #4/#5 (upstream never deletes
+  fulfilled rows). tchaves needs a fresh invite from People & Teams.
+- **IntelliJ MCP note:** `SELECT` through the `Production CA-CENTRAL`
+  connection works; `DELETE`/DML **times out** — the IDE holds modifying
+  statements for confirmation. For production DML use `psql` from the VPN with
+  the credentials in the gitignored repo-root `prod.env`
+  (`10.225.1.104`, db `atlas`, user `atlas`); it is reachable from this machine.
 

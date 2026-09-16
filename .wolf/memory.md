@@ -559,3 +559,8 @@ Root cause of 'lost invites': the invitee's REGISTRATION failed (admin copy to n
 | 14:41 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |
 | 15:01 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |
 | 16:28 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |
+| 16:54 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-close2.py | — | ~1653 |
+
+## Session end - 2026-09-16 17:00
+
+release/1.8.0-enerkem.2 deployed (run 5998), health 200. cmms-admins mailbox now exists; MMolotkov registered (user 9); tchaves invitations deleted via psql (MCP DML times out). Open: DNS x2 (12.21), container logging off (12.20). DEVELOPMENT-STATUS 12.24.
