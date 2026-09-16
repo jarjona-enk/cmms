@@ -21,6 +21,10 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Mail goes to Exchange Online by Direct Send.** `smtp.enerkem.com` = the EXO
+  MX; no auth, port 25, but recipients must exist in the tenant (DBEB) or you
+  get `550 5.4.1 Recipient address rejected`. "Invalid credentials" in atlas.log
+  is the app's own login error (`UserService.signin`), never SMTP.
 - **"Unreachable" in this environment is DNS until proven otherwise.** Corporate
   DNS (10.250.0.11/.12) carries private A records for Azure PaaS hosts; the VPN
   NRPT only forces `.enerkem.local/_ldap/isatap/wpad`, so clients flip between

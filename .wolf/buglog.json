@@ -890,6 +890,25 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-15T16:41:18"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-09-16T10:01:37",
+      "error_message": "MailSendException: 550 5.4.1 Recipient address rejected: Access denied (EXO) on admin notifications; reported as 'Invalid Credentials'",
+      "file": ".azure/env/prod.env MAIL_RECIPIENTS / Exchange Online directory",
+      "root_cause": "smtp.enerkem.com is the Exchange Online MX (Direct Send, no auth). It rejects recipients missing from the tenant directory; MAIL_RECIPIENTS=cmms-admins@enerkem.com does not exist. 'Invalid credentials' in the log is UserService.signin (bad password), unrelated.",
+      "fix": "NOT FIXED - owner to create the DL in Exchange or set MAIL_RECIPIENTS to an existing mailbox (prod.env + app setting). Mail to real users works.",
+      "tags": [
+        "mail",
+        "smtp",
+        "exchange-online",
+        "direct-send",
+        "MAIL_RECIPIENTS",
+        "open"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-09-16T10:01:37"
     }
   ]
 }

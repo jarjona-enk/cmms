@@ -39,3 +39,6 @@ docker-compose-minio.yml
 
 # Playwright MCP session artefacts (screenshots, snapshots)
 .playwright-mcp/
+
+# Production log pulled over SSH for diagnosis; contains user e-mail addresses
+/atlas.log

@@ -1671,3 +1671,41 @@ custom role. Permissions are in `role_view_permissions`,
 invitations carry `user_invitation.role_id`. A role change needs a fresh login
 (the JWT carries the authority).
 
+### 12.22 Mail: the relay works, the admin recipient does not exist (2026-09-16)
+
+**Reported as** "cannot send emails, gets Invalid Credentials, whereas it
+should not be authenticating". Reviewed `atlas.log` from the production
+container plus the live app settings.
+
+- The three `Invalid credentials` lines are **`com.grash.exception.CustomException`
+  from `UserService.signin:115`** — failed password logins at `/auth/signin`.
+  Not SMTP. There is no `AuthenticationFailedException` / `535` anywhere in the
+  log, so the relay never asked for credentials; `SMTP_AUTH=false` is honoured.
+- `smtp.enerkem.com` is a CNAME to **`enerkem-com.mail.protection.outlook.com`**
+  — Exchange Online's inbound MX ("Direct Send"). It accepts unauthenticated
+  mail on port 25 from anywhere, but **only for recipients that exist in the
+  tenant directory** (Directory-Based Edge Blocking).
+- Both real failures are the same SMTP answer on `RCPT TO`:
+  **`550 5.4.1 Recipient address rejected: Access denied`** — EXO's
+  "unknown recipient". Both come from the admin-notification paths that send to
+  `${mail.recipients}` = **`MAIL_RECIPIENTS=cmms-admins@enerkem.com`**:
+  `OAuth2AuthenticationSuccessHandler` ("new SSO user", 2026-09-15 16:08 UTC)
+  and `UserService.sendRegistrationMailToSuperAdmins` (signup, 2026-09-16
+  13:43 UTC). Entra has no group or user with that mail
+  (`az ad group list --filter "mail eq 'cmms-admins@enerkem.com'"` → empty).
+- In the 13:43 signup the **confirmation mail to the user's own address was
+  sent first and did not fail** — mail to real mailboxes works end to end.
+  Only the non-existent admin address is rejected. Side effect: because the
+  admin notification throws, that signup returned an error to the user even
+  though the account and the confirmation mail had gone through (upstream
+  behaviour, not ours).
+
+**Fix (owner's choice):** create `cmms-admins@enerkem.com` in Exchange Online
+(distribution list / M365 group / shared mailbox), **or** point
+`MAIL_RECIPIENTS` at an existing mailbox — in `.azure/env/prod.env` (line 97,
+what the pipeline applies) *and* on the app for immediate effect. No code or
+relay change needed. Caveats: `noreply@enerkem.com` does not exist either,
+which EXO tolerates as a sender but replies will bounce; and App Service's
+outbound IPs are not in `enerkem.com`'s SPF, so check the confirmation mail did
+not land in Junk.
+

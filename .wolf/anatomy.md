@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-15T20:41:04.854Z
-> Files: 6 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-16T14:01:17.741Z
+> Files: 7 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -17,6 +17,7 @@
 - `docs-branch-model.py` — Document the new branch model: main mirrors upstream/main, enerkem is ours. (~2915 tok)
 - `docs-close.py` — -*- coding: utf-8 -*- (~869 tok)
 - `docs-dns.py` — Record the post-deploy DNS diagnosis, the roles reference, and refresh memory. (~3682 tok)
+- `docs-mail.py` — -*- coding: utf-8 -*- (~1428 tok)
 
 ## ./
 
