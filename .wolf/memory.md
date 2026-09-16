@@ -556,3 +556,6 @@ Not a credentials problem: EXO Direct Send rejects MAIL_RECIPIENTS=cmms-admins@e
 ## 2026-09-16 14:45 - invitations fixed
 
 Root cause of 'lost invites': the invitee's REGISTRATION failed (admin copy to non-existent cmms-admins@enerkem.com threw synchronously; class-level @Transactional made it rollback-only). Fixed in EmailService2 (logging, NOT_SUPPORTED) and UserService (catch Exception, invite log). Verified with MailHog and a refusing relay. DL still to be created. DEVELOPMENT-STATUS 12.23.
+| 14:41 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |
+| 15:01 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |
+| 16:28 | Session end: 16 writes across 5 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~6635 tok |

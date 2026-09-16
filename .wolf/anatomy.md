@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-16T14:01:17.741Z
-> Files: 7 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-16T18:40:33.520Z
+> Files: 11 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -18,6 +18,8 @@
 - `docs-close.py` — -*- coding: utf-8 -*- (~869 tok)
 - `docs-dns.py` — Record the post-deploy DNS diagnosis, the roles reference, and refresh memory. (~3682 tok)
 - `docs-mail.py` — -*- coding: utf-8 -*- (~1428 tok)
+- `docs-mail2.py` — -*- coding: utf-8 -*- (~2865 tok)
+- `mail-test.sh` — Exercise the invite -> mail -> register flow against a local app + MailHog. (~931 tok)
 
 ## ./
 
@@ -171,6 +173,11 @@
 
 ## api/src/main/java/com/grash/model/abstracts/
 
+
+## api/src/main/java/com/grash/service/
+
+- `EmailService2.java` — Service: touches (~2362 tok)
+- `UserService.java` — Service: UserService (~8506 tok)
 
 ## api/src/main/java/com/grash/service/ *(manual, partial)*
 
