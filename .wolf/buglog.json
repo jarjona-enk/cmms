@@ -896,19 +896,71 @@
       "timestamp": "2026-09-16T10:01:37",
       "error_message": "MailSendException: 550 5.4.1 Recipient address rejected: Access denied (EXO) on admin notifications; reported as 'Invalid Credentials'",
       "file": ".azure/env/prod.env MAIL_RECIPIENTS / Exchange Online directory",
-      "root_cause": "smtp.enerkem.com is the Exchange Online MX (Direct Send, no auth). It rejects recipients missing from the tenant directory; MAIL_RECIPIENTS=cmms-admins@enerkem.com does not exist. 'Invalid credentials' in the log is UserService.signin (bad password), unrelated.",
-      "fix": "NOT FIXED - owner to create the DL in Exchange or set MAIL_RECIPIENTS to an existing mailbox (prod.env + app setting). Mail to real users works.",
+      "root_cause": "smtp.enerkem.com is the Exchange Online MX (Direct Send, no auth). It rejects recipients missing from the tenant directory; MAIL_RECIPIENTS=cmms-admins@enerkem.com does not exist. 'Invalid credentials' in the log is UserService.signin (bad password), unrelated. ADDITIONALLY: sendRegistrationMailToSuperAdmins is @Async but called from the same class (not proxied) so it ran inside signup; MailSendException is unchecked and escaped the MessagingException|IOException catch; and EmailService2's class-level @Transactional marked the transaction rollback-only -> invited users could not register (HTTP 500, no own_user row).",
+      "fix": "Code (enerkem, 2026-09-16): admin notification made non-fatal (catch Exception + log), EmailService2 @Transactional(NOT_SUPPORTED) so a relay error cannot mark the signup transaction rollback-only, and every send logs recipients/sender/relay. Verified locally: registration returns 200 while the relay refuses. STILL NEEDED: create cmms-admins@enerkem.com in Exchange or change MAIL_RECIPIENTS.",
       "tags": [
-        "mail",
-        "smtp",
+        "rollback-only",
         "exchange-online",
+        "smtp",
+        "fixed-code",
+        "async",
         "direct-send",
-        "MAIL_RECIPIENTS",
-        "open"
+        "open",
+        "registration",
+        "mail",
+        "MAIL_RECIPIENTS"
       ],
       "related_bugs": [],
-      "occurrences": 2,
-      "last_seen": "2026-09-16T10:01:37"
+      "occurrences": 3,
+      "last_seen": "2026-09-16T14:40:58"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-09-16T18:26:58.306Z",
+      "error_message": "Null/undefined access in ",
+      "file": "api/src/main/java/com/grash/service/EmailService2.java",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "java"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T18:26:58.306Z"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-09-16T18:28:25.265Z",
+      "error_message": "Significant refactor of ",
+      "file": "api/src/main/java/com/grash/service/UserService.java",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→14 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "java"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T18:28:25.265Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-09-16T18:36:51.025Z",
+      "error_message": "Significant refactor of ",
+      "file": "api/src/main/java/com/grash/service/EmailService2.java",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 9→13 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "java"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T18:36:51.025Z"
     }
   ]
 }

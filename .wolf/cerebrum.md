@@ -21,6 +21,17 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Spring traps seen in this codebase (2026-09-16):** `@Async` on a method
+  called from the same class is NOT async (no proxy) - `sendRegistrationMailToSuperAdmins`
+  ran inside `signup`. `MailSendException` is unchecked and slips past
+  `catch (MessagingException | IOException)`. A class-level `@Transactional` on a
+  service that throws inside a caller's transaction marks it rollback-only even
+  if the caller catches -> "Transaction silently rolled back"; use
+  `@Transactional(NOT_SUPPORTED)` for mail/IO services. Removing the annotation
+  can switch the bean to a JDK interface proxy and break concrete-type
+  injection (`MailServiceFactory` injects `EmailService2`).
+- **Invitation mails go To: the invitee only; the admin copy is a separate mail
+  sent on REGISTRATION (and on SSO first login), never on invite or resend.**
 - **Mail goes to Exchange Online by Direct Send.** `smtp.enerkem.com` = the EXO
   MX; no auth, port 25, but recipients must exist in the tenant (DBEB) or you
   get `550 5.4.1 Recipient address rejected`. "Invalid credentials" in atlas.log

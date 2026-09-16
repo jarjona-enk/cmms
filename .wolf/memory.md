@@ -536,3 +536,23 @@ cmms.enerkem.com: corporate A record -> 10.225.2.20 (wrong App Service PE, 503);
 ## 2026-09-16 10:15 - mail review
 
 Not a credentials problem: EXO Direct Send rejects MAIL_RECIPIENTS=cmms-admins@enerkem.com (does not exist). User mails work. 'Invalid credentials' = failed logins. DEVELOPMENT-STATUS 12.22.
+| 10:01 | Session end: 1 writes across 1 files (docs-mail.py) | 0 reads | ~1428 tok |
+| 14:26 | Edited api/src/main/java/com/grash/service/EmailService2.java | added 1 import(s) | ~35 |
+| 14:26 | Edited api/src/main/java/com/grash/service/EmailService2.java | 4→5 lines | ~29 |
+| 14:26 | Edited api/src/main/java/com/grash/service/EmailService2.java | modified catch() | ~152 |
+| 14:26 | Edited api/src/main/java/com/grash/service/EmailService2.java | added 1 condition(s) | ~241 |
+| 14:27 | Edited api/src/main/java/com/grash/service/EmailService2.java | 4→5 lines | ~62 |
+| 14:28 | Edited api/src/main/java/com/grash/service/UserService.java | added 1 import(s) | ~20 |
+| 14:28 | Edited api/src/main/java/com/grash/service/UserService.java | 4→5 lines | ~15 |
+| 14:28 | Edited api/src/main/java/com/grash/service/UserService.java | modified catch() | ~236 |
+| 14:28 | Edited api/src/main/java/com/grash/service/UserService.java | 2→4 lines | ~99 |
+| 14:30 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/mail-test.sh | — | ~931 |
+| 14:33 | Edited api/src/main/java/com/grash/service/EmailService2.java | 5→9 lines | ~130 |
+| 14:33 | Edited api/src/main/java/com/grash/service/EmailService2.java | — | ~0 |
+| 14:36 | Edited api/src/main/java/com/grash/service/EmailService2.java | 9→13 lines | ~202 |
+| 14:36 | Edited api/src/main/java/com/grash/service/EmailService2.java | added 1 import(s) | ~34 |
+| 14:40 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-mail2.py | — | ~2865 |
+
+## 2026-09-16 14:45 - invitations fixed
+
+Root cause of 'lost invites': the invitee's REGISTRATION failed (admin copy to non-existent cmms-admins@enerkem.com threw synchronously; class-level @Transactional made it rollback-only). Fixed in EmailService2 (logging, NOT_SUPPORTED) and UserService (catch Exception, invite log). Verified with MailHog and a refusing relay. DL still to be created. DEVELOPMENT-STATUS 12.23.

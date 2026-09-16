@@ -1709,3 +1709,72 @@ which EXO tolerates as a sender but replies will bounce; and App Service's
 outbound IPs are not in `enerkem.com`'s SPF, so check the confirmation mail did
 not land in Junk.
 
+### 12.23 Invitations: the admin copy was killing registrations (2026-09-16)
+
+**Owner's report, refined during the review:** invitation mails seemed lost on
+the first attempt and to work on resend; an invited user "signing in" broke
+because a mail could not be sent; the SMTP relay works by hand on port 25.
+
+**What the database says** (`Production CA-CENTRAL`, via the IntelliJ MCP):
+`user_invitation` has 4 rows with correct e-mail and role — `tchaves` (#2 at
+13:43:01 and #3 at 18:12 UTC) and `MMolotkov` (#4 at 18:13) — and **`own_user`
+has none of them**, `verification_token` is empty. The invitation payload is
+fine; nobody managed to register.
+
+**The actual sequence** (log + code):
+
+1. Invite → `UserService.invite` saves the row and queues the invitation mail
+   `@Async`, `To:` the invitee only. **No CC, no copy to `cmms-admins`** — that
+   address is never part of an invitation mail, first time or resend.
+2. The invitee clicks the link. `RegisterJWT.tsx` first calls `users/invite`
+   again with `disableSendingEmail=true` (that is invitation row #2, same
+   second as the signup) and then `auth/signup` with the role.
+3. `signup` → `enableAndReturnToken(user, true)` →
+   `sendRegistrationMailToSuperAdmins` — the "New Atlas registration" mail
+   `To: MAIL_RECIPIENTS` = `cmms-admins@enerkem.com`, which **does not exist**
+   in Exchange Online → `550 5.4.1 Recipient address rejected`.
+4. That method is `@Async` but called from the same class, so Spring never
+   proxies it: it runs **synchronously inside the signup transaction**. Its
+   catch only covers `MessagingException | IOException`; `MailSendException`
+   is unchecked and escaped → HTTP 500 → rollback → **no user created**. The
+   registration is what "broke", not the invitation.
+5. A resend produces the same invitation mail as the first; it "works" only in
+   the sense that the mail arrives — as the first one did (the invitee could not
+   have clicked the link otherwise).
+
+**Code fixes on `enerkem` (verified locally, see below):**
+
+- `EmailService2`: `@Slf4j`; every send logs **recipients, sender, relay**
+  (`Sending mail '…' from … to … via host:port`), success (`accepted by`), the
+  skip reason, an empty recipient list, and on failure the recipients plus the
+  SMTP cause (the `@Async` path previously left no trace at all).
+- `UserService.sendRegistrationMailToSuperAdmins`: catches `Exception` and logs
+  `Admin notification for new user … could not be sent to …`; the admin copy is
+  a courtesy and must never fail a signup. `invite()` logs
+  `Invitation for … with role … saved; invitation mail queued|suppressed`.
+- `EmailService2` is now `@Transactional(NOT_SUPPORTED)` instead of upstream's
+  plain `@Transactional`: with REQUIRED, the relay exception crossing the
+  mail-service proxy marked the caller's transaction rollback-only, so even the
+  caught failure ended in *"Transaction silently rolled back because it has been
+  marked as rollback-only"* (reproduced locally). Removing the annotation
+  outright fails startup — `MailServiceFactory` injects the concrete class and
+  the remaining `@Async` proxy would be a JDK interface proxy — hence
+  NOT_SUPPORTED, which suspends the transaction and keeps the CGLIB proxy.
+
+**Local verification** (jar on :8080, MailHog on :1025, then a closed port):
+
+| scenario | invite | resend | invitee registration | evidence |
+|---|---|---|---|---|
+| relay accepts (MailHog) | 2 mails, each `To:` one invitee | 1 mail `To:` invitee | **200**, then 1 mail `To: cmms-admins` "New Atlas registration" | MailHog headers; no CC anywhere |
+| relay refuses (port 1) before fix | 200 (async failure logged) | 200 | **500** "Transaction silently rolled back" | first run |
+| relay refuses (port 1) after fix | 200 | 200 | **200**, JWT returned, `own_user` row created | `ERROR … Admin notification … could not be sent to cmms-admins@…` |
+
+**Still needed on the Exchange side:** create `cmms-admins@enerkem.com` (or
+point `MAIL_RECIPIENTS` at an existing mailbox in `.azure/env/prod.env` and on
+the app), otherwise the admin copy keeps failing — harmlessly now, but logged
+at ERROR on every registration. Ship with `release/1.8.0-enerkem.2`.
+
+**Upstream behaviour noted, not changed:** `RegisterJWT` creating a duplicate
+`user_invitation` row on registration; `sendRegistrationMailToSuperAdmins`
+never actually running async.
+
