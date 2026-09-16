@@ -9,6 +9,7 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.util.ByteArrayDataSource;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.core.env.Environment;
@@ -29,8 +30,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+// Enerkem: upstream has plain @Transactional here. This class touches no
+// database, and with REQUIRED a relay error thrown from sendHtmlMessage crossed
+// this proxy inside the caller's transaction and marked it rollback-only - so a
+// caught admin-notification failure still made the user's signup fail with
+// "Transaction silently rolled back". NOT_SUPPORTED suspends the caller's
+// transaction while mail is sent, so mail can never decide a DB transaction.
+// (Kept as an annotation rather than removed: MailServiceFactory injects the
+// concrete class, which needs the class-based proxy this produces.)
+@Slf4j
 @Service
-@Transactional
+@Transactional(Transactional.TxType.NOT_SUPPORTED)
 @RequiredArgsConstructor
 public class EmailService2 implements MailService {
 
@@ -125,7 +135,11 @@ public class EmailService2 implements MailService {
 
         try {
             sendHtmlMessage(to, subject, htmlBody, attachmentDTOS);
-        } catch (MessagingException | IOException e) {
+        } catch (MessagingException | IOException | MailException e) {
+            // Enerkem: this runs @Async, so this log line is the only trace a lost
+            // mail leaves. Name the recipients and keep the SMTP cause.
+            log.error("Mail '{}' (template {}) to {} failed: {}", subject, template,
+                    String.join(",", to), e.getMessage(), e);
             throw new CustomException("Can't send the mail", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -134,9 +148,21 @@ public class EmailService2 implements MailService {
     @Override
     public void sendHtmlMessage(String[] to, String subject, String htmlBody,
                                 List<EmailAttachmentDTO> attachmentDTOS) throws MessagingException, IOException {
-        if (shouldSkipSendingMail())
+        if (shouldSkipSendingMail()) {
+            log.info("Mail '{}' to {} skipped: mail.enable={} skipMail={}", subject, String.join(",", to),
+                    enableEmails, MailService.skipMail.get());
             return;
+        }
+        if (to.length == 0) {
+            log.warn("Mail '{}' has no recipients; nothing sent", subject);
+            return;
+        }
         if (to.length > 0) {
+            // Enerkem: log every outgoing mail - recipients, sender and relay - so a
+            // rejected or lost message can be traced without SMTP debug output.
+            log.info("Sending mail '{}' from {} to {} via {}:{}", subject,
+                    smtpFromAddress != null ? smtpFromAddress : mailProperties.getUsername(),
+                    String.join(",", to), mailProperties.getHost(), mailProperties.getPort());
 
             MimeMessage message = emailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -160,6 +186,7 @@ public class EmailService2 implements MailService {
 
             //helper.addInline("attachment.png", resourceFile);
             emailSender.send(message);
+            log.info("Mail '{}' to {} accepted by {}", subject, String.join(",", to), mailProperties.getHost());
         }
     }
 

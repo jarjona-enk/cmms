@@ -23,6 +23,7 @@ import com.grash.security.CustomUserDetail;
 import com.grash.security.JwtTokenProvider;
 import com.grash.utils.Helper;
 import jakarta.mail.MessagingException;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -56,6 +57,7 @@ import javax.naming.directory.SearchControls;
 import static com.grash.utils.Consts.usageBasedLicenseLimits;
 
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -385,6 +387,8 @@ public class UserService {
                 put("inviter", inviter.getFirstName() + " " + inviter.getLastName());
                 put("company", inviter.getCompany().getName());
             }};
+            log.info("Invitation for {} with role '{}' saved; invitation mail {}", email, role.getName(),
+                    Boolean.TRUE.equals(disableSendingMails) ? "suppressed by caller" : "queued");
             if (!Boolean.TRUE.equals(disableSendingMails))
                 mailServiceFactory.getMailService().sendMessageUsingThymeleafTemplate(new String[]{email},
                         messageSource.getMessage(
@@ -441,8 +445,14 @@ public class UserService {
             String subject = buildRegistrationEmailSubject(userSignupRequest, brandingService);
             String body = buildRegistrationEmailBody(user, userSignupRequest);
             mailServiceFactory.getMailService().sendHtmlMessage(recipients, subject, body, null);
-        } catch (MessagingException | IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            // Enerkem: this is called directly (same class), so @Async does not apply
+            // and it runs inside the caller's signup. A relay rejecting the admin
+            // address (MailSendException, unchecked) used to escape here and fail the
+            // whole registration. The admin copy is a courtesy - never let it break
+            // the user's signup.
+            log.error("Admin notification for new user {} could not be sent to {}: {}",
+                    user.getEmail(), String.join(",", recipients), e.getMessage(), e);
         }
     }
 
