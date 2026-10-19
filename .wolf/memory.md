@@ -596,3 +596,9 @@ release/1.8.0-enerkem.2 deployed (run 5998), health 200. cmms-admins mailbox now
 ## 2026-10-19 - plan written
 
 Owner wants: merge v1.9.0 + test, isolate Azure Blob, then upstream PR. Wrote ENERKEM-PLAN.md (Prompts 0-5) with the facts (v1.9.0 = fc27abfd, Boot 3.5.16, axios removed, StorageService uploadAt/exists, 8 changesets, no extensions). No code changed. DEVELOPMENT-STATUS 12.25.
+| 12:33 | Session end: 2 writes across 2 files (ENERKEM-PLAN.md, docs-plan.py) | 0 reads | ~5441 tok |
+| 12:46 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-tests.py | — | ~1766 |
+
+## 2026-10-19 13:00 - tests
+
+First ever `mvn test`: 767 run, 0 failures, 2 Testcontainers errors (Docker Desktop 29 named-pipe incompatibility, all workarounds tried). No Azure Blob tests exist; plan amended (identical-bytes rule; Mockito unit tests + Azurite IT in Prompt 3). Azurite image pulled. DEVELOPMENT-STATUS 12.26.

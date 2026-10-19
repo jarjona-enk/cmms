@@ -1816,3 +1816,45 @@ its CONTRIBUTING is fork → PR with no CLA; the project is dual-licensed.
 
 Nothing was merged or changed in this session beyond the plan itself.
 
+### 12.26 Test suite status: never run before; no Azure Blob tests exist (2026-10-19)
+
+Owner asked "where are we testing? do we have unit tests for the Azure Blob
+implementation?" Honest answer: **no.** Everything verified since September was
+manual (local jar + curl + Playwright + MailHog). `mvn test` had never been run
+on this machine — Surefire's JUnit provider was not even in the local Maven
+repository — because every build passes `-DskipTests` and the pipeline runs no
+tests (§12.17). There is no test for `AzureBlobService`, nor for any storage
+service, in our 44 test files; upstream v1.9.0 has 95 test files including
+`StorageServiceFactoryTest`.
+
+**First real run of the suite (JDK 17, `mvn -DskipFrontend=true test`):**
+**767 tests, 0 failures, 2 errors.** The two errors are
+`UserIntegrationTest` and `WorkOrderIntegrationTest`, both
+`Could not find a valid Docker environment` from Testcontainers. All 765 unit
+tests pass with our changes (SSO, mail, AGPL, Azure factory wiring).
+
+**The Testcontainers errors are a Docker Desktop 29 incompatibility**, not a
+code problem: Docker Desktop 29.9.1 (API 1.56, min 1.40) rejects docker-java's
+named-pipe transport with `BadRequestException (Status 400)` carrying an empty
+`/info` body. Reproduced with Testcontainers 1.19.3 (pom) and 1.21.3 (command
+line override), on both `//./pipe/dockerDesktopLinuxEngine` and
+`//./pipe/docker_engine`, with `DOCKER_API_VERSION=1.44` pinned and with the
+cached strategy in `~/.testcontainers.properties` removed. Docker itself works
+(`docker run` fine; Azurite image pulled). **Unblock:** Docker Desktop →
+Settings → General → *Expose daemon on tcp://localhost:2375 without TLS*, then
+run tests with `DOCKER_HOST=tcp://localhost:2375` — the HTTP transport bypasses
+the pipe. Owner's call (it exposes the daemon to localhost without auth).
+
+**Azure Blob tests to add (Prompt 3 of ENERKEM-PLAN.md, now split in two):**
+
+1. **Unit tests, no Docker:** `AzureBlobServiceTest` with Mockito-mocked
+   `BlobServiceClient` / `BlobContainerClient` / `BlobClient` covering
+   `upload` (key generation, content type), `download` (missing blob → 404),
+   `uploadAt` (empty data → 400, overwrite), `exists`, `generateSignedUrl`
+   (shared-key vs user-delegation paths, caching via `CacheService`) and
+   `checkIfConfigured`. Plus the `AZURE` case in `StorageServiceFactoryTest`.
+   These run in the plain `mvn test` and are what upstream reviewers will read.
+2. **Integration test with Azurite** (`mcr.microsoft.com/azure-storage/azurite`
+   via Testcontainers): real upload → exists → download → SAS → overwrite.
+   Needs the Docker fix above; tagged so it is skipped when Docker is absent.
+

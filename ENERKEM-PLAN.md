@@ -21,6 +21,50 @@ Facts gathered 2026-10-19 that the prompts rely on:
 
 ---
 
+## Governing principle — identical bytes (owner, 2026-10-19)
+
+> "Our PR is actually part of our code, so when it becomes part of the upstream
+> code, it will update our own code with no changes."
+
+So the Azure Blob files on `enerkem` **are** the contribution, byte for byte:
+
+1. The feature is brought to upstream quality **on `enerkem` first** (Prompt 3):
+   neutral wording, no Enerkem-specific comments or defaults, their test and
+   doc conventions. It keeps running in production from that same code.
+2. The PR branch (Prompt 4) **copies those files verbatim** from `enerkem` onto
+   `upstream/main` — no rewrite, no "cleaned-up version". If `upstream/main`
+   forces a change (an interface moved), the change is made on `enerkem` first
+   and copied again.
+3. Every change requested in review is applied on `enerkem` the same day and
+   re-copied, so the two never diverge. `git diff upstream/<branch> enerkem --
+   <azure files>` must be empty at all times while the PR is open.
+4. When the upstream release containing it is merged (Prompt 5), those files
+   merge as **no-ops**. From then on they are upstream's to maintain and are
+   removed from CLAUDE.md's conflict hot spots.
+
+Files under this rule: `api/src/main/java/com/grash/service/AzureBlobService.java`,
+the Azure test classes, the `AZURE` lines in `StorageType` / `StorageServiceFactory`
+/ `StorageServiceFactoryTest`, the `storage.azure.*` block in `application.yml`,
+the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
+`README.MD`, `.env.example`, `docker-compose.yml`.
+
+---
+
+## Test prerequisites (all prompts)
+
+- `mvn -DskipFrontend=true test` from `api/` with JDK 17 is the gate before any
+  merge lands on `enerkem` and before any release tag. Baseline 2026-10-19:
+  767 tests, 0 failures (2 Testcontainers errors explained below).
+- Testcontainers (integration tests, future Azurite test) needs Docker reachable
+  over **TCP**: Docker Desktop 29 rejects docker-java's named-pipe transport
+  (DEVELOPMENT-STATUS §12.26). Enable *Expose daemon on tcp://localhost:2375
+  without TLS* in Docker Desktop → Settings → General, then run tests with
+  `DOCKER_HOST=tcp://localhost:2375`. Until then the two integration tests
+  error out with "Could not find a valid Docker environment" — that is the
+  environment, not the code.
+
+---
+
 ## Prompt 0 — decisions before any code (owner, 10 minutes)
 
 > Read CLAUDE.md §1–2 and ENERKEM-PLAN.md. I am the repo owner. Record these
@@ -155,6 +199,12 @@ Facts gathered 2026-10-19 that the prompts rely on:
 >      keep both auth modes (account key, `DefaultAzureCredential`/managed identity)
 >      and user-delegation SAS — that is the feature's value;
 >    - `StorageServiceFactoryTest`: `getStorageService_azure_returnsAzureService`;
+>    - **`AzureBlobServiceTest` (Mockito, no Docker):** mocked `BlobServiceClient`
+>      / `BlobContainerClient` / `BlobClient`; cover `upload` (key generation,
+>      content type), `download` (missing → 404), `uploadAt` (empty → 400,
+>      overwrite), `exists`, `generateSignedUrl` in both auth modes and through
+>      `CacheService`, and `checkIfConfigured`. Run first: `mvn -DskipFrontend=true test`
+>      must stay at 0 failures (767 tests on 2026-10-19, see DEVELOPMENT-STATUS §12.26);
 >    - an **Azurite** Testcontainers integration test
 >      (`mcr.microsoft.com/azure-storage/azurite`): upload → exists → download →
 >      signed URL → `uploadAt` overwrite → `exists` false for a missing path;
@@ -186,9 +236,11 @@ Facts gathered 2026-10-19 that the prompts rely on:
 >    anywhere but `origin`.
 > 2. `git fetch upstream && git switch -c contrib/azure-blob-storage upstream/main`
 >    (clean room: based on upstream's `main`, not on `enerkem`). Re-apply **only**
->    the isolated feature from Prompt 3 — copy the files, do not cherry-pick
->    Enerkem commits. If `upstream/main` has moved the storage interface again,
->    adapt to it here.
+>    the isolated feature from Prompt 3 by **copying the files verbatim from
+>    `enerkem`** (`git checkout enerkem -- <file>` per file; no cherry-pick of
+>    Enerkem commits, no edits on this branch). If `upstream/main` has moved the storage interface again,
+>    adapt **on `enerkem` first**, commit there, then copy again — the identical-bytes
+>    rule above.
 > 3. Build and test against upstream's toolchain: `mvn -B verify` in `api/`
 >    (their Spring Boot version), including the Azurite test. The diff must touch
 >    only: `AzureBlobService.java`, `AzureBlobServiceIT` (or their naming),
@@ -211,9 +263,11 @@ Facts gathered 2026-10-19 that the prompts rely on:
 
 > Read CLAUDE.md and ENERKEM-PLAN.md. Upstream released a version containing the
 > Azure Blob backend (tag `<vX.Y.Z>`). Merge that release into `enerkem` per
-> CLAUDE.md §2, and during the merge **take upstream's versions** of
-> `AzureBlobService.java`, `StorageType`, `StorageServiceFactory`, the
-> `storage.azure.*` YAML block and the Azure dependencies — our copy retires.
+> CLAUDE.md §2, and verify during the merge that `AzureBlobService.java`, the Azure tests,
+> `StorageType`, `StorageServiceFactory`, the `storage.azure.*` YAML block, the
+> Azure dependencies and the Azure docs merge as **no-ops** (identical bytes). If
+> any of them conflicts, the identical-bytes rule was broken somewhere — stop and
+> report which side drifted before resolving.
 > Re-run the Prompt 2 matrix plus a real upload/download against `stgcaneastcmms`
 > (managed identity path) before tagging. Update CLAUDE.md "Known conflict hot
 > spots" to remove the Azure files from our conflict surface.

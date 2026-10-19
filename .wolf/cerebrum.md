@@ -21,6 +21,15 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **`mvn test` works and is the gate** (765 unit tests green on 2026-10-19;
+  never run before because every build used -DskipTests). Run it from `api/`
+  ONLINE the first time (Surefire's JUnit provider is not cached), JDK 17,
+  `-DskipFrontend=true`. The two Testcontainers ITs fail on Docker Desktop 29 via
+  named pipe (docker-java 400 on /info, any Testcontainers version) - needs the
+  TCP 2375 setting + `DOCKER_HOST=tcp://localhost:2375`. Do not burn time on
+  pipe variants, API pins or strategy caches - all tried.
+- **There are no AzureBlobService tests yet.** Prompt 3 adds Mockito unit tests
+  (no Docker) and an Azurite IT (Docker).
 - **Roadmap lives in `ENERKEM-PLAN.md`** (repo root, ours): numbered prompts for
   the v1.9.0 merge → Azure Blob isolation → upstream PR. When the owner pastes
   one, read that file first; each prompt ends by updating DEVELOPMENT-STATUS.
