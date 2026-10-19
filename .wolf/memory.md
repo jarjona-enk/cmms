@@ -602,3 +602,11 @@ Owner wants: merge v1.9.0 + test, isolate Azure Blob, then upstream PR. Wrote EN
 ## 2026-10-19 13:00 - tests
 
 First ever `mvn test`: 767 run, 0 failures, 2 Testcontainers errors (Docker Desktop 29 named-pipe incompatibility, all workarounds tried). No Azure Blob tests exist; plan amended (identical-bytes rule; Mockito unit tests + Azurite IT in Prompt 3). Azurite image pulled. DEVELOPMENT-STATUS 12.26.
+| 12:47 | Session end: 3 writes across 3 files (ENERKEM-PLAN.md, docs-plan.py, docs-tests.py) | 0 reads | ~7207 tok |
+| 12:50 | Session end: 3 writes across 3 files (ENERKEM-PLAN.md, docs-plan.py, docs-tests.py) | 0 reads | ~7207 tok |
+| 12:54 | Created ../../../Users/JArjona/.ssh/config | — | ~47 |
+| 12:55 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-fork.py | — | ~809 |
+
+## 2026-10-19 13:20 - fork wired
+
+Owner created github.com/jarjona-enk/cmms and an SSH key ~/.ssh/jarjona-enk. Added ~/.ssh/config Host github.com -> that key; remote `fork` set to SSH; `ssh -T` says Hi jarjona-enk; ls-remote and dry-run push OK. Nothing pushed.

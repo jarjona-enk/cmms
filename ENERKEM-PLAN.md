@@ -77,7 +77,11 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 >    to the `upstream` remote, never open issues/PRs for anything else.
 > 2. Licensing: contributions go out under AGPLv3 (upstream has no CLA). If the
 >    maintainers ask for a CLA or a relicensing grant, stop and bring it to me.
-> 3. The GitHub account/fork to use: `<fill in>`. Commit author for the PR: `<fill in>`.
+> 3. The GitHub account/fork is **`jarjona-enk/cmms`** (fork of Grashjs/cmms, created
+>    2026-10-18). Local remote `fork` = `git@github.com:jarjona-enk/cmms.git`, SSH key
+>    `~/.ssh/jarjona-enk` (ed25519, `SHA256:J/wp8VkOW1/x4WGypYJgH5eFgo/JlzXpd9ibI0Sw+1A`),
+>    selected by `~/.ssh/config` (`Host github.com`). Verified 2026-10-19: auth as
+>    jarjona-enk, read and dry-run push OK. Commit author for the PR: `<fill in>`.
 >
 > Do not start the v1.9.0 merge in this session.
 
@@ -231,7 +235,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 > ENERKEM-PLAN.md. Prepare — do not open until I say so — the upstream PR for the
 > Azure Blob Storage backend:
 >
-> 1. Add a remote `fork` pointing at the GitHub fork from Prompt 0. Never touch the
+> 1. The remote `fork` (`git@github.com:jarjona-enk/cmms.git`, SSH) already exists. Never touch the
 >    `upstream` remote's push URL (`DISABLED`); never push `enerkem` or `main`
 >    anywhere but `origin`.
 > 2. `git fetch upstream && git switch -c contrib/azure-blob-storage upstream/main`

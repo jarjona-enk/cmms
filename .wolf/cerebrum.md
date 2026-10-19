@@ -30,6 +30,11 @@
   pipe variants, API pins or strategy caches - all tried.
 - **There are no AzureBlobService tests yet.** Prompt 3 adds Mockito unit tests
   (no Docker) and an Azurite IT (Docker).
+- **GitHub fork for the upstream PR:** remote `fork` = `git@github.com:jarjona-enk/cmms.git`
+  over SSH with `~/.ssh/jarjona-enk` (ed25519) via `~/.ssh/config`; identity
+  `jarjona-enk`. `fork` receives `contrib/*` branches ONLY, and only when the
+  owner says push. `enerkem`/`main` go to `origin` only; `upstream` push stays
+  `DISABLED`. `gh` is not installed; the owner opens issues/PRs in the browser.
 - **Roadmap lives in `ENERKEM-PLAN.md`** (repo root, ours): numbered prompts for
   the v1.9.0 merge → Azure Blob isolation → upstream PR. When the owner pastes
   one, read that file first; each prompt ends by updating DEVELOPMENT-STATUS.
