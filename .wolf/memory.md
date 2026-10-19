@@ -620,3 +620,12 @@ Owner created github.com/jarjona-enk/cmms and an SSH key ~/.ssh/jarjona-enk. Add
 ## 2026-10-19 14:10 - plan finalised
 
 Owner decisions baked into ENERKEM-PLAN.md: LOCAL ONLY (no production, no pushes/tags by sessions), upstream package files as-is, prefer-upstream on uncovered conflicts, local test DB only, Docker over TCP 2375 (owner enabling), port 8080 required for SSO check, session pushes contrib/* to fork and owner opens issue/PR, author Juan F Arjona - Enerkem Inc. Docker update wiped containers; recreate commands in the plan. Prompt 0 is ready to run on Sonnet 5.
+| 13:44 | Session end: 9 writes across 8 files (ENERKEM-PLAN.md, docs-plan.py, docs-tests.py, config, docs-fork.py) | 1 reads | ~21843 tok |
+| 13:54 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-ready.py | — | ~1356 |
+| 14:02 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-ready.py | — | ~2696 |
+| 14:02 | Edited ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-ready.py | present() → count() | ~113 |
+| 14:02 | Edited ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-ready.py | modified rep() | ~55 |
+
+## 2026-10-19 14:40 - pre-flight for agent execution
+
+Docker TCP 2375 on; root cause of Testcontainers failures = Docker 29 rejects API<1.40 -> fixed with api.version=1.44 in ~/.docker-java.properties; full suite 863/1 failure (expected: usage-limit test vs AGPL decision). Prod copy restored locally by owner (806 changesets, 7 users); baseline dump in atlas_backups. MinIO now bitnamilegacy image; MailHog running. Plan updated for coordinated background agents.

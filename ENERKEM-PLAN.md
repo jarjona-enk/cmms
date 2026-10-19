@@ -29,6 +29,18 @@ them unattended were taken by the owner on 2026-10-19 and are written in.
   8025/9000/10000, the scratchpad. Never kill a process the session did not
   start (another project's java often sits on 8080).
 
+## How the prompts are executed — coordinated background agents
+
+The owner's coordinator session (Fable 5.1) launches each prompt as a
+**background agent on the model named in its heading**, one at a time, verifies
+the result (commit present, DEVELOPMENT-STATUS updated, tests green) and only
+then launches the next. Agents cannot talk to the owner: wherever a prompt says
+"stop and ask", the agent must stop, record what it has in
+DEVELOPMENT-STATUS.md, commit, and report in its final message — the
+coordinator relays to the owner. Prompt 2's manual SSO round-trip is a pause:
+the agent reports "ready for SSO", the coordinator waits for the owner, then
+resumes the same agent. Agents never push, never tag, never touch production.
+
 ## Which model runs which prompt
 
 | prompt | model | why |
@@ -52,8 +64,8 @@ rather than iterating.
 |---|---|
 | Frontend dependencies in the v1.9.0 merge | **Take upstream's `package.json` and `package-lock.json` as-is.** Our August within-major refresh is dropped; it was housekeeping. `npm ci`, never `npm install`. |
 | Conflicts not covered by the standing rules | **Prefer upstream, log the choice in DEVELOPMENT-STATUS, continue.** Stop only if the conflict touches SSO, mail, AGPL/source-code, or Enerkem packaging (Dockerfile, startup.sh, pipeline, `.azure/`). |
-| Test database | **Local only**: fresh install from an empty `public` schema, and an upgrade from a `pg_dump` of the local 1.8.0 database. No production data. |
-| Integration tests | Owner enables Docker Desktop → Settings → General → *Expose daemon on tcp://localhost:2375 without TLS*. Sessions run tests with `DOCKER_HOST=tcp://localhost:2375`. If `curl http://localhost:2375/_ping` is not `200`, stop and ask — do not try pipe variants (all tried; Docker Desktop 29 rejects docker-java's named-pipe transport). |
+| Test database | **Local only.** The local `atlas` database is a **copy of production** restored by the owner on 2026-10-19 (806 changesets, 7 users, 2 companies, 18 assets). Baseline dump: `atlas_backups\atlas-prodcopy-1.8.0-20261019.dump`. Prompt 2 tests the fresh install on an empty `public` schema and the upgrade on this copy. Sessions never connect to the real production server. |
+| Integration tests | Two things make Testcontainers work on Docker Desktop 29 (both in place 2026-10-19, verified): the daemon exposed on **tcp://localhost:2375** and **`api.version=1.44` in `%USERPROFILE%\.docker-java.properties`** — Docker 29 answers HTTP 400 to any API path below v1.40 and docker-java negotiates an older one by default (that 400 is the "Could not find a valid Docker environment" everyone sees). Sessions run tests with `DOCKER_HOST=tcp://localhost:2375`. If `curl http://localhost:2375/_ping` is not `200` or the properties file is missing, stop and ask. |
 | SSO check in Prompt 2 | **Port 8080 required** (the registered local redirect URI). If 8080 is busy, stop and ask; never kill the other process. |
 | Pushes and tags | **Owner only.** Sessions hand over commands. |
 | Upstream PR | Session pushes `contrib/azure-blob-storage` to `fork`; **owner opens the issue and the PR in the browser** (no `gh`). |
@@ -68,15 +80,15 @@ rather than iterating.
 | Target | upstream **v1.9.0** = `fc27abfd` (2026-09-22), **402 commits**; `upstream/main` is 25 past it — never merge `upstream/main` |
 | Big moves in v1.9.0 | Spring Boot **3.2.3 → 3.5.16** (Java 17 kept); `frontend/package.json` **removes axios, firebase, jsonwebtoken** (64k-line lockfile churn); `UserService` ±336 lines; `StorageService` gains `uploadAt(byte[], String, String)` and `exists(String)`; signed URLs cached via `CacheService.getCachedOrGenerateSignedUrl` |
 | Hot spots touched | `WebSecurityConfig` (19), `OAuth2ClientRegistrationConfig` (10), `OAuth2AuthenticationSuccessHandler` (11), `EmailService2` (4), `api/Dockerfile` (12), `application.yml` (60), `docker-compose.yml` (27), `en.ts` (23), `api/pom.xml` (90) |
-| Database | 8 new changesets (asset/location indexes, user session invalidation, refresh token, API-key lifecycle, optimistic-locking `version` columns, `UPDATE part SET version = 0`, user language). **No new PostgreSQL extensions.** Local baseline: 806 changesets, `unaccent` installed → expect **814** |
+| Database | 8 new changesets (asset/location indexes, user session invalidation, refresh token, API-key lifecycle, optimistic-locking `version` columns, `UPDATE part SET version = 0`, user language). **No new PostgreSQL extensions.** Local baseline (production copy): 806 changesets, `unaccent` installed → expect **814** |
 | Upstream deleted files we modified | none |
 | Azure Blob footprint (ours) | commit `b90a0751`: `AzureBlobService.java` (new), `StorageType` `+AZURE`, `StorageServiceFactory` `+case`, `application.yml` `storage.azure.*`, `api/pom.xml` two deps. Upstream has no Azure backend (`StorageType = GCP, MINIO`) |
-| Test suite | `mvn -DskipFrontend=true test` from `api/`, JDK 17: **767 tests, 0 failures** on 2026-10-19 (2 Testcontainers errors = Docker transport, see Decisions). No Azure Blob tests exist yet. Run online the first time (Surefire's JUnit provider is not cached) |
+| Test suite | `mvn -DskipFrontend=true test` from `api/`, JDK 17, `DOCKER_HOST=tcp://localhost:2375`: **863 tests, 1 failure, 0 errors** on 2026-10-19 (full suite incl. Testcontainers, 1 min 36 s). The one failure is **expected**: `WorkOrderIntegrationTest$CreateTests.create_throwsForbiddenWhenUsageLimitExceeded` asserts the usage-based licence limit on active work orders, which our AGPLv3 decision removed (`LicenseService` grants every entitlement). Prompt 1 must make the suite green by annotating that test `@Disabled("Enerkem: usage-based licence limits are removed under the AGPLv3 decision (DEVELOPMENT-STATUS 12.x)")` — never by restoring the limit. No Azure Blob tests exist yet |
 | Local toolchain | JDK 17 at `C:\java\jdk-17`; Maven wrapper from `api/` (`.\mvnw.cmd -f ..\pom.xml`); if the wrapper misbehaves, `C:\Users\JArjona\.m2\wrapper\dists\apache-maven-3.8.6-bin\*\apache-maven-3.8.6\bin\mvn.cmd`; Postgres 18 `atlas/atlas` on `localhost:5432/atlas`, credentials in gitignored `dev.env`; `psql`/`pg_dump`/`pg_restore` in `C:\Program Files\PostgreSQL\18\bin`; the local `atlas` role cannot `CREATE DATABASE` — wipe and recreate the `public` schema instead |
-| Local containers | Docker Desktop 29.9.1. The 2026-10-19 update **removed all containers**; recreate as needed (read `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` from `dev.env`): `docker run -d --name cmms-minio -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=$MINIO_ACCESS_KEY -e MINIO_ROOT_PASSWORD=$MINIO_SECRET_KEY quay.io/minio/minio server /data --console-address ":9001"` and `docker run -d --name cmms-mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog`. Redirect `docker run` output to a file — never pipe it into `head`. Azurite image `mcr.microsoft.com/azure-storage/azurite` is cached |
+| Local containers | Docker Desktop 29.9.1. `cmms-minio` and `cmms-mailhog` were recreated on 2026-10-19 and are running. If missing, recreate (read `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` from `dev.env`): `docker run -d --name cmms-minio -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=$MINIO_ACCESS_KEY -e MINIO_ROOT_PASSWORD=$MINIO_SECRET_KEY bitnamilegacy/minio:latest` (MinIO withdrew `minio/minio` from Docker Hub and `quay.io/minio/minio` needs a login; the Bitnami legacy image works and reads the same env vars) and `docker run -d --name cmms-mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog`. Redirect `docker run` output to a file — never pipe it into `head`. Azurite image `mcr.microsoft.com/azure-storage/azurite` is cached |
 | Local run | `java -jar api/target/app.jar --server.port=PORT` with `dev.env` exported plus `MAIL_RECIPIENTS=cmms-admins@enerkem.test ENABLE_EMAIL_NOTIFICATIONS=true INVITATION_VIA_EMAIL=true SMTP_HOST=localhost SMTP_PORT=1025 SMTP_AUTH=false SMTP_STARTTLS=false PUBLIC_API_URL=http://localhost:PORT PUBLIC_FRONT_URL=http://localhost:PORT`. The SPA's API URL is baked at build time: build with `-Dfrontend.api.url=http://localhost:PORT`. Startup ≈ 30–50 s; wait for `Started ApiApplication` |
 | Known traps | Git Bash converts UTF-8 command-line args through the ANSI codepage — send JSON bodies from files with `curl --data-binary @file` (write them with `printf '\xNN'`). `-DskipFrontend=true` also skips copying `frontend/build` into the jar. Heredoc-fed Python scripts break on quoting — write scripts to the scratchpad with the Write tool and run them by path. A `.wolf/` directory holds OpenWolf bookkeeping (ours, commit it). Another Claude session (cybermap) may run `taskkill //IM java.exe`; a java process or Maven build dying with no log is that, not a bug. C: drive is at 99 % (12 GB free); stop and ask if free space < 10 GB |
-| Durable dumps | `C:\data\src\cmms\atlas_backups\` (gitignored and docker-ignored; create it if absent) — never the session scratchpad, which does not survive a session |
+| Durable dumps | `C:\data\src\cmms\atlas_backups\` (gitignored and docker-ignored; exists). Baseline `atlas-prodcopy-1.8.0-20261019.dump` is there — never use the session scratchpad, which does not survive a session |
 
 ---
 
@@ -174,8 +186,13 @@ rather than iterating.
 >    build, frontend included (10–15 min). Then `.\mvnw.cmd -f ..\pom.xml
 >    -DskipFrontend=true test` with `DOCKER_HOST=tcp://localhost:2375` (check
 >    `curl http://localhost:2375/_ping` is 200 first; if not, run the unit tests
->    only with `-Dtest='!*IntegrationTest'` and say so). Target: 0 failures.
->    Fix test compilation/assertion fallout from the merge; do not delete tests.
+>    only with `-Dtest='!*IntegrationTest'` and say so). Target: **0 failures,
+>    0 errors** on the full suite. Fix test compilation/assertion fallout from
+>    the merge; never delete a test. The known pre-existing failure
+>    `WorkOrderIntegrationTest$CreateTests.create_throwsForbiddenWhenUsageLimitExceeded`
+>    is annotated `@Disabled` with the AGPLv3 reason (see Facts → Test suite);
+>    treat any *other* test that asserts a commercial-licence gate we removed
+>    the same way, and list each one in DEVELOPMENT-STATUS.
 > 8. Verify byte-for-byte that our protected changes survived: `git diff enerkem
 >    merge/upstream-v1.9.0 -- <SSO files, EmailService2, UserService>` shows
 >    only upstream's additions, never a removal of ours.
@@ -202,9 +219,11 @@ rather than iterating.
 > (recreate with the commands in Facts → Local containers if missing); **port
 > 8080 free** — if busy, stop and ask, never kill it; local Postgres up.
 >
-> **Database baseline:** `pg_dump -Fc` the local `atlas` database (1.8.0
-> schema, 806 changesets) to `atlas_backups\atlas-1.8.0-<yyyymmdd>.dump` BEFORE
-> anything else.
+> **Database baseline:** the local `atlas` database is a copy of production
+> (1.8.0 schema, 806 changesets, 7 users). A dump already exists at
+> `atlas_backups\atlas-prodcopy-1.8.0-20261019.dump`; take a fresh
+> `pg_dump -Fc` to `atlas_backups\atlas-prodcopy-1.8.0-<yyyymmdd>-pre-v190.dump`
+> anyway BEFORE anything else, and use that for the upgrade test.
 >
 > **Build for 8080:** the jar from Prompt 1 may be baked for another URL —
 > rebuild once: `cd api && .\mvnw.cmd -f ..\pom.xml -DskipTests
@@ -239,9 +258,13 @@ rather than iterating.
 >    `redirect_uri=http://localhost:8080/oauth2/callback/microsoft`. Then leave
 >    the instance running with `ENABLE_SSO=true` and tell the owner it is ready
 >    for the manual SSO round-trip; wait for the owner's confirmation before step 6.
-> 6. **Upgrade path:** stop the jar; drop/recreate `public`; `pg_restore --no-owner
->    --no-privileges` the 1.8.0 dump; start → expect `Run: 8, Previously run: 806`
->    and the API suite green again.
+> 6. **Upgrade path (production copy):** stop the jar; drop/recreate `public`;
+>    `pg_restore --no-owner --no-privileges` the pre-v190 dump; start → expect
+>    `Run: 8, Previously run: 806`, `UPDATE part SET version = 0` applied, and
+>    the production data intact by SQL: `select count(*) from own_user` = 7,
+>    `from asset` = 18, `from company` = 2 (a newly created test user cannot see
+>    other companies' data through the API, so verify in SQL). Then run the API
+>    suite again. Leave the database in this upgraded state.
 >
 > **Land:** stop all local jars. `git switch enerkem && git merge --no-ff
 > merge/upstream-v1.9.0 -m "Merge branch merge/upstream-v1.9.0"` and

@@ -26,8 +26,13 @@
   ONLINE the first time (Surefire's JUnit provider is not cached), JDK 17,
   `-DskipFrontend=true`. The two Testcontainers ITs fail on Docker Desktop 29 via
   named pipe (docker-java 400 on /info, any Testcontainers version) - needs the
-  TCP 2375 setting + `DOCKER_HOST=tcp://localhost:2375`. Do not burn time on
-  pipe variants, API pins or strategy caches - all tried.
+  TCP 2375 setting + `DOCKER_HOST=tcp://localhost:2375` **plus**
+  `api.version=1.44` in `%USERPROFILE%\.docker-java.properties` (Docker 29
+  returns HTTP 400 for API paths < v1.40; docker-java negotiates an old one).
+  Both in place since 2026-10-19 -> full suite runs: 863 tests, 1 expected
+  failure (usage-limit test vs our AGPL decision; @Disabled it, never
+  restore the limit). MinIO image: `bitnamilegacy/minio:latest`
+  (`minio/minio` and quay.io are no longer anonymously pullable).
 - **There are no AzureBlobService tests yet.** Prompt 3 adds Mockito unit tests
   (no Docker) and an Azurite IT (Docker).
 - **Upstream-PR commit author:** `Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>`,
