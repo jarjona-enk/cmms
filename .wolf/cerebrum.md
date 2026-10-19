@@ -30,6 +30,9 @@
   pipe variants, API pins or strategy caches - all tried.
 - **There are no AzureBlobService tests yet.** Prompt 3 adds Mockito unit tests
   (no Docker) and an Azurite IT (Docker).
+- **Upstream-PR commit author:** `Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>`,
+  set per command with `git -c user.name=... -c user.email=...` on `contrib/*`
+  branches only. Repo identity for `enerkem` stays `Juan Arjona <jarjona@enerkem.com>`.
 - **GitHub fork for the upstream PR:** remote `fork` = `git@github.com:jarjona-enk/cmms.git`
   over SSH with `~/.ssh/jarjona-enk` (ed25519) via `~/.ssh/config`; identity
   `jarjona-enk`. `fork` receives `contrib/*` branches ONLY, and only when the

@@ -21,6 +21,28 @@ Facts gathered 2026-10-19 that the prompts rely on:
 
 ---
 
+## Which model runs which prompt
+
+Decided 2026-10-19 so each step runs on the cheapest model that can do it
+without redoing work. Switch with `/model` before pasting the prompt.
+
+| prompt | model | why |
+|---|---|---|
+| 0 | **Sonnet 5** | edits two documents from a decision list; no code, no judgement calls |
+| 1 | **Opus 5** | 402-commit upstream merge with Spring Boot 3.2→3.5, SSO/mail conflict resolution and an interface change in AzureBlobService — the one step where a wrong resolution silently breaks production |
+| 2 | **Sonnet 5** | executes a fixed test matrix and lands the branch; escalate to Opus 5 only if a failure has no obvious cause |
+| 3 | **Sonnet 5** | tests, docs and an isolation audit against an exact file list; Mockito/Azurite tests are well-defined work |
+| 4 | **Sonnet 5** | verbatim file copy onto upstream/main, build on their toolchain, PR prose |
+| 5 | **Opus 5** | an upstream release merge, like Prompt 1, plus proving the no-op |
+
+Rule of thumb: upstream merges and anything that resolves conflicts in SSO,
+mail or storage code → **Opus 5**. Executing a defined matrix, writing tests
+against a spec, copying files, prose → **Sonnet 5**. If a Sonnet session hits a
+failure it cannot explain in two attempts, stop and rerun that prompt on Opus 5
+rather than iterating.
+
+---
+
 ## Governing principle — identical bytes (owner, 2026-10-19)
 
 > "Our PR is actually part of our code, so when it becomes part of the upstream
@@ -65,7 +87,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 
 ---
 
-## Prompt 0 — decisions before any code (owner, 10 minutes)
+## Prompt 0 — decisions before any code (owner, 10 minutes) — **Model: Sonnet 5**
 
 > Read CLAUDE.md §1–2 and ENERKEM-PLAN.md. I am the repo owner. Record these
 > decisions in DEVELOPMENT-STATUS.md as a new section and amend CLAUDE.md §1
@@ -81,13 +103,18 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 >    2026-10-18). Local remote `fork` = `git@github.com:jarjona-enk/cmms.git`, SSH key
 >    `~/.ssh/jarjona-enk` (ed25519, `SHA256:J/wp8VkOW1/x4WGypYJgH5eFgo/JlzXpd9ibI0Sw+1A`),
 >    selected by `~/.ssh/config` (`Host github.com`). Verified 2026-10-19: auth as
->    jarjona-enk, read and dry-run push OK. Commit author for the PR: `<fill in>`.
+>    jarjona-enk, read and dry-run push OK. Commit author for the PR: **`Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>`**
+>    (decided 2026-10-19). On the `contrib/*` branch every commit is made with
+>    `git -c user.name="Juan F Arjona - Enerkem Inc" -c user.email=jarjona@enerkem.com commit ...`
+>    so no other identity leaks in. For GitHub to attribute the commits to
+>    `jarjona-enk`, `jarjona@enerkem.com` must be a verified e-mail on that account
+>    (Settings -> Emails); otherwise they show as unlinked - harmless, but check once.
 >
 > Do not start the v1.9.0 merge in this session.
 
 ---
 
-## Prompt 1 — merge upstream v1.9.0 into `enerkem` (expect ~half a day)
+## Prompt 1 — merge upstream v1.9.0 into `enerkem` (expect ~half a day) — **Model: Opus 5**
 
 > Read CLAUDE.md, DEVELOPMENT-STATUS.md (START HERE, §12.18, §12.23) and
 > ENERKEM-PLAN.md. Work only on branch `enerkem`; never commit on `main`; never
@@ -137,7 +164,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 
 ---
 
-## Prompt 2 — test v1.9.0 locally, then land it (expect ~half a day)
+## Prompt 2 — test v1.9.0 locally, then land it (expect ~half a day) — **Model: Sonnet 5**
 
 > Read CLAUDE.md, DEVELOPMENT-STATUS.md (latest section, §12.18 for the recipe)
 > and ENERKEM-PLAN.md. We are on `merge/upstream-v1.9.0` with a successful build.
@@ -179,7 +206,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 
 ---
 
-## Prompt 3 — isolate the Azure Blob implementation (expect ~a day)
+## Prompt 3 — isolate the Azure Blob implementation (expect ~a day) — **Model: Sonnet 5**
 
 > Read CLAUDE.md, DEVELOPMENT-STATUS.md and ENERKEM-PLAN.md. `enerkem` is at
 > upstream v1.9.0 and `release/1.9.0-enerkem.1` is in production. Goal: make the
@@ -229,7 +256,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 
 ---
 
-## Prompt 4 — prepare the upstream pull request (expect ~half a day + review time)
+## Prompt 4 — prepare the upstream pull request (expect ~half a day + review time) — **Model: Sonnet 5**
 
 > Read CLAUDE.md (§1 as amended by Prompt 0), DEVELOPMENT-STATUS.md and
 > ENERKEM-PLAN.md. Prepare — do not open until I say so — the upstream PR for the
@@ -245,6 +272,8 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 >    Enerkem commits, no edits on this branch). If `upstream/main` has moved the storage interface again,
 >    adapt **on `enerkem` first**, commit there, then copy again — the identical-bytes
 >    rule above.
+>    Commit as `Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>` (Prompt 0), one
+>    commit: `feat(storage): add Azure Blob Storage backend (STORAGE_TYPE=azure)`.
 > 3. Build and test against upstream's toolchain: `mvn -B verify` in `api/`
 >    (their Spring Boot version), including the Azurite test. The diff must touch
 >    only: `AzureBlobService.java`, `AzureBlobServiceIT` (or their naming),
@@ -263,7 +292,7 @@ the Azure dependencies in `api/pom.xml`, `AZURE-setup.md`, and the Azure rows in
 
 ---
 
-## Prompt 5 — after upstream merges it
+## Prompt 5 — after upstream merges it — **Model: Opus 5**
 
 > Read CLAUDE.md and ENERKEM-PLAN.md. Upstream released a version containing the
 > Azure Blob backend (tag `<vX.Y.Z>`). Merge that release into `enerkem` per
