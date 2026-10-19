@@ -38,6 +38,11 @@
   `jarjona-enk`. `fork` receives `contrib/*` branches ONLY, and only when the
   owner says push. `enerkem`/`main` go to `origin` only; `upstream` push stays
   `DISABLED`. `gh` is not installed; the owner opens issues/PRs in the browser.
+- **LOCAL ONLY (owner directive 2026-10-19):** no session touches production
+  or any Azure resource (no `az`, no prod DB reads, no app/logging changes), no
+  pushes to `origin`, no tags - the owner does those. Local Postgres, Docker and
+  the `fork` remote (`contrib/*` only) are the whole playground. Decisions for
+  the v1.9.0/Azure work are in ENERKEM-PLAN.md -> Decisions; do not re-ask them.
 - **Roadmap lives in `ENERKEM-PLAN.md`** (repo root, ours): numbered prompts for
   the v1.9.0 merge → Azure Blob isolation → upstream PR. When the owner pastes
   one, read that file first; each prompt ends by updating DEVELOPMENT-STATUS.

@@ -613,3 +613,10 @@ Owner created github.com/jarjona-enk/cmms and an SSH key ~/.ssh/jarjona-enk. Add
 | 12:55 | Session end: 5 writes across 5 files (ENERKEM-PLAN.md, docs-plan.py, docs-tests.py, config, docs-fork.py) | 0 reads | ~8066 tok |
 | 13:05 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-author.py | — | ~520 |
 | 13:05 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-models.py | — | ~650 |
+| 13:06 | Session end: 7 writes across 7 files (ENERKEM-PLAN.md, docs-plan.py, docs-tests.py, config, docs-fork.py) | 0 reads | ~9236 tok |
+| 13:43 | Created ENERKEM-PLAN.md | — | ~7752 |
+| 13:43 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-directive.py | — | ~652 |
+
+## 2026-10-19 14:10 - plan finalised
+
+Owner decisions baked into ENERKEM-PLAN.md: LOCAL ONLY (no production, no pushes/tags by sessions), upstream package files as-is, prefer-upstream on uncovered conflicts, local test DB only, Docker over TCP 2375 (owner enabling), port 8080 required for SSO check, session pushes contrib/* to fork and owner opens issue/PR, author Juan F Arjona - Enerkem Inc. Docker update wiped containers; recreate commands in the plan. Prompt 0 is ready to run on Sonnet 5.
