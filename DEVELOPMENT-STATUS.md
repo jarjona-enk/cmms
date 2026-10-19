@@ -1797,3 +1797,22 @@ never actually running async.
   the credentials in the gitignored repo-root `prod.env`
   (`10.225.1.104`, db `atlas`, user `atlas`); it is reachable from this machine.
 
+### 12.25 Plan: upstream v1.9.0, then isolate Azure Blob, then contribute it (2026-10-19)
+
+Owner's sequencing after a month in production on `release/1.8.0-enerkem.2`:
+**merge upstream v1.9.0 and test; isolate the Azure Blob implementation; then
+open the upstream PR.** The step-by-step prompts live in **`ENERKEM-PLAN.md`**
+(repo root) — one prompt per session, in order, Prompt 0 is the owner's
+decisions (CLAUDE.md §1 amendment, licensing, which GitHub fork).
+
+Facts that drove the plan (2026-10-19): upstream v1.9.0 = `fc27abfd`
+(2026-09-22), 402 commits; Spring Boot 3.2.3 → 3.5.16; v1.9.0 removes
+axios/firebase/jsonwebtoken from `frontend/package.json` (the lockfile collision
+CLAUDE.md predicted); `StorageService` gains `uploadAt` and `exists` and signed
+URLs go through `CacheService` — so `AzureBlobService` must be extended during
+the merge or the build fails; 8 new changesets, no new PostgreSQL extensions;
+no file we modified was deleted upstream. Upstream still has no Azure backend;
+its CONTRIBUTING is fork → PR with no CLA; the project is dual-licensed.
+
+Nothing was merged or changed in this session beyond the plan itself.
+

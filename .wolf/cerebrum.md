@@ -21,6 +21,11 @@
 - **Keep REQUIREMENTS.md current** with every variable and instruction the user must action.
 - Prod gets an approval gate; test deploys straight through.
 - Terse, factual reporting. State what was verified vs. assumed.
+- **Roadmap lives in `ENERKEM-PLAN.md`** (repo root, ours): numbered prompts for
+  the v1.9.0 merge → Azure Blob isolation → upstream PR. When the owner pastes
+  one, read that file first; each prompt ends by updating DEVELOPMENT-STATUS.
+  Contributing the Azure backend upstream is the ONE sanctioned exception to
+  "nothing goes upstream" - only after Prompt 0 amends CLAUDE.md §1.
 - **Production DML: not through the IntelliJ MCP.** Its `execute_sql_query` on
   `Production CA-CENTRAL` runs SELECTs fine but DELETE/UPDATE time out (the IDE
   wants a confirmation click). Use `psql -h 10.225.1.104 -U atlas -d atlas` with

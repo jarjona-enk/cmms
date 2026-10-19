@@ -564,3 +564,35 @@ Root cause of 'lost invites': the invitee's REGISTRATION failed (admin copy to n
 ## Session end - 2026-09-16 17:00
 
 release/1.8.0-enerkem.2 deployed (run 5998), health 200. cmms-admins mailbox now exists; MMolotkov registered (user 9); tchaves invitations deleted via psql (MCP DML times out). Open: DNS x2 (12.21), container logging off (12.20). DEVELOPMENT-STATUS 12.24.
+| 16:55 | Session end: 17 writes across 6 files (docs-mail.py, EmailService2.java, UserService.java, mail-test.sh, docs-mail2.py) | 2 reads | ~8288 tok |
+
+## Session: 2026-09-16 17:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-09-16 17:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-19 12:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-19 12:18
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-19 12:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:32 | Created ENERKEM-PLAN.md | — | ~3892 |
+| 12:32 | Created ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/docs-plan.py | — | ~1271 |
+
+## 2026-10-19 - plan written
+
+Owner wants: merge v1.9.0 + test, isolate Azure Blob, then upstream PR. Wrote ENERKEM-PLAN.md (Prompts 0-5) with the facts (v1.9.0 = fc27abfd, Boot 3.5.16, axios removed, StorageService uploadAt/exists, 8 changesets, no extensions). No code changed. DEVELOPMENT-STATUS 12.25.
