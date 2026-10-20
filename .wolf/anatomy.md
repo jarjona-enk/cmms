@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-16T20:54:58.928Z
-> Files: 12 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T04:27:10.407Z
+> Files: 22 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../Users/JArjona/.claude/projects/C--data-src-cmms/memory/
 
@@ -9,21 +9,34 @@
 - `atlas-cmms-fork-and-release-process.md` (~1056 tok)
 - `atlas-cmms-internal-build-state.md` (~786 tok)
 
+## ../../../Users/JArjona/.ssh/
+
+- `config` — GitHub (fork jarjona-enk/cmms for Atlas CMMS contributions) (~47 tok)
+
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-935e-57654313f459/scratchpad/
 
 
 ## ../../../Users/JArjona/AppData/Local/Temp/claude/C--data-src-cmms/8cea39fc-76dc-4a3a-95ce-57654313f459/scratchpad/
 
+- `docs-author.py` — -*- coding: utf-8 -*- (~520 tok)
 - `docs-branch-model.py` — Document the new branch model: main mirrors upstream/main, enerkem is ours. (~2915 tok)
+- `docs-bye.py` — -*- coding: utf-8 -*- (~2003 tok)
 - `docs-close.py` — -*- coding: utf-8 -*- (~869 tok)
 - `docs-close2.py` — -*- coding: utf-8 -*- (~1653 tok)
+- `docs-directive.py` — -*- coding: utf-8 -*- (~652 tok)
 - `docs-dns.py` — Record the post-deploy DNS diagnosis, the roles reference, and refresh memory. (~3682 tok)
+- `docs-fork.py` — -*- coding: utf-8 -*- (~809 tok)
 - `docs-mail.py` — -*- coding: utf-8 -*- (~1428 tok)
 - `docs-mail2.py` — -*- coding: utf-8 -*- (~2865 tok)
+- `docs-models.py` — -*- coding: utf-8 -*- (~650 tok)
+- `docs-plan.py` — -*- coding: utf-8 -*- (~1271 tok)
+- `docs-ready.py` — -*- coding: utf-8 -*- (~2681 tok)
+- `docs-tests.py` — -*- coding: utf-8 -*- (~1766 tok)
 - `mail-test.sh` — Exercise the invite -> mail -> register flow against a local app + MailHog. (~931 tok)
 
 ## ./
 
+- `ENERKEM-PLAN.md` — Enerkem plan — upstream v1.9.0, Azure Blob isolation, upstream PR (~7268 tok)
 
 ## .azure/
 

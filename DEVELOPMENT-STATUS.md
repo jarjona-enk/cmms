@@ -10,11 +10,14 @@
 
 Read `CLAUDE.md` first: this is a **downstream fork** and the git rules are strict.
 
-**Where we are (2026-09-16 17:00).** **`release/1.8.0-enerkem.2` is deployed
-and running** (pipeline run 5998): the invitation/registration mail fix
-(§12.23) is live, `cmms-admins@enerkem.com` now exists as a mailbox, and
-`MMolotkov` registered as user 9. Open: the two DNS problems (§12.21) and
-container logging still off (§12.20).
+**Where we are (2026-10-19).** Production runs `release/1.8.0-enerkem.2`
+(deployed 2026-09-16). The next work is planned and pre-flighted, not started:
+merge upstream **v1.9.0**, isolate the Azure Blob backend, contribute it
+upstream — driven by the prompts in **`ENERKEM-PLAN.md`**, executed as
+coordinated background agents (§12.28). **Everything is local; the owner alone
+pushes and tags.** Blocked only on disk space (9.9 GB free, floor is 10 GB).
+Open from before: the two DNS problems (§12.21) and container logging off
+(§12.20).
 
 Production infrastructure was built **by hand**. The pipeline is
 production-only and creates nothing. **OpenTofu is parked** — see
@@ -1857,4 +1860,40 @@ the pipe. Owner's call (it exposes the daemon to localhost without auth).
 2. **Integration test with Azurite** (`mcr.microsoft.com/azure-storage/azurite`
    via Testcontainers): real upload → exists → download → SAS → overwrite.
    Needs the Docker fix above; tagged so it is skipped when Docker is absent.
+
+### 12.28 Pre-flight for the v1.9.0 / Azure-contribution work (2026-10-19)
+
+Owner decisions are all in `ENERKEM-PLAN.md` (Directive, Decisions, Facts);
+this records what the pre-flight established so the run can start cold.
+
+- **LOCAL ONLY directive.** No session touches production or Azure, pushes to
+  `origin`, or tags. The owner restored a **copy of production** into the local
+  `atlas` database (806 changesets, 7 users, 2 companies, 18 assets); baseline
+  dump `atlas_backups\atlas-prodcopy-1.8.0-20261019.dump`.
+- **Execution model:** the coordinator session launches each prompt as a
+  background agent on the model in its heading (0 Sonnet, 1 Opus, 2 Sonnet,
+  3 Sonnet, 4 Sonnet, 5 Opus), verifies, then launches the next. Agents stop
+  and report instead of asking. Prompt 2 pauses for the owner's manual SSO
+  round-trip on `localhost:8080`.
+- **Test suite baseline (first complete run ever): 863 tests, 1 failure,
+  0 errors.** The failure, `WorkOrderIntegrationTest$CreateTests.create_throwsForbiddenWhenUsageLimitExceeded`,
+  asserts a usage-based licence limit that the AGPLv3 decision removed; Prompt 1
+  annotates it `@Disabled` with that reason.
+- **Testcontainers on Docker Desktop 29 needs two things**, both now in
+  place: the daemon exposed on `tcp://localhost:2375` (`DOCKER_HOST`) and
+  `api.version=1.44` in `%USERPROFILE%\.docker-java.properties`. Root cause:
+  Docker 29 returns HTTP 400 for API paths below v1.40 and docker-java
+  negotiates an older one; that 400 surfaces as "Could not find a valid Docker
+  environment". The Oct-2 strategy cache `~/.testcontainers.properties` was
+  moved aside (`.bak-pipe-20261019`).
+- **Containers recreated** after the Docker update wiped them: `cmms-mailhog`
+  (`mailhog/mailhog`) and `cmms-minio` on **`bitnamilegacy/minio:latest`** —
+  `minio/minio` is gone from Docker Hub and `quay.io/minio/minio` refuses
+  anonymous pulls. Azurite image cached.
+- **GitHub:** fork `jarjona-enk/cmms`, remote `fork` over SSH
+  (`~/.ssh/jarjona-enk`, `~/.ssh/config`), read + dry-run push verified,
+  nothing pushed. PR author `Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>`.
+- **Blocked on:** C: has 9.9 GB free; Prompt 1's pre-flight requires ≥ 10 GB.
+  `~/.m2` is 21 GB; Docker reports ~2.8 GB reclaimable.
+- Untracked `.mcp.json` (owner's NextJS MCP config, 2026-10-08) left alone.
 

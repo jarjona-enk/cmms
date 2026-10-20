@@ -43,6 +43,10 @@
   `jarjona-enk`. `fork` receives `contrib/*` branches ONLY, and only when the
   owner says push. `enerkem`/`main` go to `origin` only; `upstream` push stays
   `DISABLED`. `gh` is not installed; the owner opens issues/PRs in the browser.
+- **Session start checklist for the ENERKEM-PLAN work:** `git branch --show-current`
+  = enerkem; `curl localhost:2375/_ping` = 200; `cat ~/.docker-java.properties`
+  shows `api.version=1.44`; `docker ps` shows cmms-minio + cmms-mailhog; disk
+  >= 10 GB; then read ENERKEM-PLAN.md and the latest DEVELOPMENT-STATUS section.
 - **LOCAL ONLY (owner directive 2026-10-19):** no session touches production
   or any Azure resource (no `az`, no prod DB reads, no app/logging changes), no
   pushes to `origin`, no tags - the owner does those. Local Postgres, Docker and
