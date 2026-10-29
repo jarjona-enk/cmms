@@ -1915,13 +1915,14 @@ rule 2 exception, new rule 6).
 | `atlas_backups\` dump | PASS | `atlas-prodcopy-1.8.0-20261019.dump`, 431954 bytes |
 | free space on C: | PASS | 203 GB free (needs >= 10 GB) |
 | `C:\java\jdk-17` | PASS | exists |
-| `curl http://localhost:2375/_ping` | **FAIL** | HTTP code 000 (no answer on TCP 2375) |
+| `curl http://localhost:2375/_ping` | **FAIL** -> PASS on recheck | HTTP code 000 (no answer on TCP 2375); recheck 2026-10-29: 200 |
 | `.docker-java.properties` `api.version=1.44` | PASS | line 1 |
-| `docker ps` lists `cmms-minio`, `cmms-mailhog` | **FAIL** | `docker ps` answers but lists no running containers |
+| `docker ps` lists `cmms-minio`, `cmms-mailhog` | **FAIL** -> PASS on recheck | `docker ps` answers but lists no running containers; recheck 2026-10-29: both Up |
 | Postgres on `localhost:5432` | PASS | accepting connections |
 
 Blockers for Phase 1 (Juan resolves): Docker daemon not exposed on tcp://localhost:2375,
-and `cmms-minio` / `cmms-mailhog` not running.
+and `cmms-minio` / `cmms-mailhog` not running. **Resolved by Juan the same day; recheck
+2026-10-29: `_ping` 200, both containers Up. No Phase 1 blockers remain.**
 
 ### 12.28 Pre-flight for the v1.9.0 / Azure-contribution work (2026-10-19)
 
