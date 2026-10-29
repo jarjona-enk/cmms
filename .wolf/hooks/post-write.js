@@ -1,58 +1,92 @@
+import { persistObservation, reconcileReads } from "./event-journal.js";
+import * as crypto from "node:crypto";
+import { recordBug } from "./bug-journal.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as crypto from "node:crypto";
-import { getWolfDir, ensureWolfDir, readJSON, writeJSON, parseAnatomy, serializeAnatomy, extractDescription, estimateTokens, appendMarkdown, timeShort, readStdin, normalizePath } from "./shared.js";
+import { getWolfDir, ensureWolfDir, readJSON, extractDescription, estimateTokens, appendMarkdown, timeShort, readStdin, normalizePath, isSensitiveFile, getProjectDir, emitHookJSON, recordInjection, hookMain, getSessionFilePath } from "./shared.js";
+import { loadStoreReconciled, saveStore, renderToFile, sha256 } from "./anatomy-store.js";
+import { withAnatomyLock, mutateJSON, HOOK_LOCK_BUDGET_MS } from "./anatomy-lock.js";
+import { extractSymbols, symbolsSupported, SYMBOL_MIN_TOKENS } from "./symbol-extractor.js";
+// File types where a value/string change is normal content editing, not a bug
+// fix — auto bug detection never runs on these (see autoDetectBugFix). Without
+// this, a version bump in a README or a key change in a JSON/YAML config is
+// logged as a "wrong-value" bug, since the detector matches quoted spans
+// (including markdown backticks) regardless of file type.
+const NON_CODE_EXTS = new Set([
+    ".md", ".mdx", ".markdown", ".txt", ".rst", ".adoc",
+    ".json", ".jsonc", ".yaml", ".yml", ".toml", ".ini", ".env",
+    ".lock", ".csv", ".tsv",
+]);
 async function main() {
     ensureWolfDir();
     const wolfDir = getWolfDir();
-    const hooksDir = path.join(wolfDir, "hooks");
-    const sessionFile = path.join(hooksDir, "_session.json");
-    const projectRoot = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+    const projectRoot = getProjectDir();
     const raw = await readStdin();
     let input;
     try {
         input = JSON.parse(raw);
     }
     catch {
-        process.exit(0);
         return;
     }
+    const sessionFile = getSessionFilePath(input);
     const toolName = input.tool_name ?? "Write";
     const filePath = input.tool_input?.file_path ?? input.tool_input?.path ?? "";
     if (!filePath) {
-        process.exit(0);
         return;
     }
     const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
-    // Skip processing for .wolf/ internal files to avoid slow self-referential updates
+    // .wolf/ state files skip anatomy/memory bookkeeping (self-referential),
+    // but 2.4 adds the budget-enforcement loop the platform's native memory
+    // uses: measure after every write, warn factually when a state file
+    // outgrows its budget. Oversized state gets injected/read every session,
+    // so bloat here is a recurring tax nothing else pushes back on.
     const relPath = normalizePath(path.relative(projectRoot, absolutePath));
     if (relPath.startsWith(".wolf/")) {
-        process.exit(0);
+        try {
+            const budget = stateBudgetFor(wolfDir, relPath);
+            if (budget !== null) {
+                const content = fs.readFileSync(absolutePath, "utf-8");
+                const tokens = estimateTokens(content, "prose");
+                if (tokens > budget) {
+                    // Test-and-set the once-per-file flag in one transaction (#83).
+                    let warn = null;
+                    mutateJSON(sessionFile, { files_written: [], edit_counts: {} }, HOOK_LOCK_BUDGET_MS, (session) => {
+                        const warned = (session.budget_warned ?? {});
+                        if (warned[relPath])
+                            return;
+                        warned[relPath] = true;
+                        session.budget_warned = warned;
+                        warn = `OpenWolf: ${relPath} is now ~${tokens} tokens; its budget is ${budget}. It is read at session starts, so size is a recurring cost. Consolidate or move detail into topic files, keeping the most recent and most important entries.`;
+                        recordInjection(session, "budget_warn", warn);
+                    });
+                    if (warn !== null)
+                        emitHookJSON("PostToolUse", { additionalContext: warn });
+                }
+            }
+        }
+        catch { }
         return;
     }
-    // Never track .env files in anatomy — they contain secrets
+    // Never track files outside the project root (e.g. the Claude Code scratchpad under
+    // /private/tmp). path.relative() yields ../.. section keys that pollute anatomy.md and are
+    // wiped again by every full `openwolf scan`, so the index churns instead of converging.
+    if (relPath.startsWith("..") || path.isAbsolute(relPath)) {
+        return;
+    }
+    // Never track secret-bearing files in anatomy/memory (issue #54): .env is
+    // not the only file whose *description* would leak sensitive content.
     const baseName = path.basename(absolutePath);
-    if (baseName === ".env" || baseName.startsWith(".env.")) {
-        process.exit(0);
+    if (isSensitiveFile(baseName)) {
         return;
     }
     const oldStr = input.tool_input?.old_string ?? "";
     const newStr = input.tool_input?.new_string ?? "";
-    // 1. Update anatomy.md
+    // 1. Update the anatomy store, then re-render anatomy.md from it.
+    //    All of this happens under the anatomy lock; if the lock cannot be
+    //    acquired within budget we skip — a later writer converges the state.
     try {
-        const anatomyPath = path.join(wolfDir, "anatomy.md");
-        let anatomyContent;
-        try {
-            anatomyContent = fs.readFileSync(anatomyPath, "utf-8");
-        }
-        catch {
-            anatomyContent = "# anatomy.md\n\n> Auto-maintained by OpenWolf.\n";
-        }
-        const sections = parseAnatomy(anatomyContent);
         const relPathLocal = normalizePath(path.relative(projectRoot, absolutePath));
-        const dir = path.dirname(relPathLocal);
-        const fileName = path.basename(relPathLocal);
-        const sectionKey = dir === "." ? "./" : dir + "/";
         let fileContent = "";
         try {
             fileContent = fs.readFileSync(absolutePath, "utf-8");
@@ -66,40 +100,35 @@ async function main() {
         const proseExts = new Set([".md", ".txt", ".rst"]);
         const type = codeExts.has(ext) ? "code" : proseExts.has(ext) ? "prose" : "mixed";
         const tokens = estimateTokens(fileContent, type);
-        if (!sections.has(sectionKey))
-            sections.set(sectionKey, []);
-        const entries = sections.get(sectionKey);
-        const idx = entries.findIndex((e) => e.file === fileName);
-        if (idx !== -1) {
-            entries[idx] = { file: fileName, description: desc, tokens };
-        }
-        else {
-            entries.push({ file: fileName, description: desc, tokens });
-        }
-        let fileCount = 0;
-        for (const [, list] of sections)
-            fileCount += list.length;
-        const serialized = serializeAnatomy(sections, {
-            lastScanned: new Date().toISOString(),
-            fileCount,
-            hits: 0,
-            misses: 0,
-        });
-        const tmp = anatomyPath + "." + crypto.randomBytes(4).toString("hex") + ".tmp";
+        let size;
+        let mtimeMs;
         try {
-            fs.writeFileSync(tmp, serialized, "utf-8");
-            fs.renameSync(tmp, anatomyPath);
+            const st = fs.statSync(absolutePath);
+            size = st.size;
+            mtimeMs = st.mtimeMs;
         }
-        catch {
-            try {
-                fs.writeFileSync(anatomyPath, serialized, "utf-8");
-            }
-            catch { }
-            try {
-                fs.unlinkSync(tmp);
-            }
-            catch { }
-        }
+        catch { }
+        // Symbols are recomputed on every write (never carried over — the
+        // content just changed, so old line ranges would misdirect slice reads).
+        const symbols = tokens >= SYMBOL_MIN_TOKENS && symbolsSupported(ext)
+            ? extractSymbols(fileContent, ext)
+            : undefined;
+        withAnatomyLock(wolfDir, HOOK_LOCK_BUDGET_MS, () => {
+            const store = loadStoreReconciled(wolfDir, projectRoot);
+            store.files[relPathLocal] = {
+                description: desc,
+                tokens,
+                hash: sha256(fileContent).slice(0, 16),
+                size,
+                mtimeMs,
+                updatedAt: new Date().toISOString(),
+                source: "hook",
+                symbols: symbols && symbols.length > 0 ? symbols : undefined,
+            };
+            store.meta.lastScanned = new Date().toISOString();
+            renderToFile(wolfDir, store);
+            saveStore(wolfDir, store);
+        });
     }
     catch { }
     // 2. Append richer entry to memory.md
@@ -122,24 +151,36 @@ async function main() {
     catch { }
     // 3. Record in session tracker + track edit counts
     try {
-        const session = readJSON(sessionFile, { files_written: [], edit_counts: {} });
-        if (!session.edit_counts)
-            session.edit_counts = {};
-        const normalizedFile = normalizePath(filePath);
+        const normalizedFile = normalizePath(absolutePath);
         const action = toolName === "Write" ? "create" : "edit";
         const fileContent = input.tool_input?.content ?? "";
         const tokens = estimateTokens(fileContent || newStr, "code");
-        session.files_written.push({
-            file: normalizedFile,
-            action,
-            tokens,
-            at: new Date().toISOString(),
-        });
         const editKey = normalizePath(path.relative(projectRoot, absolutePath));
-        session.edit_counts[editKey] = (session.edit_counts[editKey] || 0) + 1;
-        writeJSON(sessionFile, session);
-        if (session.edit_counts[editKey] >= 3) {
-            process.stderr.write(`⚠️ OpenWolf: ${baseName} has been edited ${session.edit_counts[editKey]} times this session. If you're fixing a bug, remember to log it to .wolf/buglog.json.\n`);
+        // files_written is an append, edit_counts an increment, edit_warned a
+        // test-and-set: all three lose data under an unlocked read-modify-write,
+        // and parallel Edit calls are ordinary agent behavior (#83).
+        persistObservation(sessionFile, { id: input.tool_use_id ?? crypto.randomUUID(), kind: "write", file: normalizedFile, action, tokens, editKey, at: new Date().toISOString() });
+        reconcileReads(sessionFile);
+        let editWarn = "";
+        mutateJSON(sessionFile, { files_written: [], edit_counts: {} }, HOOK_LOCK_BUDGET_MS, (session) => {
+            if (!session.edit_counts)
+                session.edit_counts = {};
+            if (!Array.isArray(session.files_written))
+                session.files_written = [];
+            // Once per file per session: firing on the 3rd edit AND every edit after
+            // it would hit ~39% of all write operations (measured) — pure noise.
+            if (!session.edit_warned)
+                session.edit_warned = {};
+            editWarn = session.edit_counts[editKey] >= 3 && !session.edit_warned[editKey]
+                ? `OpenWolf: ${baseName} has been edited ${session.edit_counts[editKey]} times this session. If you're fixing a bug, log it to .wolf/buglog.json.`
+                : "";
+            if (editWarn)
+                session.edit_warned[editKey] = true;
+            if (editWarn)
+                recordInjection(session, "edit_warn", editWarn);
+        });
+        if (editWarn) {
+            emitHookJSON("PostToolUse", { additionalContext: editWarn });
         }
     }
     catch { }
@@ -150,7 +191,16 @@ async function main() {
         }
     }
     catch { }
-    process.exit(0);
+}
+/** Token budget for a .wolf state file, or null when unbudgeted (2.4). */
+function stateBudgetFor(wolfDir, relPath) {
+    const defaults = {
+        ".wolf/cerebrum.md": 2000,
+        ".wolf/STATUS.md": 1000,
+    };
+    const cfg = readJSON(path.join(wolfDir, "config.json"), {});
+    const merged = { ...defaults, ...(cfg.openwolf?.context?.state_budgets ?? {}) };
+    return merged[relPath] ?? null;
 }
 // ─── Edit Summarizer ─────────────────────────────────────────────
 function summarizeEdit(oldStr, newStr, filename) {
@@ -160,7 +210,7 @@ function summarizeEdit(oldStr, newStr, filename) {
     const newCount = newLines.length;
     const ext = path.extname(filename).toLowerCase();
     // --- Structural fixes ---
-    if (newStr.includes("try") && newStr.includes("catch") && !oldStr.includes("catch")) {
+    if (/\btry\b/.test(newStr) && hasCatchConstruct(newStr, ext) && !hasCatchConstruct(oldStr, ext)) {
         return "added error handling";
     }
     if (newStr.includes("?.") && !oldStr.includes("?."))
@@ -241,61 +291,40 @@ function extractCalls(code) {
             .filter(n => n.length > 2 && !["if", "for", "while", "switch", "catch", "function", "return", "new", "typeof", "instanceof", "const", "let", "var"].includes(n)))];
 }
 // ─── Auto Bug Detection ──────────────────────────────────────────
+function bugAutoDetectEnabled(wolfDir) {
+    try {
+        const cfg = readJSON(path.join(wolfDir, "config.json"), {});
+        // Default on; only an explicit `false` disables auto bug detection.
+        return cfg.openwolf?.buglog?.auto_detect !== false;
+    }
+    catch {
+        return true;
+    }
+}
 function autoDetectBugFix(wolfDir, absolutePath, projectRoot, oldStr, newStr) {
-    const bugLogPath = path.join(wolfDir, "buglog.json");
-    const bugLog = readJSON(bugLogPath, { version: 1, bugs: [] });
-    const relFile = normalizePath(path.relative(projectRoot, absolutePath));
     const basename = path.basename(absolutePath);
     const ext = path.extname(basename).toLowerCase();
-    // Detect what kind of fix this is
-    const detection = detectFixPattern(oldStr, newStr, ext);
+    // Bug-fix detection is a code concept — never fire on prose/docs/data files.
+    if (NON_CODE_EXTS.has(ext))
+        return;
+    // Respect an explicit opt-out in .wolf/config.json (default: enabled).
+    if (!bugAutoDetectEnabled(wolfDir))
+        return;
+    const detection = detectFixPattern(oldStr, newStr, ext, basename);
     if (!detection)
         return;
-    // Check for recent duplicate (same file + same category within 5 min)
-    const recentDupe = bugLog.bugs.find(b => {
-        if (path.basename(b.file) !== basename)
-            return false;
-        if (!b.tags.includes("auto-detected"))
-            return false;
-        if (!b.tags.includes(detection.category))
-            return false;
-        const bugTime = new Date(b.last_seen).getTime();
-        return (Date.now() - bugTime) < 5 * 60 * 1000;
-    });
-    if (recentDupe) {
-        recentDupe.occurrences++;
-        recentDupe.last_seen = new Date().toISOString();
-        // Append additional context
-        if (detection.context && !recentDupe.fix.includes(detection.context)) {
-            recentDupe.fix += ` | Also: ${detection.context}`;
-        }
-        writeJSON(bugLogPath, bugLog);
-        return;
-    }
-    const nextId = `bug-${String(bugLog.bugs.length + 1).padStart(3, "0")}`;
-    bugLog.bugs.push({
-        id: nextId,
-        timestamp: new Date().toISOString(),
-        error_message: detection.summary,
-        file: relFile,
-        root_cause: detection.rootCause,
-        fix: detection.fix,
-        tags: ["auto-detected", detection.category, ext.replace(".", "") || "unknown"],
-        related_bugs: [],
-        occurrences: 1,
-        last_seen: new Date().toISOString(),
-    });
-    writeJSON(bugLogPath, bugLog);
+    recordBug(wolfDir, { error_message: detection.summary, file: normalizePath(path.relative(projectRoot, absolutePath)), root_cause: detection.rootCause, fix: detection.fix, tags: ["auto-detected", detection.category, ext.slice(1) || "unknown"], status: "candidate", observed_worktree: projectRoot });
 }
-function detectFixPattern(oldStr, newStr, ext) {
+function detectFixPattern(oldStr, newStr, ext, basename) {
     const oldLines = oldStr.split("\n");
     const newLines = newStr.split("\n");
+    const isTest = isTestFile(basename);
     // --- Error handling added ---
-    if (newStr.includes("catch") && !oldStr.includes("catch")) {
-        const fn = newStr.match(/(?:function|def|async)\s+(\w+)/)?.[1] || "unknown";
+    if (!isTest && hasCatchConstruct(newStr, ext) && !hasCatchConstruct(oldStr, ext)) {
+        const fn = newStr.match(/(?:function|def|async)\s+(\w+)/)?.[1];
         return {
             category: "error-handling",
-            summary: `Missing error handling in ${path.basename(fn)}`,
+            summary: `Missing error handling in ${fn ? `${fn}()` : basename}`,
             rootCause: "Code path had no error handling — exceptions would propagate uncaught",
             fix: `Added try/catch block`,
             context: extractChangedLines(oldStr, newStr),
@@ -307,14 +336,15 @@ function detectFixPattern(oldStr, newStr, ext) {
         (/!==?\s*(null|undefined)/.test(newStr) && !/!==?\s*(null|undefined)/.test(oldStr))) {
         return {
             category: "null-safety",
-            summary: `Null/undefined access in ${path.basename(path.basename(""))}`,
+            summary: `Null/undefined access in ${basename}`,
             rootCause: "Property access on potentially null/undefined value",
             fix: `Added null safety (optional chaining or null check)`,
             context: extractChangedLines(oldStr, newStr),
         };
     }
     // --- Guard clause / early return added ---
-    if (/if\s*\([^)]*\)\s*(return|throw|continue|break)/.test(newStr) &&
+    if (!isTest &&
+        /if\s*\([^)]*\)\s*(return|throw|continue|break)/.test(newStr) &&
         !/if\s*\([^)]*\)\s*(return|throw|continue|break)/.test(oldStr)) {
         const condition = newStr.match(/if\s*\(([^)]+)\)/)?.[1]?.trim().slice(0, 60) || "condition";
         return {
@@ -460,7 +490,7 @@ function detectFixPattern(oldStr, newStr, ext) {
         if (removedLines.length >= 2) {
             return {
                 category: "refactor",
-                summary: `Significant refactor of ${path.basename("")}`,
+                summary: `Significant refactor of ${basename}`,
                 rootCause: `${removedLines.length} lines replaced/restructured`,
                 fix: `Rewrote ${oldLines.length}→${newLines.length} lines (${removedLines.length} removed)`,
                 context: removedLines.slice(0, 2).map(l => l.trim().slice(0, 50)).join("; "),
@@ -468,6 +498,15 @@ function detectFixPattern(oldStr, newStr, ext) {
         }
     }
     return null;
+}
+function hasCatchConstruct(code, ext) {
+    if (ext === ".py")
+        return /\bexcept\b[^\n]*:/.test(code);
+    return /\bcatch\s*[({]/.test(code);
+}
+function isTestFile(basename) {
+    return /(\.test\.|\.spec\.|_test\.|_spec\.)/i.test(basename) ||
+        /(Test|Tests|IT|Spec)\.\w+$/.test(basename);
 }
 function extractChangedLines(oldStr, newStr) {
     const oldLines = new Set(oldStr.split("\n").map(l => l.trim()).filter(Boolean));
@@ -499,5 +538,5 @@ function extractCSSProps(code) {
     }
     return props;
 }
-main().catch(() => process.exit(0));
+hookMain("post-write", main);
 //# sourceMappingURL=post-write.js.map

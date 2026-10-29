@@ -1,10 +1,74 @@
+import { observeTaskReview } from "./task-review.js";
+import { hookReceipt } from './visibility.js';
+import { observeCheckpoint } from "./handoff-state.js";
+import { bridgedInput, delegateRuntime, scheduleUpdate } from "./runtime-updates.js";
+import { normalizeSession } from "./session-state.js";
+export { normalizeSession } from "./session-state.js";
+import { withFileLock, HOOK_LOCK_BUDGET_MS } from "./anatomy-lock.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+// Prefer the harness-provided project dir so hooks work even if CWD changes
+// during a session. Each supported agent exposes its own env var; hooks are
+// provider-agnostic (Workstream C) so all are checked.
+//
+// None of those vars are guaranteed. Claude Code in particular does not put
+// CLAUDE_PROJECT_DIR in the hook process's environment on any platform: it
+// delivers project context through the stdin JSON payload instead. So before
+// falling back to CWD, derive the root from this script's own location. A hook
+// always runs as <project>/.wolf/hooks/<name>.js, which makes the project root
+// two directories up, verified by the .wolf/ directory being there.
+function projectDirFromScriptLocation() {
+    try {
+        const here = path.dirname(fileURLToPath(import.meta.url));
+        if (path.basename(here) !== "hooks")
+            return null;
+        const root = path.resolve(here, "..", "..");
+        if (path.basename(path.dirname(here)) !== ".wolf")
+            return null;
+        return fs.existsSync(path.join(root, ".wolf")) ? root : null;
+    }
+    catch {
+        return null;
+    }
+}
+export function getProjectDir() {
+    if (hookCwd) {
+        let dir = path.resolve(hookCwd);
+        while (true) {
+            if (fs.existsSync(path.join(dir, ".wolf")))
+                return dir;
+            if (fs.existsSync(path.join(dir, ".git")) || path.dirname(dir) === dir)
+                break;
+            dir = path.dirname(dir);
+        }
+        return hookCwd;
+    }
+    return (process.env.CLAUDE_PROJECT_DIR ||
+        process.env.CODEX_PROJECT_ROOT ||
+        process.env.GROK_WORKSPACE_ROOT ||
+        process.env.OPENWOLF_PROJECT_ROOT ||
+        projectDirFromScriptLocation() ||
+        process.cwd());
+}
 export function getWolfDir() {
-    // Prefer CLAUDE_PROJECT_DIR so hooks work even if CWD changes during a session
-    const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-    return path.join(projectDir, ".wolf");
+    return path.join(getProjectDir(), ".wolf");
+}
+/** Which agent harness invoked this hook — used for per-agent ledger attribution. */
+export function detectAgent() {
+    if (process.env.GROK_HOOK_EVENT || process.env.GROK_SESSION_ID)
+        return "grok";
+    // CLAUDECODE is set in every Claude Code hook process; CLAUDE_PROJECT_DIR is
+    // not set at all, so checking it alone attributed real Claude sessions to
+    // "default" and lost their per-agent ledger rows.
+    if (process.env.CLAUDECODE || process.env.CLAUDE_CODE_ENTRYPOINT || process.env.CLAUDE_PROJECT_DIR)
+        return "claude";
+    if (process.env.CODEX_PROJECT_ROOT || process.env.CODEX_SANDBOX || process.env.CODEX_THREAD_ID)
+        return "codex";
+    if (process.env.OPENCODE || process.env.OPENCODE_PROJECT_ROOT)
+        return "opencode";
+    return "default";
 }
 /**
  * Bail out silently if .wolf/ directory doesn't exist in the current project.
@@ -16,13 +80,154 @@ export function ensureWolfDir() {
         process.exit(0);
     }
 }
+// ─── Hook health (2.2): heartbeat + crash recording ──────────────────────────
+// The PostToolUse write hook crashed on 100% of 440 invocations for 3 weeks
+// with nothing noticing, because every hook swallowed its own errors
+// (main().catch(() => exit(0))). Every hook now runs through hookMain(), which
+// records a per-hook heartbeat (last success / last error / consecutive
+// failures) that session-start, update, and the dashboard can check.
+export const HEARTBEAT_FILE = "_heartbeat.json";
+export function recordHeartbeat(hookName, error) {
+    try {
+        const file = path.join(getWolfDir(), "hooks", HEARTBEAT_FILE);
+        const beats = readJSON(file, {});
+        const entry = beats[hookName] ?? { consecutive_failures: 0 };
+        if (error === undefined) {
+            entry.last_ok = new Date().toISOString();
+            entry.consecutive_failures = 0;
+        }
+        else {
+            entry.last_error = new Date().toISOString();
+            entry.last_error_message = String(error instanceof Error ? error.stack ?? error.message : error).slice(0, 500);
+            entry.consecutive_failures = (entry.consecutive_failures ?? 0) + 1;
+        }
+        beats[hookName] = entry;
+        writeJSON(file, beats);
+    }
+    catch { }
+}
+/**
+ * Standard hook entry point: runs the hook, records a heartbeat either way,
+ * always exits 0 (hooks must never block the agent). `--selfcheck` exits
+ * immediately after module load: reaching this code at all proves every static
+ * import resolved, which is exactly the failure class that went undetected.
+ */
+export function hookMain(hookName, fn) {
+    if (process.argv.includes("--selfcheck")) {
+        process.stdout.write(`ok ${hookName}`);
+        process.exit(0);
+    }
+    // Casepod: cached registrations must stay inert after disabling the project.
+    if (readJSON(path.join(getWolfDir(), "config.json"), null)?.openwolf?.enabled === false) {
+        process.exit(0);
+    }
+    Promise.resolve()
+        .then(() => readStdin())
+        .then(async (raw) => {
+        if (hookName === "session-start" || hookName === "user-prompt-submit")
+            scheduleUpdate(getProjectDir());
+        try {
+            if (await delegateRuntime(getProjectDir(), hookName, raw))
+                return true;
+        }
+        catch { }
+        try {
+            observeTaskReview(getProjectDir(), detectAgent(), hookName, JSON.parse(raw));
+        }
+        catch { }
+        await fn();
+        try {
+            if (["precompact", "session-end", "stop", "user-prompt-submit", "post-write", "post-bash"].includes(hookName))
+                observeCheckpoint(getProjectDir(), detectAgent(), hookName, JSON.parse(raw));
+        }
+        catch { }
+        if (hookName === "stop")
+            try {
+                const notice = hookReceipt(getProjectDir(), detectAgent(), { ...JSON.parse(raw), prompt_id: String(readJSON(getSessionFilePath(JSON.parse(raw)), {}).stop_count ?? 0) });
+                if (notice)
+                    process.stdout.write(JSON.stringify({ systemMessage: notice }));
+            }
+            catch { }
+        return false;
+    })
+        .then(delegated => {
+        if (delegated)
+            return;
+        recordHeartbeat(hookName);
+        process.exit(0);
+    })
+        .catch((err) => {
+        recordHeartbeat(hookName, err);
+        process.exit(0);
+    });
+}
+// ─── Session-keyed state (2.2) ───────────────────────────────────────────────
+// _session.json used to be one per-PROJECT file, so concurrent Claude sessions
+// cross-contaminated each other's read tracking (one of the two causes of the
+// ledger's ~20x duplicate-warning inflation). State is now keyed by the
+// harness-provided session_id when present.
+/** Resolve the session state file for this hook invocation. */
+export function getSessionFilePath(hookInput) {
+    const hooksDir = path.join(getWolfDir(), "hooks");
+    const id = hookInput?.session_id;
+    if (typeof id === "string" && /^[\w.-]{4,128}$/.test(id)) {
+        return path.join(hooksDir, "sessions", `${id}.json`);
+    }
+    // Legacy fallback for agents that pass no session id.
+    return path.join(hooksDir, "_session.json");
+}
+/** Delete session state files older than maxAgeDays (called from session-start). */
+export function gcSessionFiles(maxAgeDays = 7, wolfDir = getWolfDir()) {
+    try {
+        const dir = path.join(wolfDir, "hooks", "sessions");
+        const cutoff = Date.now() - maxAgeDays * 24 * 3600 * 1000;
+        for (const f of fs.readdirSync(dir)) {
+            if (!f.endsWith(".json"))
+                continue;
+            try {
+                const file = path.join(dir, f);
+                const state = readJSON(file, {});
+                if (state.ended && fs.statSync(file).mtimeMs < cutoff) {
+                    const pending = file + ".events";
+                    if (fs.existsSync(pending) && fs.readdirSync(pending).length)
+                        continue;
+                    if (fs.existsSync(pending))
+                        fs.rmdirSync(pending);
+                    fs.unlinkSync(file);
+                }
+            }
+            catch { }
+        }
+    }
+    catch { }
+}
 export function readJSON(filePath, fallback) {
     try {
-        return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        const value = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        return (/[/\\]hooks[/\\]sessions[/\\][^/\\]+\.json$/.test(filePath)
+            ? normalizeSession(value, path.basename(filePath, ".json")) : value);
     }
     catch {
         return fallback;
     }
+}
+/**
+ * Reads .wolf/buglog.json in any shape a project might have on disk and always
+ * returns { version, bugs }. A hand-written log is often a bare array of
+ * entries; that shape used to reach `bugLog.bugs.length` and throw, which is
+ * how pre-write racked up 465 consecutive failures on one project before
+ * anyone noticed (the hook heartbeat was the only witness).
+ */
+export function readBugLogFile(wolfDir) {
+    const raw = readJSON(path.join(wolfDir, "buglog.json"), null);
+    if (Array.isArray(raw))
+        return { version: 1, bugs: raw };
+    if (raw && typeof raw === "object") {
+        const bugs = raw.bugs;
+        if (Array.isArray(bugs))
+            return { ...raw, version: 1, bugs };
+    }
+    return { version: 1, bugs: [] };
 }
 export function writeJSON(filePath, data) {
     const dir = path.dirname(filePath);
@@ -58,52 +263,38 @@ export function appendMarkdown(filePath, line) {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir, { recursive: true });
-    fs.appendFileSync(filePath, line, "utf-8");
-}
-export function parseAnatomy(content) {
-    const sections = new Map();
-    let currentSection = "";
-    for (const line of content.split("\n")) {
-        const sm = line.match(/^## (.+)/);
-        if (sm) {
-            currentSection = sm[1].trim();
-            if (!sections.has(currentSection))
-                sections.set(currentSection, []);
-            continue;
-        }
-        if (!currentSection)
-            continue;
-        const em = line.match(/^- `([^`]+)`(?:\s+—\s+(.+?))?\s*\(~(\d+)\s+tok\)$/);
-        if (em) {
-            sections.get(currentSection).push({
-                file: em[1],
-                description: em[2] || "",
-                tokens: parseInt(em[3], 10),
-            });
-        }
+    const ok = withFileLock(filePath + ".lock", HOOK_LOCK_BUDGET_MS, () => { fs.appendFileSync(filePath, line, "utf-8"); return true; });
+    if (ok === null) {
+        // Preserve an observation for maintenance to drain; never drop it.
+        const pending = filePath + ".pending";
+        fs.mkdirSync(pending, { recursive: true });
+        fs.writeFileSync(path.join(pending, `${Date.now()}-${crypto.randomUUID()}.json`), JSON.stringify({ line }), { flag: "wx", mode: 0o600 });
     }
-    return sections;
 }
-export function serializeAnatomy(sections, metadata) {
-    const lines = [
-        "# anatomy.md",
-        "",
-        `> Auto-maintained by OpenWolf. Last scanned: ${metadata.lastScanned}`,
-        `> Files: ${metadata.fileCount} tracked | Anatomy hits: ${metadata.hits} | Misses: ${metadata.misses}`,
-        "",
-    ];
-    const keys = [...sections.keys()].sort();
-    for (const key of keys) {
-        lines.push(`## ${key}`);
-        lines.push("");
-        const entries = sections.get(key).sort((a, b) => a.file.localeCompare(b.file));
-        for (const e of entries) {
-            const desc = e.description ? ` — ${e.description}` : "";
-            lines.push(`- \`${e.file}\`${desc} (~${e.tokens} tok)`);
-        }
-        lines.push("");
-    }
-    return lines.join("\n");
+// parseAnatomy / serializeAnatomy / AnatomyEntry moved to ./anatomy-store.ts —
+// the single canonical home of the anatomy format (OPENWOLF-2.0 §F2b).
+// Files whose contents (or content-derived descriptions) must never reach
+// anatomy.md / memory.md because they hold secrets (issue #54). Kept in sync
+// with the copy in src/scanner/anatomy-scanner.ts — hooks are standalone
+// scripts and the scanner cannot be imported from here.
+const SENSITIVE_EXTENSIONS = new Set([
+    ".pem", ".key", ".p8", ".p12", ".pfx", ".keystore", ".jks", ".ppk", ".kdbx", ".tfstate",
+]);
+const SENSITIVE_BASENAMES = new Set([".npmrc", ".netrc", ".htpasswd", ".pgpass"]);
+export function isSensitiveFile(basename) {
+    const lower = basename.toLowerCase();
+    if (lower === ".env" || lower.startsWith(".env."))
+        return true;
+    if (SENSITIVE_BASENAMES.has(lower))
+        return true;
+    const dot = lower.lastIndexOf(".");
+    if (dot >= 0 && SENSITIVE_EXTENSIONS.has(lower.slice(dot)))
+        return true;
+    if (/^id_(rsa|dsa|ecdsa|ed25519)/.test(lower))
+        return true;
+    if (lower.includes("credential") || /^secrets\.(json|ya?ml|toml)$/.test(lower))
+        return true;
+    return false;
 }
 export function extractDescription(filePath) {
     const MAX_DESC = 150;
@@ -598,17 +789,252 @@ export function timeShort() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+let stdinPromise;
+let hookCwd;
 export function readStdin() {
-    return new Promise((resolve) => {
+    if (stdinPromise)
+        return stdinPromise;
+    const bridged = bridgedInput();
+    if (bridged !== undefined) {
+        try {
+            const p = JSON.parse(bridged);
+            if (typeof p.cwd === "string" && path.isAbsolute(p.cwd))
+                hookCwd = p.cwd;
+        }
+        catch { }
+        return stdinPromise = Promise.resolve(bridged);
+    }
+    stdinPromise = new Promise(resolve => {
         const chunks = [];
-        process.stdin.on("data", (chunk) => chunks.push(chunk));
-        process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-        // If no stdin data after 4s, resolve with whatever we have so far.
-        // On Windows, stdin delivery from Claude Code hooks can be slow.
-        setTimeout(() => resolve(chunks.length ? Buffer.concat(chunks).toString("utf-8") : "{}"), 4000);
+        const finish = () => {
+            clearTimeout(timer);
+            let raw = Buffer.concat(chunks).toString("utf8") || "{}";
+            if (process.env.GROK_HOOK_EVENT)
+                try {
+                    const p = JSON.parse(raw);
+                    p.session_id = p.session_id ?? p.sessionId ?? process.env.GROK_SESSION_ID;
+                    p.cwd = p.cwd ?? process.env.GROK_WORKSPACE_ROOT;
+                    raw = JSON.stringify(p);
+                }
+                catch { }
+            try {
+                const p = JSON.parse(raw);
+                if (typeof p.cwd === "string" && path.isAbsolute(p.cwd))
+                    hookCwd = p.cwd;
+            }
+            catch { }
+            resolve(raw);
+        };
+        const timer = setTimeout(finish, 4000);
+        process.stdin.on("data", chunk => chunks.push(Buffer.from(chunk)));
+        process.stdin.once("end", finish);
+        process.stdin.once("error", finish);
     });
+    return stdinPromise;
 }
 export function normalizePath(p) {
     return p.replace(/\\/g, "/");
 }
+/**
+ * Lexical containment check shared by every hook that records a path into
+ * project-scoped state.
+ *
+ * Issue #80, reported with PR #99 by @davdittrich.
+ *
+ * `startsWith(projectDir)` is not a path boundary. `/w/project-private/x.ts`
+ * has `/w/project` as a string prefix, so sibling directories (and anything
+ * reachable through `..`) used to land in this project's session state and
+ * token metrics even though the user never put them in OpenWolf scope.
+ *
+ * Returns the project-relative path (forward-slashed, "" for the root itself)
+ * or null when `target` is outside `root`. Purely lexical, by design: it
+ * resolves no symlinks and touches no filesystem, so it cannot block a hook
+ * or behave differently depending on what happens to exist on disk.
+ */
+export function relativeIfInside(root, target) {
+    if (!root || !target)
+        return null;
+    let rel;
+    try {
+        const absRoot = path.resolve(root);
+        const absTarget = path.isAbsolute(target) ? path.resolve(target) : path.resolve(absRoot, target);
+        rel = path.relative(absRoot, absTarget);
+    }
+    catch {
+        return null;
+    }
+    if (rel === "")
+        return "";
+    if (path.isAbsolute(rel))
+        return null; // different win32 drive
+    if (rel === ".." || rel.startsWith(".." + path.sep))
+        return null;
+    return normalizePath(rel);
+}
+/** True when `target` lies inside `root`. See relativeIfInside(). */
+export function isInsideDir(root, target) {
+    return relativeIfInside(root, target) !== null;
+}
+/** realpath, tolerating a path whose leaf does not exist yet. */
+function realpathOrSelf(p) {
+    try {
+        return fs.realpathSync(p);
+    }
+    catch { }
+    const dir = path.dirname(p);
+    if (dir === p)
+        return p;
+    return path.join(realpathOrSelf(dir), path.basename(p));
+}
+/**
+ * Project containment for hook paths: lexical first, symlink-aware only when
+ * that fails.
+ *
+ * The lexical answer is right almost always and costs nothing. But a project
+ * reached through a symlink (`/tmp` -> `/private/tmp` on macOS, a mounted or
+ * linked work directory) can have a root resolved one way and a tool-supplied
+ * file path the other, which would make real project files look external and
+ * silently stop tracking them. Pay for realpath only on that miss.
+ */
+export function projectRelativePath(root, target) {
+    const direct = relativeIfInside(root, target);
+    if (direct !== null)
+        return direct;
+    if (!root || !target)
+        return null;
+    const real = relativeIfInside(realpathOrSelf(root), realpathOrSelf(path.resolve(root, target)));
+    return real;
+}
+export function emitHookJSON(hookEventName, fields) {
+    const out = { hookEventName };
+    if (fields.additionalContext)
+        out.additionalContext = fields.additionalContext;
+    if (fields.updatedToolOutput !== undefined)
+        out.updatedToolOutput = fields.updatedToolOutput;
+    if (fields.permissionDecision) {
+        out.permissionDecision = fields.permissionDecision;
+        out.permissionDecisionReason = fields.permissionDecisionReason ?? "";
+    }
+    if (Object.keys(out).length === 1)
+        return;
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: out }));
+}
+/** Record an injected text against the in-memory session (caller persists). */
+export function recordInjection(session, source, text) {
+    if (!text)
+        return;
+    const tokens = estimateTokens(text, "prose");
+    session.injected_tokens_estimated = (session.injected_tokens_estimated ?? 0) + tokens;
+    const bySource = session.injected_by_source ?? {};
+    bySource[source] = (bySource[source] ?? 0) + tokens;
+    session.injected_by_source = bySource;
+}
+/**
+ * Same, for hooks that do not otherwise hold the session file open.
+ *
+ * `mutate` is injected rather than imported: this module is deliberately free
+ * of relative imports (the test suite loads it directly under Node's type
+ * stripping, which does not map ./x.js to x.ts), and the lock lives in
+ * anatomy-lock.ts. Callers pass mutateJSON so the accumulating token counters
+ * are updated in one serialized transaction (#83).
+ */
+export function recordInjectionToSessionFile(sessionFile, source, text, mutate) {
+    if (!text)
+        return;
+    try {
+        if (mutate) {
+            mutate(sessionFile, {}, 2000, (session) => {
+                recordInjection(session, source, text);
+            });
+            return;
+        }
+        const session = readJSON(sessionFile, {});
+        recordInjection(session, source, text);
+        writeJSON(sessionFile, session);
+    }
+    catch { }
+}
+/**
+ * Count non-mechanical semantic entries written to memory.md this session.
+ * Mechanical entries (auto-generated file ops, session-end lines) don't count.
+ * Used by the stop hook to detect whether Claude wrote a meaningful summary.
+ */
+export function countSemanticEntries(wolfDir) {
+    const memoryPath = path.join(wolfDir, "memory.md");
+    try {
+        const content = fs.readFileSync(memoryPath, "utf-8");
+        const mechanical = /^\|\s*[\d\-: ]+\|\s*(Created|Edited|Multi-edited|Session end:|designqc:)/;
+        const tableHeader = /^\|\s*Time\s*\|/i;
+        const tableSeparator = /^\|[\s\-|]+\|?\s*$/;
+        const lines = content.split("\n");
+        let start = -1;
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].startsWith("## Session: ")) {
+                start = i;
+                break;
+            }
+        }
+        let count = 0;
+        for (let i = start + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.startsWith("|"))
+                continue;
+            if (tableHeader.test(line) || tableSeparator.test(line) || mechanical.test(line))
+                continue;
+            count++;
+        }
+        return count;
+    }
+    catch {
+        return 0;
+    }
+}
+export function readTranscriptUsage(transcriptPath) {
+    let raw;
+    try {
+        raw = fs.readFileSync(transcriptPath, "utf-8");
+    }
+    catch {
+        return null;
+    }
+    // One usage block per API call; streaming can emit several transcript lines
+    // for one message id, and a resumed session can replay a message under a new
+    // request — dedupe on message id + request id, keeping the last usage seen.
+    const byId = new Map();
+    let anon = 0;
+    for (const line of raw.split("\n")) {
+        if (!line.trim())
+            continue;
+        try {
+            const entry = JSON.parse(line);
+            const usage = entry?.message?.usage;
+            if (usage && typeof usage === "object" && typeof usage.output_tokens === "number") {
+                const key = `${entry.message.id ?? `anon-${anon++}`}:${entry.requestId ?? ""}`;
+                byId.set(key, { ...usage, model: entry.message.model });
+            }
+        }
+        catch { }
+    }
+    if (byId.size === 0)
+        return null;
+    const total = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, api_calls: byId.size };
+    const perModel = {};
+    for (const u of byId.values()) {
+        total.input_tokens += u.input_tokens ?? 0;
+        total.output_tokens += u.output_tokens ?? 0;
+        total.cache_read_input_tokens += u.cache_read_input_tokens ?? 0;
+        total.cache_creation_input_tokens += u.cache_creation_input_tokens ?? 0;
+        const model = u.model ?? "unknown";
+        const m = perModel[model] ?? (perModel[model] = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, api_calls: 0 });
+        m.input_tokens += u.input_tokens ?? 0;
+        m.output_tokens += u.output_tokens ?? 0;
+        m.cache_read_input_tokens += u.cache_read_input_tokens ?? 0;
+        m.cache_creation_input_tokens += u.cache_creation_input_tokens ?? 0;
+        m.api_calls++;
+    }
+    if (Object.keys(perModel).length > 0)
+        total.per_model = perModel;
+    return total;
+}
+/** Complete state at every ingress, including a missed SessionStart (#96 @davdittrich). */
 //# sourceMappingURL=shared.js.map

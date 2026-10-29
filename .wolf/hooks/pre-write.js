@@ -1,6 +1,12 @@
+import { recordReceipt } from './visibility.js';
+import { getProjectDir, detectAgent } from './shared.js';
+import { sharedWolfDir } from "./knowledge-root.js";
+import { approvedMemory } from "./trusted-memory.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getWolfDir, ensureWolfDir, readJSON, readMarkdown, readStdin } from "./shared.js";
+import { getWolfDir, ensureWolfDir, readBugLogFile, readStdin, emitHookJSON, recordInjectionToSessionFile, hookMain, getSessionFilePath } from "./shared.js";
+import { mutateJSON } from "./anatomy-lock.js";
+import { searchBugsFTS } from "./bug-index.js";
 async function main() {
     ensureWolfDir();
     const wolfDir = getWolfDir();
@@ -10,7 +16,6 @@ async function main() {
         input = JSON.parse(raw);
     }
     catch {
-        process.exit(0);
         return;
     }
     // For Edit tool, the meaningful content is old_string + new_string
@@ -20,26 +25,35 @@ async function main() {
     const filePath = input.tool_input?.file_path ?? input.tool_input?.path ?? "";
     const allContent = [content, oldStr, newStr].join("\n");
     if (!allContent.trim()) {
-        process.exit(0);
         return;
     }
+    // Model-visible notes — flushed as ONE additionalContext at exit.
+    const notes = [];
     // 1. Cerebrum Do-Not-Repeat check
-    checkCerebrum(wolfDir, allContent);
+    notes.push(...checkCerebrum(wolfDir, allContent));
     // 2. Bug log: search for similar past bugs when editing code
     // This fires when Claude is about to edit a file — if the edit looks like a fix
     // (changing error handling, modifying catch blocks, etc.), check the bug log
     if (filePath && (oldStr || content)) {
-        checkBugLog(wolfDir, filePath, oldStr, newStr, content);
+        const fixes = checkBugLog(wolfDir, filePath, oldStr, newStr, content);
+        notes.push(...fixes);
+        const fixCount = fixes.slice(1).filter(line => line.split("| Fix: ")[1]?.trim()).length;
+        if (fixCount)
+            recordReceipt(getProjectDir(), { agent: detectAgent(), session: input.session_id, operation: "fix-retrieved", evidence: fixes.join("\n"), count: fixCount });
     }
-    process.exit(0);
+    if (notes.length > 0) {
+        recordInjectionToSessionFile(getSessionFilePath(input), "cerebrum_buglog", notes.join("\n"), mutateJSON);
+        emitHookJSON("PreToolUse", { additionalContext: notes.join("\n") });
+    }
 }
 function checkCerebrum(wolfDir, content) {
-    const cerebrumContent = readMarkdown(path.join(wolfDir, "cerebrum.md"));
+    const cerebrumContent = approvedMemory(wolfDir, "cerebrum.md");
     const doNotRepeatSection = cerebrumContent.split("## Do-Not-Repeat")[1];
     if (!doNotRepeatSection)
-        return;
+        return [];
     const entries = doNotRepeatSection.split("## ")[0];
     const lines = entries.split("\n").filter((l) => l.trim().startsWith("[") || l.trim().startsWith("-"));
+    const warnings = [];
     for (const line of lines) {
         const trimmed = line.trim().replace(/^[-*]\s*/, "").replace(/^\[[\d-]+\]\s*/, "");
         if (!trimmed)
@@ -58,12 +72,14 @@ function checkCerebrum(wolfDir, content) {
             try {
                 const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
                 if (regex.test(content)) {
-                    process.stderr.write(`⚠️ OpenWolf cerebrum warning: "${trimmed}" — check your code before proceeding.\n`);
+                    warnings.push(`OpenWolf cerebrum warning: "${trimmed}". Check this edit against that rule before proceeding.`);
+                    break;
                 }
             }
             catch { }
         }
     }
+    return warnings.slice(0, 3);
 }
 // Common words that appear in most code — must be excluded from similarity matching
 const STOP_WORDS = new Set([
@@ -75,47 +91,61 @@ const STOP_WORDS = new Set([
     "when", "then", "else", "each", "some", "every", "only",
 ]);
 function checkBugLog(wolfDir, filePath, oldStr, newStr, content) {
-    const bugLogPath = path.join(wolfDir, "buglog.json");
+    const bugLogPath = path.join(sharedWolfDir(wolfDir), "buglog.json");
     if (!fs.existsSync(bugLogPath))
-        return;
-    const bugLog = readJSON(bugLogPath, { version: 1, bugs: [] });
+        return [];
+    const bugLog = readBugLogFile(wolfDir);
     if (bugLog.bugs.length === 0)
-        return;
+        return [];
     const basename = path.basename(filePath);
-    // ONLY surface bugs that match the SAME file being edited.
-    // Cross-file matching is too noisy and risks misdirecting Claude.
-    const fileMatches = bugLog.bugs.filter(b => {
-        const bugBasename = path.basename(b.file);
-        return bugBasename === basename;
-    });
-    if (fileMatches.length === 0)
-        return;
-    // Further filter: require tag or error_message overlap with the edit content
     const editText = (oldStr + " " + newStr + " " + content).toLowerCase();
-    const editTokens = tokenize(editText);
-    const relevant = fileMatches.filter(bug => {
-        // Check if any bug tag appears in the edit content
-        const tagHit = bug.tags.some(t => editText.includes(t.toLowerCase()));
-        if (tagHit)
-            return true;
-        // Check meaningful word overlap (excluding stop words)
-        const bugTokens = tokenize(bug.error_message + " " + bug.root_cause);
-        const overlap = [...editTokens].filter(t => bugTokens.has(t));
-        // Require at least 3 meaningful overlapping words
-        return overlap.length >= 3;
-    });
-    if (relevant.length === 0)
-        return;
-    // Surface as a FYI, not a directive — Claude should evaluate, not blindly apply
-    process.stderr.write(`📋 OpenWolf buglog: ${relevant.length} past bug(s) found for ${basename} — review for context, do NOT apply blindly:\n`);
-    for (const bug of relevant.slice(0, 2)) {
-        process.stderr.write(`   [${bug.id}] "${bug.error_message.slice(0, 70)}"\n   Cause: ${bug.root_cause.slice(0, 80)}\n   Fix: ${bug.fix.slice(0, 80)}\n`);
+    // J4: signature-keyed FTS retrieval first — finds relevant fixes across
+    // files, ranked by relevance, not just same-basename matches. Falls back to
+    // the legacy basename + overlap filter when node:sqlite is unavailable.
+    let relevant = null;
+    const ftsHits = searchBugsFTS(sharedWolfDir(wolfDir), `${basename} ${editText.slice(0, 600)}`, 4);
+    if (ftsHits !== null) {
+        // Precision gate on the recall-oriented OR-query: keep same-file hits, and
+        // cross-file hits only with a tag or 3-word overlap with the edit.
+        const editTokens = tokenize(editText);
+        relevant = ftsHits.filter((bug) => {
+            /* budget-token-patch 2026-10-29 */
+            return path.basename(bug.file ?? "") === basename;
+        });
     }
+    if (relevant === null) {
+        // Legacy path: ONLY surface bugs recorded against the SAME file.
+        const fileMatches = bugLog.bugs.filter(b => {
+            const bugBasename = path.basename(typeof b.file === "string" ? b.file : "");
+            return bugBasename === basename;
+        });
+        if (fileMatches.length === 0)
+            return [];
+        const editTokens = tokenize(editText);
+        relevant = fileMatches.filter(bug => {
+            const tagHit = (Array.isArray(bug.tags) ? bug.tags : []).some(t => editText.includes(t.toLowerCase()));
+            if (tagHit)
+                return true;
+            const bugTokens = tokenize(bug.error_message + " " + bug.root_cause);
+            const overlap = [...editTokens].filter(t => bugTokens.has(t));
+            return overlap.length >= 3;
+        });
+    }
+    if (relevant.length === 0)
+        return [];
+    // Surface as a FYI, not a directive — Claude should evaluate, not blindly apply
+    const lines = [
+        `OpenWolf buglog: ${relevant.length} past bug(s) recorded for ${basename}. Review for context; do NOT apply blindly:`,
+    ];
+    for (const bug of relevant.slice(0, 2)) {
+        lines.push(`[${bug.id}] "${bug.error_message.slice(0, 70)}" | Cause: ${bug.root_cause.slice(0, 80)} | Fix: ${bug.fix.slice(0, 80)}`);
+    }
+    return lines;
 }
 function tokenize(text) {
     return new Set(text.replace(/[^\w\s]/g, " ").split(/\s+/)
         .filter(w => w.length > 3 && !STOP_WORDS.has(w.toLowerCase()))
         .map(w => w.toLowerCase()));
 }
-main().catch(() => process.exit(0));
+hookMain("pre-write", main);
 //# sourceMappingURL=pre-write.js.map

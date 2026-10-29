@@ -1,6 +1,81 @@
+---
+description: OpenWolf's design brain — pick/migrate UI frameworks or audit/fix UI against the anti-generic design principles
+argument-hint: [migrate [framework] | audit [target] | fix [target]]
+---
+
+Arguments: $ARGUMENTS
+
+Read the **Knowledge base** at the end of this file first — it contains the **Design Principles
+(anti-generic mandate)**, the framework knowledge base, and the migration prompts.
+Use `.wolf/anatomy.md` to locate UI files instead of scanning.
+
+Pick the mode from the arguments (default: `migrate` if a framework is named or the
+user is choosing one; otherwise ask which mode they want):
+
+## Mode: migrate [framework]
+Framework selection and migration.
+1. If no framework is named, ask the Decision Questions from the Knowledge base
+   (stop early once the answer narrows to 1–2 options) and recommend one.
+2. Use that framework's prompt from the Knowledge base, adapted to this project's
+   real structure via `.wolf/anatomy.md`.
+3. The Design Principles override anything generic in the prompt: no template
+   hero→features→CTA structures, no stock palettes — distinctive by default.
+
+## Mode: audit [target]
+Walk the target (default: the whole UI) and flag every match against the AI-tell
+blocklist in the Design Principles: purple gradient heroes, glassmorphism-everything,
+emoji headings, generic 3-column feature grids, stock Tailwind palette, Inter for
+every role, template SaaS structure, filler microcopy. Produce a findings table —
+component, tell matched, severity, specific replacement direction — and end with the
+3 changes that would most increase distinctiveness.
+
+## Mode: fix [target]
+Run the audit, then fix findings in severity order. Fixes must move toward, not merely
+away: typography chosen with intent, a palette derived from the product's actual
+brand/domain, asymmetry where it serves hierarchy, copy specific to what the product
+does, density appropriate to the audience. Preserve the existing framework and
+component APIs — this is a design pass, not a rewrite. After each fix, state what
+changed and why it reads as designed-on-purpose.
+
+Acceptance criterion for every mode: **if the result could be swapped onto any other
+product without anyone noticing, it fails.**
+
+---
+
 # OpenWolf Reframe — UI Framework Knowledge Base
 
 When the user asks to change, pick, migrate, or "reframe" their UI framework, use this file to guide the conversation and generate the right migration prompt.
+
+## Design Principles — the anti-generic mandate (applies to EVERY prompt below)
+
+**Nothing you produce may look AI-generated.** The recognizable AI aesthetic is a
+failure state, no matter which framework is chosen. Apply these rules to every
+migration, every component, every page:
+
+**Never produce (the AI-tell blocklist):**
+- Purple/indigo/violet gradient heroes, or gradient text on centered headlines
+- Glassmorphism cards as the default surface; rounded-2xl + soft shadow on everything
+- ✨ 🚀 🎉 emoji in headings or feature lists
+- Generic 3-column icon–title–blurb feature grids
+- Gradient blob / mesh backgrounds and meaningless floating 3D shapes
+- The stock Tailwind palette used as-is; Inter (or system font) for every text role
+- One uniform 8px spacing rhythm with no density variation anywhere
+- The dark-purple SaaS landing template (hero → logo bar → 3 features → CTA)
+- Filler copy ("Supercharge your workflow", "Built for developers, by developers")
+
+**Always aim for:**
+- Typography chosen with intent: a deliberate pairing, optical sizes, tightened
+  tracking on display text — type does the branding work
+- A palette derived from the product's actual domain and brand, not the framework's
+  default theme
+- Asymmetry and grid-breaking where it serves hierarchy; density that matches the
+  audience (data tools can be dense; consumer pages can breathe)
+- Copy that is specific to what this product does — never template filler
+- **Distinctiveness as an acceptance criterion**: if the design could be swapped onto
+  any other product without anyone noticing, it fails review
+
+The `/reframe audit` and `/reframe fix` modes check and repair existing UI against
+these rules; run them after any migration.
 
 ## Decision Questions
 
@@ -22,8 +97,9 @@ Ask these in order. Stop early if the answer narrows to 1-2 frameworks.
 | Most free components | Origin UI (400+) |
 | Multi-framework (React + Vue + Svelte) | Park UI, DaisyUI, Flowbite |
 | AI product aesthetic | Cult UI |
-| Polished defaults + accessibility | HeroUI, Chakra UI |
+| Polished defaults + accessibility | HeroUI, Chakra UI, Astryx |
 | Business/enterprise | Flowbite, shadcn/ui |
+| Full design system + theming, agent-friendly docs | Astryx |
 
 ## Comparison Matrix
 
@@ -41,12 +117,15 @@ Ask these in order. Stop early if the answer narrows to 1-2 frameworks.
 | Origin UI | Tailwind + shadcn | Minimal | Easy (copy-paste) | Max component variety | Free |
 | Headless UI | Custom Tailwind | Custom (Transition) | Medium-Hard | Full design control | Free |
 | Cult UI | Tailwind + shadcn | Modern, subtle | Medium | AI apps, full-stack | Free |
+| Astryx | StyleX-authored; override with anything | Built-in, subtle | Easy (npm, no build plugin) | Design-system apps, agent-assisted teams | Free (MIT) |
 
 ---
 
 ## Framework Prompts
 
 After the user selects a framework, use the corresponding prompt below. **Adapt it to the user's actual project** — replace generic references with their real file structure, existing routes, and components from `.wolf/anatomy.md`.
+
+**The Design Principles section overrides anything generic in these prompts.** Where a prompt sketches a template structure (3-column feature grids, logo clouds, hero→features→CTA ordering), treat it as a checklist of *content to cover*, not a layout to copy — the layout must pass the distinctiveness criterion.
 
 ---
 
@@ -594,4 +673,52 @@ CODE QUALITY:
 - TypeScript strict mode throughout
 - Accessible interactive components
 - Production-ready architecture patterns
+```
+
+---
+
+### Astryx
+
+**Stack:** React, StyleX-authored components (no styling lock-in — override with Tailwind, CSS modules, or plain CSS)
+**Install:** `npm install @astryxdesign/core` + a theme package (`@astryxdesign/theme-*`); optional `@astryxdesign/cli`
+**Site:** astryx.atmeta.com · github.com/facebook/astryx (MIT, beta)
+
+Meta's open design system: 160+ accessible, themeable React components, pre-built CSS
+(no build plugin or PostCSS required), CSS-custom-property theming with seven ready
+themes and dark mode built in. Two features matter for OpenWolf projects: component
+**swizzling** (eject any component's source into the project for full control) and
+**agent-ready docs** via the CLI/MCP — the docs are designed to be consumed by coding
+agents, so migrations stay accurate.
+
+```
+Migrate this project's UI to Astryx (@astryxdesign/core).
+
+SETUP:
+- Install @astryxdesign/core and one theme package; wire the theme at the app root
+- No build plugin/PostCSS needed — components ship with pre-built CSS
+- If the Astryx CLI is available, use its agent-ready docs (CLI or MCP) as the
+  source of truth for component APIs instead of guessing props
+
+ARCHITECTURE:
+- Replace bespoke primitives (buttons, inputs, dialogs, badges, switches) with
+  Astryx components; keep app-specific composites as wrappers over Astryx parts
+- Theme via CSS custom properties: generate a theme with the CLI or extend a
+  ready-made one — derive tokens from the product's actual brand, never ship the
+  default theme unmodified (see Design Principles above)
+- Use swizzling only where a component must diverge structurally; prefer theming
+  and composition first
+- Dark mode through Astryx's built-in scheme switching; verify every migrated
+  screen in both schemes
+
+MIGRATION ORDER:
+1. Theme tokens (colors, type scale, spacing) mapped from the existing design
+2. Leaf primitives (Button, Input, Badge, Switch, Checkbox)
+3. Composites (forms, dialogs, menus, tables)
+4. Page templates — check Astryx's production templates before rebuilding a page
+   from scratch, then de-genericize per the Design Principles
+
+CODE QUALITY:
+- Keep existing component APIs stable where consumers depend on them (wrap, don't break)
+- TypeScript throughout; Astryx components are fully typed
+- Accessibility is built in — don't undo it with overrides; test keyboard paths
 ```

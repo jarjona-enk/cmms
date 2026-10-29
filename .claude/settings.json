@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/session-start.js\"",
-            "timeout": 5
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/session-start.js\"",
+            "timeout": 15
           }
         ]
       }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/pre-read.js\"",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/pre-read.js\"",
             "timeout": 5
           }
         ]
@@ -28,7 +28,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/pre-write.js\"",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/pre-write.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/pre-bash.js\"",
             "timeout": 5
           }
         ]
@@ -40,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/post-read.js\"",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/post-read.js\"",
             "timeout": 5
           }
         ]
@@ -50,7 +60,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/post-write.js\"",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/post-write.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/post-bash.js\"",
             "timeout": 10
           }
         ]
@@ -62,11 +82,63 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.wolf/hooks/stop.js\"",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/stop.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/user-prompt-submit.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/post-batch.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/precompact.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/data/src/cmms/.wolf/hooks/session-end.js\"",
             "timeout": 10
           }
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node \"C:/data/src/cmms/.wolf/hooks/visibility-statusline.js\""
   }
 }
