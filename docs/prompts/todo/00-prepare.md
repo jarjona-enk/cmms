@@ -57,4 +57,4 @@ Do not start Phase 1.
 ## Cost
 
 - Planning: 2026-10-29 alignment session (Opus 5.5), recorded in `docs/prompts/done/URGENT-TODO.md`.
-- Implementation: to be filled (tokens in / out / cache read / cache write, cost in USD).
+- Implementation: to be filled by the coordinator (tokens in / out / cache read / cache write, cost in USD).

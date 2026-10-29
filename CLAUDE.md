@@ -62,13 +62,17 @@ data loss and exposes no data, secret or information outside the organization.
 
 This repo is an Enerkem-internal fork of the open-source Atlas CMMS project
 (`Grashjs/cmms`, AGPLv3). Our modifications are documented in
-DEVELOPMENT-STATUS.md and stay ours: **nothing here is ever contributed
-upstream.**
+DEVELOPMENT-STATUS.md and stay ours: **nothing here is contributed
+upstream, with one sanctioned exception: the Azure Blob Storage backend**, via
+the owner's fork `jarjona-enk/cmms`, under AGPLv3 (see ENERKEM-PLAN.md). SSO,
+licensing, packaging and every other Enerkem change stay private. Once upstream
+releases the Azure backend and we merge it back, the fork is retired.
 
 | remote | URL | use |
 |---|---|---|
 | `origin` | Azure DevOps `EnerkemIT/New Services Implementations/cmms` | ours; push here |
 | `upstream` | `https://github.com/Grashjs/cmms.git` | fetch only; push URL is `DISABLED` |
+| `fork` | `git@github.com:jarjona-enk/cmms.git` | owner's GitHub fork for the Azure Blob PR; `contrib/*` only; the owner pushes |
 
 **Branch model (decided by the owner, 2026-09-15):**
 
@@ -81,7 +85,9 @@ upstream.**
 
 1. **Never push to `upstream`.** Its push URL is deliberately set to the
    literal string `DISABLED` so any attempt fails loudly. Do not repair it.
-2. **Never open a PR, issue, or patch against `Grashjs/cmms`.**
+2. **Never open a PR, issue, or patch against `Grashjs/cmms`** — the only
+   exception is the owner's Azure Blob PR (ENERKEM-PLAN.md), which the owner
+   opens; sessions never do.
 3. **Never commit on `main`.** It must stay byte-identical to `upstream/main`.
    If `git status` says you are on `main`, `git switch enerkem` first. Refresh
    it with `git switch main && git pull` (it tracks `upstream/main`), then push
@@ -90,6 +96,10 @@ upstream.**
    the Azure DevOps default branch. Its tracking branch is `origin/enerkem`.
 5. Never commit `dev.env`, a `LICENSE_KEY`, an Entra client secret, or
    anything from `dist/`. `dev.env` and `dist/` are gitignored — keep them so.
+6. **All development and testing is local.** No session touches production or
+   Azure resources, pushes to any remote (`origin` or `fork`), or creates tags;
+   the owner does that. Sessions commit locally and hand over the exact
+   commands.
 
 History: until 2026-09-15 our line *was* `main`. It was renamed to `enerkem`
 (same commits, same history) and `main` was reset to `upstream/main`. Anything

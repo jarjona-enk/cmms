@@ -24,7 +24,7 @@ Run each phase only on Juan's okay, in a clean context, on the model named; the 
 
 | phase | prompt | model, effort | status |
 |---|---|---|---|
-| 0 | [prepare: policy into CLAUDE.md, pre-flight](docs/prompts/todo/00-prepare.md) | Sonnet 5.5, low | todo |
+| 0 | [prepare: policy into CLAUDE.md, pre-flight](docs/prompts/todo/00-prepare.md) | Sonnet 5.5, low | done (awaiting Juan's acceptance). Pre-flight 2026-10-29: PASS remotes (origin/upstream DISABLED/fork), ls-remote fork, dump present, C: 203 GB free, JDK 17, api.version=1.44, Postgres 5432. **FAIL: `_ping` on :2375 gives no answer; `cmms-minio` and `cmms-mailhog` not running.** Both are Phase 1 blockers for Juan (DEVELOPMENT-STATUS 12.27) |
 | 1 | [merge upstream v1.9.0 into `enerkem`](docs/prompts/todo/01-merge-upstream-v1.9.0.md) | Opus 5.5, high | todo |
 | 2 | [test v1.9.0 locally, land it, hand over the tag](docs/prompts/todo/02-test-land-v1.9.0.md) | Sonnet 5.5, medium | todo |
 | 3 | [isolate the Azure Blob implementation on `enerkem`](docs/prompts/todo/03-isolate-azure-blob.md) | Sonnet 5.5, high | todo |

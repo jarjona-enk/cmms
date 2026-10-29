@@ -1861,6 +1861,68 @@ the pipe. Owner's call (it exposes the daemon to localhost without auth).
    via Testcontainers): real upload → exists → download → SAS → overwrite.
    Needs the Docker fix above; tagged so it is skipped when Docker is absent.
 
+### 12.27 Policy decisions for the v1.9.0 / Azure contribution work (2026-10-19, amended 2026-10-29)
+
+Copied verbatim from ENERKEM-PLAN.md (sections "Directive" and "Decisions taken").
+CLAUDE.md §1 was amended by Phase 0 accordingly (fork exception, `fork` remote,
+rule 2 exception, new rule 6).
+
+#### Directive for this whole exercise — LOCAL ONLY
+
+> "All the work must be done locally. We don't touch production ever without me
+> tagging and pushing."
+
+- **No session touches production or any Azure resource** — not the web app,
+  not its settings or logging, not the production database (no reads either),
+  not the storage account, not the pipeline. No `az` commands. If a phase seems
+  to need production, stop and report instead.
+- **No session pushes to any remote (`origin` or `fork`) or creates tags**
+  (amended 2026-10-29: the `fork` push is the owner's too). Sessions commit
+  locally and end with the exact `git push` / `git tag` commands for the owner,
+  and the list of branches not yet on `origin`. The owner deploys by tagging;
+  the owner verifies production.
+- Never push to `upstream` (push URL is `DISABLED`); never commit on `main`;
+  never delete a branch.
+- Local resources a session MAY use freely: the local Postgres (`atlas`
+  database — wipe and restore at will after dumping), Docker Desktop and local
+  containers (`cmms-minio`, `cmms-mailhog`, Azurite), ports 8080/8085/1025/
+  8025/9000/10000, the scratchpad. Never kill a process the session did not
+  start (another project's java often sits on 8080).
+
+#### Decisions taken — the phases assume these
+
+| topic | decision |
+|---|---|
+| Frontend dependencies in the v1.9.0 merge | **Take upstream's `package.json` and `package-lock.json` as-is.** Our August within-major refresh is dropped; it was housekeeping. `npm ci`, never `npm install`. |
+| Conflicts not covered by the standing rules | **Prefer upstream, log the choice in DEVELOPMENT-STATUS, continue.** Stop only if the conflict touches SSO, mail, AGPL/source-code, or Enerkem packaging (Dockerfile, startup.sh, pipeline, `.azure/`). |
+| Test database | **Local only.** The local `atlas` database is a **copy of production** restored by the owner on 2026-10-19 (806 changesets, 7 users, 2 companies, 18 assets). Baseline dump: `atlas_backups\atlas-prodcopy-1.8.0-20261019.dump`. Phase 2 tests the fresh install on an empty `public` schema and the upgrade on this copy. Sessions never connect to the real production server. |
+| Integration tests | Two things make Testcontainers work on Docker Desktop 29 (both in place 2026-10-19, verified): the daemon exposed on **tcp://localhost:2375** and **`api.version=1.44` in `%USERPROFILE%\.docker-java.properties`** — Docker 29 answers HTTP 400 to any API path below v1.40 and docker-java negotiates an older one by default (that 400 is the "Could not find a valid Docker environment" everyone sees). Sessions run tests with `DOCKER_HOST=tcp://localhost:2375`. If `curl http://localhost:2375/_ping` is not `200` or the properties file is missing, stop and ask. |
+| SSO check in Phase 2 | **Port 8080 required** (the registered local redirect URI). If 8080 is busy, stop and ask; never kill the other process. |
+| Pushes and tags | **Owner only** — `origin` and `fork` alike (2026-10-29). Sessions hand over commands. |
+| Branches | **Never deleted**, `merge/upstream-*` and `contrib/*` included; every branch ends up on `origin`, `contrib/azure-blob-storage` too (2026-10-29). |
+| Upstream PR | Phase 4 prepares `contrib/azure-blob-storage` from the latest `upstream/main`; **owner pushes it to `fork` and `origin` and opens the issue and the PR in the browser** (no `gh`). |
+| GitHub identity | Fork `jarjona-enk/cmms`; remote `fork` = `git@github.com:jarjona-enk/cmms.git`; SSH key `~/.ssh/jarjona-enk` via `~/.ssh/config`. PR commits authored **`Juan F Arjona - Enerkem Inc <jarjona@enerkem.com>`** (set per command with `git -c user.name=... -c user.email=...` on `contrib/*` only), **no `LLM:` line** (2026-10-29). `jarjona@enerkem.com` must be a verified e-mail on the `jarjona-enk` account for attribution. |
+| Tests and security review | Our code only (CLAUDE.md "When coding software"). Phase 1 unit-tests the new `uploadAt`/`exists` and security-reviews the SSO and storage resolutions, so `release/1.9.0-enerkem.1` ships tested; Phase 3 completes the Azure tests (Azurite) and reviews SAS / managed identity; Phase 4 does a leak review (2026-10-29). |
+| Licensing | Contributions go out under AGPLv3; upstream has no CLA. If maintainers ask for a CLA or relicensing grant, stop and bring it to the owner. |
+| End state | After Phase 5 the fork is retired: the owner deletes `jarjona-enk/cmms` and the `fork` remote; CLAUDE.md drops the exception (2026-10-29). |
+
+#### Phase 0 pre-flight results (2026-10-29, read-only, nothing fixed)
+
+| check | result | observed |
+|---|---|---|
+| `git remote -v` | PASS | `origin`, `upstream` (push `DISABLED`), `fork` (git@github.com:jarjona-enk/cmms.git) |
+| `git ls-remote fork` | PASS | HEAD e321349e, refs/heads/main |
+| `atlas_backups\` dump | PASS | `atlas-prodcopy-1.8.0-20261019.dump`, 431954 bytes |
+| free space on C: | PASS | 203 GB free (needs >= 10 GB) |
+| `C:\java\jdk-17` | PASS | exists |
+| `curl http://localhost:2375/_ping` | **FAIL** | HTTP code 000 (no answer on TCP 2375) |
+| `.docker-java.properties` `api.version=1.44` | PASS | line 1 |
+| `docker ps` lists `cmms-minio`, `cmms-mailhog` | **FAIL** | `docker ps` answers but lists no running containers |
+| Postgres on `localhost:5432` | PASS | accepting connections |
+
+Blockers for Phase 1 (Juan resolves): Docker daemon not exposed on tcp://localhost:2375,
+and `cmms-minio` / `cmms-mailhog` not running.
+
 ### 12.28 Pre-flight for the v1.9.0 / Azure-contribution work (2026-10-19)
 
 Owner decisions are all in `ENERKEM-PLAN.md` (Directive, Decisions, Facts);
