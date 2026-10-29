@@ -9,6 +9,53 @@ Maintain the status of this project and the software development on
 DEVELOPMENT-STATUS.md. Always read it when you start and write all decisions,
 changes, architecture changes, etc.
 
+# Rules
+
+- **Never delete a branch**, local or remote, merged or not — `merge/upstream-*`
+  and `contrib/*` included. Every branch must end up on **`origin`** (never on
+  `upstream`): Juan pushes, Claude never pushes; at each hand-off, list the
+  branches not yet on `origin` (Juan, 2026-10-29).
+- **Commit messages:** no `Co-Authored-By` line. End with one line naming the
+  model used, e.g. `LLM: Claude Opus 5.5`. Exception: `contrib/*` commits sent
+  upstream through `fork` carry no `LLM:` line; they follow the upstream-PR
+  authorship rule in ENERKEM-PLAN.md (Juan, 2026-10-29).
+- The roadmap is **ENERKEM-PLAN.md** (living plan); each step is a prompt in
+  `docs/prompts/todo/`.
+
+# When coding software (MANDATORY)
+
+**Scope in this fork:** these rules apply to **our code only** — new Enerkem
+files and the lines we change in upstream files. Never retrofit upstream code:
+it adds conflicts on every merge (§2 "Keep the conflict surface small" rules).
+
+**Logging and error catching.** Every exception produces a log entry, with the
+throwable and context (what failed + key ids; never secrets). Never swallow an
+exception: each `catch` logs or rethrows to a layer that logs.
+
+**Configuration and secrets.** Configuration is env-var driven, never
+hardcoded. Never commit a secret; warn Juan if one is committed; keep local
+secret files (`dev.env`, `prod.env`) git-ignored. The committed, non-secret
+`.azure/env/prod.env` is **compliant**: its values are pushed as app settings
+and read as env vars (§2b).
+
+**Planning.** Only small fixes and changes are done on the fly. Everything
+else is planned as a prompt in `docs/prompts/todo/`, iterated with Juan until
+every question is resolved (never assume, ask). Each prompt has: a first line
+with the most cost-efficient model + effort; self-sufficient pointers; a "QA and
+acceptance" section; a final "Cost" section (tokens in/out/cache, cost), kept
+up to date. Implementation starts only on Juan's okay, by an agent with a clean
+context on that model/effort. When Juan accepts the result, move the prompt to
+`docs/prompts/done/` and commit. DEVELOPMENT-STATUS.md keeps recording every
+decision and change.
+
+**Implementation.** Our code has unit tests and javadoc (or equivalent).
+
+**Test and security review.** Where our code permits network access, executes
+authentication, or defines roles and access rights (SSO, storage/SAS, mail,
+permits): before closing, review it for vulnerabilities, attack vectors and
+side effects granting unintended permissions. Test/review that it causes no
+data loss and exposes no data, secret or information outside the organization.
+
 ---
 
 ## 1. This is a downstream fork. Read this before any git operation.
@@ -72,18 +119,17 @@ git switch main && git pull                 # main tracks upstream/main
 git fetch upstream --tags
 git push origin main                        # keep origin's mirror current
 
-# 2. merge ONE release tag into our line, on a throwaway branch
+# 2. merge ONE release tag into our line, on a merge branch (kept, never deleted)
 git switch enerkem
 git switch -c merge/upstream-v1.9.0 enerkem
 git merge v1.9.0            # resolve, then build and smoke-test before merging on
 echo 1.9.0 > UPSTREAM_VERSION   # REQUIRED, in the same merge - see below
 git commit                  # completes the merge commit
 git switch enerkem && git merge --no-ff merge/upstream-v1.9.0
-git branch -d merge/upstream-v1.9.0
 
-# 3. our changes, if any, then release - all on enerkem
+# 3. our changes, if any, then release - all on enerkem (owner tags and pushes)
 git tag release/1.9.0-enerkem.1
-git push origin enerkem release/1.9.0-enerkem.1
+git push origin enerkem merge/upstream-v1.9.0 release/1.9.0-enerkem.1
 ```
 
 Always `merge`, never `rebase`. Rebasing replays our commits over theirs and

@@ -1897,3 +1897,22 @@ this records what the pre-flight established so the run can start cold.
   `~/.m2` is 21 GB; Docker reports ~2.8 GB reclaimable.
 - Untracked `.mcp.json` (owner's NextJS MCP config, 2026-10-08) left alone.
 
+
+### 12.29 Way of working aligned with the shared principles; living plan (2026-10-29)
+
+- **CLAUDE.md** gains "Rules" (never delete branches, every branch on `origin`, Juan pushes; commits end with
+  `LLM: Claude <model>`, no `Co-Authored-By`, except upstream `contrib/*` commits) and "When coding software"
+  (logging, env-var config and secrets, planning as prompts in `docs/prompts/todo/`, tests/javadoc, security review),
+  applied to **our code only**. §2's procedure no longer deletes the merge branch. All §1-§3 principles unchanged.
+- **ENERKEM-PLAN.md** rewritten as the living plan. Objective (Juan): contribute the Azure Blob backend upstream
+  without exposing any other Enerkem change; v1.9.0 into `enerkem` first; Azure code developed on `enerkem` and copied
+  verbatim to a PR branch built on the latest `upstream/main` (only that branch); after upstream releases it and we
+  merge back, the fork is retired.
+- Old Prompts 0-5 became phase files `docs/prompts/todo/00..05-*.md`, models re-assessed (0 Sonnet 5.5 low, 1 Opus 5.5
+  high, 2 Sonnet 5.5 medium, 3 Sonnet 5.5 high, 4 Sonnet 5.5 medium, 5 Opus 5.5 high). Changes vs the 2026-10-19
+  text: no branch deletion; sessions never push, `fork` included (Juan pushes `contrib/azure-blob-storage` to `fork`
+  and `origin`); no `LLM:` line on the upstream commit; one phase at a time on Juan's okay (no coordinator chain);
+  Phase 1 unit-tests `uploadAt`/`exists` and security-reviews SSO/storage; Phases 3-5 get review items; Phase 5 retires
+  the fork.
+- **Found:** old Prompt 0 was never executed (no rule 6, no `fork` row, no §12.27). It is now Phase 0, to run first.
+- Plan record: `docs/prompts/done/URGENT-TODO.md`.
